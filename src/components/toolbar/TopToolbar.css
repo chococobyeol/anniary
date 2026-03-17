@@ -1,0 +1,81 @@
+.top-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--toolbar-height);
+  background: var(--bg-toolbar);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 100;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-year {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.toolbar-zoom {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-cell);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 2px;
+}
+
+.toolbar-mode-btn {
+  width: 32px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background var(--transition-fast);
+}
+
+.toolbar-mode-btn:hover {
+  background: var(--bg-cell-hover);
+}
+
+.toolbar-mode-btn.active {
+  background: var(--bg-cell-selected);
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  width: 32px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background var(--transition-fast);
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-cell-hover);
+}

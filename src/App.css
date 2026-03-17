@@ -1,0 +1,14 @@
+.app-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-board-area {
+  flex: 1;
+  margin-top: var(--toolbar-height);
+  margin-left: var(--icon-bar-width);
+  display: flex;
+  overflow: hidden;
+}

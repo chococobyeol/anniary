@@ -1,0 +1,34 @@
+.left-icon-bar {
+  position: fixed;
+  left: 0;
+  top: var(--toolbar-height);
+  bottom: 0;
+  width: var(--icon-bar-width);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  gap: 4px;
+  z-index: 90;
+}
+
+.icon-bar-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background var(--transition-fast);
+}
+
+.icon-bar-btn:hover {
+  background: var(--bg-cell-hover);
+}
+
+.icon-bar-btn.active {
+  background: var(--bg-cell-selected);
+}

@@ -1,0 +1,21 @@
+.year-board-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-board);
+  touch-action: none;
+  user-select: none;
+}
+
+.year-board-svg {
+  display: block;
+}
+
+.year-board-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--font-size-lg);
+}
