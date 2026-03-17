@@ -20,5 +20,6 @@ export const BASE_CELL_WIDTH = 28
 export const BASE_CELL_HEIGHT = 22
 export const MONTH_HEADER_WIDTH = 48
 export const MONTH_GAP = 4
+export const DAY_HEADER_HEIGHT = 14
 export const MIN_SCALE = 0.3
 export const MAX_SCALE = 8

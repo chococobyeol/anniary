@@ -1,4 +1,6 @@
 import { useBoardStore } from '../../store/board-store'
+import { IconX } from '../icons/Icons'
+import { SettingsPanel } from './SettingsPanel'
 import './RightPanel.css'
 
 export function RightPanel() {
@@ -12,10 +14,16 @@ export function RightPanel() {
     <div className="right-panel">
       <div className="right-panel-header">
         <span className="right-panel-title">{rightMode}</span>
-        <button className="right-panel-close" onClick={() => toggleRightPanel()}>×</button>
+        <button className="right-panel-close" onClick={() => toggleRightPanel()}>
+          <IconX size={16} />
+        </button>
       </div>
       <div className="right-panel-content">
-        <div className="panel-placeholder">{rightMode} panel</div>
+        {rightMode === 'settings' ? (
+          <SettingsPanel />
+        ) : (
+          <div className="panel-placeholder">{rightMode} panel</div>
+        )}
       </div>
     </div>
   )

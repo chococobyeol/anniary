@@ -1,12 +1,15 @@
+import { useCallback } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import type { InteractionMode } from '../../types/state'
+import { fitToScreenRef } from '../board/YearBoard'
+import { IconMove, IconCursor, IconPencil, IconPin, IconSettings, IconMaximize } from '../icons/Icons'
 import './TopToolbar.css'
 
-const MODES: { mode: InteractionMode; label: string; icon: string }[] = [
-  { mode: 'pan', label: 'Pan', icon: '✋' },
-  { mode: 'select', label: 'Select', icon: '⬚' },
-  { mode: 'draw', label: 'Draw', icon: '✏' },
-  { mode: 'place', label: 'Place', icon: '⭐' },
+const MODES: { mode: InteractionMode; label: string; Icon: typeof IconMove }[] = [
+  { mode: 'pan', label: 'Pan', Icon: IconMove },
+  { mode: 'select', label: 'Select', Icon: IconCursor },
+  { mode: 'draw', label: 'Draw', Icon: IconPencil },
+  { mode: 'place', label: 'Place', Icon: IconPin },
 ]
 
 export function TopToolbar() {
@@ -21,6 +24,10 @@ export function TopToolbar() {
 
   const year = boardState?.board.year || new Date().getFullYear()
   const zoomPercent = Math.round(view.scale * 100)
+
+  const handleResetView = useCallback(() => {
+    fitToScreenRef.current?.()
+  }, [])
 
   return (
     <div className="top-toolbar">
@@ -37,9 +44,17 @@ export function TopToolbar() {
             onClick={() => setInteractionMode(m.mode)}
             title={m.label}
           >
-            {m.icon}
+            <m.Icon size={16} />
           </button>
         ))}
+        <div className="toolbar-divider" />
+        <button
+          className="toolbar-mode-btn"
+          onClick={handleResetView}
+          title="Fit to screen"
+        >
+          <IconMaximize size={16} />
+        </button>
       </div>
 
       <div className="toolbar-right">
@@ -48,7 +63,7 @@ export function TopToolbar() {
           onClick={() => toggleRightPanel('settings')}
           title="Settings"
         >
-          ⚙
+          <IconSettings size={16} />
         </button>
       </div>
     </div>

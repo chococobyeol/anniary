@@ -57,6 +57,13 @@ export type BoardState = {
   assets: Record<string, AssetEntity>
 }
 
+export type DayLayout = 'linear' | 'weekday-aligned'
+
+export type AppSettings = {
+  dayLayout: DayLayout
+  zoomInverted: boolean
+}
+
 export type AppState = {
   activeBoardId: string | null
   boards: Record<string, BoardState>
@@ -64,5 +71,6 @@ export type AppState = {
   panel: PanelState
   interactionMode: InteractionMode
   selection: SelectionTarget | null
+  settings: AppSettings
   dirty: boolean
 }

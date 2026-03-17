@@ -90,6 +90,41 @@
 - [x] ESC로 전체 패널 닫기
 - [x] 앱 시작 시 자동 보드 생성 (현재 연도)
 
+### v1.1 패치 (2026-03-17)
+- [x] 뷰 초기화(Fit to screen) 버튼 추가 — 상단 툴바에 모드 그룹 옆 배치
+- [x] 첫 진입 시 전체 달력이 화면에 맞도록 자동 fit (resetView)
+- [x] 요일 표시 헤더 (DayOfWeekHeader) — 보드 상단에 S/M/T/W/T/F/S, 일요일 빨강, 토요일 파랑
+- [x] 모든 아이콘을 이모지 → SVG 벡터 아이콘으로 교체 (Icons.tsx, 17개 아이콘)
+- [x] 한글(macOS) 이중 입력 버그 수정 — `isComposing` 체크 적용
+- [x] 메모 입력 개선 — 크기 조절 가능한 textarea, 마크다운 힌트, Enter/Shift+Enter 구분
+- [x] Backlog item에 body(메모) 필드 지원
+
+### v1.2 패치 (2026-03-17)
+- [x] **wheel passive listener 수정** — React `onWheel`(passive) → `useEffect` + `addEventListener({ passive: false })`로 변경. 스크롤/줌 시 렉 제거.
+- [x] **팬 아이콘 수정** — 복잡한 Hand SVG → 단순 Move(십자 화살표) 아이콘으로 교체. `IconMove` 추가.
+- [x] **요일 표시 완전 재설계** — 공유 헤더(1월 기준) 방식 폐기 → 각 셀에 실제 요일 표시. `DayCellViewModel`에 `dayOfWeek`, `dayOfWeekLabel`, `isWeekend` 추가. `DayOfWeekHeader.tsx` 삭제.
+- [x] **주말 시각 구분** — 주말 셀 배경색(`--bg-cell-weekend`), 일요일/토요일 날짜 숫자 색상 구분
+- [x] **백로그 done 아이템 관리** — done 상태 아이템이 즉시 사라지지 않고 "완료됨" 접이식 섹션에 표시
+- [x] **백로그 긴 내용 확장** — 아이템 클릭 시 전체 body 내용 펼침/접기 (expand/collapse)
+- [x] **아이콘 추가** — `IconChevronDown`, `IconChevronUp`, `IconCheck` 추가 (총 20개)
+
+### v1.3 패치 (2026-03-17)
+- [x] **setState-during-render 버그 수정** — `useBoardStore.setState()` 렌더 중 호출 → module-level `fitToScreenRef` 방식으로 변경. 무한 재렌더링 루프 및 렉 완전 제거.
+- [x] **줌 기능 정상화** — 위 버그가 원인. 재렌더링 폭풍이 wheel 핸들러를 무력화했음. setState 제거 후 Ctrl/Cmd+wheel 줌 정상 동작.
+- [x] **상태 토글 1클릭** — 기존 3단계(none→in-progress→done) 순환에서 1클릭 토글(none↔done)로 변경.
+
+### v1.4 패치 (2026-03-17)
+- [x] **wheel 리스너 미등록 수정** — early return으로 containerRef가 null인 상태에서 useEffect 실행 → 리스너 미등록. container div를 항상 렌더하도록 수정.
+
+### v1.5 기능 추가 (2026-03-17)
+- [x] **요일 표시 2가지 모드** — `linear`(셀 내 요일 표시) + `weekday-aligned`(상단 헤더 + 요일별 열 정렬). 설정에서 전환 가능.
+- [x] **요일 3글자** — S/M/T/W/T/F/S → SUN/MON/TUE/WED/THU/FRI/SAT
+- [x] **줌 방향 설정** — 기본값: 휠 아래=확대. `zoomInverted` 설정으로 반전 가능.
+- [x] **설정 패널 구현** — 우측 패널 settings 모드에 레이아웃/줌 설정 UI 추가. 토글 스위치, 셀렉트 박스.
+- [x] **AppSettings 타입** — `dayLayout: 'linear' | 'weekday-aligned'`, `zoomInverted: boolean` 추가.
+- [x] **WeekdayHeader 컴포넌트** — weekday-aligned 모드용 상단 요일 헤더. 열 수는 해당 연도 기준 동적 계산.
+- [x] **레이아웃 전환 시 자동 fitToScreen** — dayLayout 변경 시 보드를 화면에 맞춤.
+
 ---
 
 ## 미구현 항목 (다음 작업 순서)
@@ -202,8 +237,11 @@ src/
     ├── board/
     │   ├── YearBoard.tsx        # 메인 보드
     │   ├── YearBoard.css
-    │   ├── MonthRow.tsx         # 월별 행
-    │   └── DayCell.tsx          # 날짜 셀
+    │   ├── MonthRow.tsx         # 월별 행 (linear/aligned 레이아웃 지원)
+    │   ├── DayCell.tsx          # 날짜 셀 (요일 표시 포함)
+    │   └── WeekdayHeader.tsx    # weekday-aligned 모드 상단 요일 헤더
+    ├── icons/
+    │   └── Icons.tsx            # SVG 벡터 아이콘 모음
     ├── toolbar/
     │   ├── TopToolbar.tsx       # 상단 도구 모음
     │   └── TopToolbar.css
@@ -216,7 +254,9 @@ src/
         ├── BacklogPanel.css
         ├── DetailPanel.tsx      # 상세 패널
         ├── RightPanel.tsx       # 우측 시스템 패널
-        └── RightPanel.css
+        ├── RightPanel.css
+        ├── SettingsPanel.tsx    # 설정 패널 (레이아웃/줌 설정)
+        └── SettingsPanel.css
 ```
 
 ---

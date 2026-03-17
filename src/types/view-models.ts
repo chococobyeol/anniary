@@ -17,6 +17,9 @@ export type DayCellViewModel = {
   dateKey: string
   dayNumber: number
   monthIndex: number
+  dayOfWeek: number
+  dayOfWeekLabel: string
+  isWeekend: boolean
   isToday: boolean
   primaryStatus: string
   progressPercent?: number

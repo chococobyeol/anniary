@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type {
   AppState,
+  AppSettings,
   BoardState,
+  DayLayout,
   InteractionMode,
   LeftPanelMode,
   RightPanelMode,
@@ -23,27 +25,26 @@ import type {
   OverlayAnchorType,
 } from '../types/entities'
 import { generateId, now } from '../utils/id'
-import { getZoomLevel, BASE_CELL_WIDTH } from '../utils/zoom'
+import { getZoomLevel, BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT, MAX_SCALE } from '../utils/zoom'
+import { getMaxColumnsForYear } from '../utils/date'
 
 type Actions = {
-  // Board
   createBoard: (year: number, title?: string) => string
   setActiveBoard: (boardId: string) => void
 
-  // View
   setView: (view: Partial<ViewState>) => void
   updateZoomLevel: () => void
+  resetView: (containerWidth: number, containerHeight: number) => void
 
-  // Panel
   toggleLeftPanel: (mode?: LeftPanelMode) => void
   toggleRightPanel: (mode?: RightPanelMode) => void
   closeAllPanels: () => void
 
-  // Interaction
   setInteractionMode: (mode: InteractionMode) => void
   setSelection: (target: SelectionTarget | null) => void
 
-  // Item commands
+  updateSettings: (patch: Partial<AppSettings>) => void
+
   createItem: (boardId: string, kind: ItemKind, opts?: {
     title?: string; body?: string; date?: string; rangeId?: string;
     status?: ItemStatus; progress?: number; pinned?: boolean
@@ -51,14 +52,12 @@ type Actions = {
   updateItem: (itemId: string, patch: Partial<ItemEntity>) => void
   deleteItem: (itemId: string) => void
 
-  // Range commands
   createRange: (boardId: string, kind: RangeKind, startDate: string, endDate: string, opts?: {
     label?: string; body?: string; status?: RangeStatus; color?: string
   }) => string
   updateRange: (rangeId: string, patch: Partial<RangeEntity>) => void
   deleteRange: (rangeId: string) => void
 
-  // Overlay commands
   createOverlay: (boardId: string, type: OverlayType, role: OverlayRole, x: number, y: number, w: number, h: number, opts?: {
     opacity?: number; locked?: boolean; anchorType?: OverlayAnchorType; text?: string; assetId?: string
   }) => string
@@ -73,6 +72,7 @@ const initialState: AppState = {
   panel: { leftOpen: false, leftMode: 'backlog', rightOpen: false, rightMode: 'settings' },
   interactionMode: 'pan',
   selection: null,
+  settings: { dayLayout: 'linear', zoomInverted: false },
   dirty: false,
 }
 
@@ -85,6 +85,15 @@ function findBoardForEntity(
     if (entityId in bs[entityType]) return boardId
   }
   return null
+}
+
+function getBoardColumns(state: AppState): number {
+  if (state.settings.dayLayout === 'linear') return 31
+  const boardId = state.activeBoardId
+  if (!boardId) return 37
+  const bs = state.boards[boardId]
+  if (!bs) return 37
+  return getMaxColumnsForYear(bs.board.year)
 }
 
 export const useBoardStore = create<AppState & Actions>()((set, get) => ({
@@ -118,6 +127,25 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     }
   },
 
+  resetView: (containerWidth, containerHeight) => {
+    const state = get()
+    const cols = getBoardColumns(state)
+    const headerH = state.settings.dayLayout === 'weekday-aligned' ? DAY_HEADER_HEIGHT : 0
+    const boardWidth = MONTH_HEADER_WIDTH + cols * (BASE_CELL_WIDTH + 1)
+    const boardHeight = headerH + 12 * (BASE_CELL_HEIGHT + MONTH_GAP)
+    const padX = 16
+    const padY = 16
+    const scaleX = (containerWidth - padX * 2) / boardWidth
+    const scaleY = (containerHeight - padY * 2) / boardHeight
+    const scale = Math.min(scaleX, scaleY, MAX_SCALE)
+    const scaledW = boardWidth * scale
+    const scaledH = boardHeight * scale
+    const translateX = (containerWidth - scaledW) / 2
+    const translateY = (containerHeight - scaledH) / 2
+    const zoomLevel = getZoomLevel(BASE_CELL_WIDTH * scale)
+    set({ view: { scale, translateX, translateY, zoomLevel } })
+  },
+
   toggleLeftPanel: (mode) => set(s => {
     if (mode && s.panel.leftOpen && s.panel.leftMode === mode) {
       return { panel: { ...s.panel, leftOpen: false } }
@@ -137,10 +165,12 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
   })),
 
   setInteractionMode: (mode) => set({ interactionMode: mode }),
-
   setSelection: (target) => set({ selection: target }),
 
-  // Item
+  updateSettings: (patch) => set(s => ({
+    settings: { ...s.settings, ...patch },
+  })),
+
   createItem: (boardId, kind, opts) => {
     const id = generateId()
     const item: ItemEntity = {
@@ -185,7 +215,6 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     }
   }),
 
-  // Range
   createRange: (boardId, kind, startDate, endDate, opts) => {
     const id = generateId()
     const range: RangeEntity = {
@@ -229,7 +258,6 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     }
   }),
 
-  // Overlay
   createOverlay: (boardId, type, role, x, y, width, height, opts) => {
     const id = generateId()
     const overlay: OverlayEntity = {

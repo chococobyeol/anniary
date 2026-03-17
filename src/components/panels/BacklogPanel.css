@@ -1,7 +1,13 @@
 .backlog-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+}
+
+.backlog-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .backlog-input-row {
@@ -38,12 +44,52 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
 }
 
 .backlog-add-btn:hover {
   background: var(--bg-cell-hover);
+}
+
+.backlog-toggle-body {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-align: left;
+  padding: 2px 0;
+}
+
+.backlog-toggle-body:hover {
+  color: var(--text-secondary);
+}
+
+.backlog-body-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backlog-body-input {
+  width: 100%;
+  min-height: 80px;
+  max-height: 200px;
+  padding: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.backlog-body-input:focus {
+  border-color: var(--border-selected);
+}
+
+.backlog-body-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding: 0 2px;
 }
 
 .backlog-list {
@@ -60,10 +106,6 @@
 }
 
 .backlog-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
 }
@@ -72,12 +114,30 @@
   background: var(--bg-cell-hover);
 }
 
+.backlog-item.done {
+  opacity: 0.6;
+}
+
+.backlog-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
 .backlog-status-btn {
   width: 14px;
   height: 14px;
   border-radius: 50%;
   border: 2px solid var(--status-none);
   flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .backlog-status-btn.status-in-progress {
@@ -88,20 +148,81 @@
 .backlog-status-btn.status-done {
   border-color: var(--status-done);
   background: var(--status-done);
+  color: white;
+}
+
+.backlog-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  cursor: pointer;
 }
 
 .backlog-item-title {
-  flex: 1;
   font-size: var(--font-size-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+}
+
+.backlog-item-title.line-through {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.backlog-item-body-preview {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.backlog-item-body-full {
+  padding: 4px 8px 8px 28px;
+}
+
+.backlog-item-body-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--bg-cell-hover);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .backlog-item-kind {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   text-transform: uppercase;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.backlog-expand-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  margin-top: 1px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.backlog-expand-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-cell-hover);
 }
 
 .backlog-delete-btn {
@@ -110,11 +231,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   color: var(--text-muted);
   border-radius: var(--radius-sm);
   opacity: 0;
   transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+  margin-top: 1px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .backlog-item:hover .backlog-delete-btn {
@@ -124,4 +250,27 @@
 .backlog-delete-btn:hover {
   color: var(--status-delayed);
   background: var(--bg-cell-hover);
+}
+
+.backlog-done-section {
+  border-top: 1px solid var(--border-light);
+  padding-top: 8px;
+}
+
+.backlog-done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.backlog-done-toggle:hover {
+  color: var(--text-secondary);
 }

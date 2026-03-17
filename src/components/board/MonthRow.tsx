@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react'
 import { DayCell } from './DayCell'
-import { getDaysInMonth, toDateKey, getTodayKey, getMonthShort } from '../../utils/date'
-import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP } from '../../utils/zoom'
-import type { ZoomLevel } from '../../types/state'
+import { getDaysInMonth, toDateKey, getTodayKey, getMonthShort, getDayOfWeek, getDayOfWeekLabel, isWeekend, getFirstDayOfWeek } from '../../utils/date'
+import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../utils/zoom'
+import type { ZoomLevel, DayLayout } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
 
@@ -11,6 +11,7 @@ type Props = {
   month: number
   y: number
   zoomLevel: ZoomLevel
+  dayLayout: DayLayout
   items: Record<string, ItemEntity>
   ranges: Record<string, RangeEntity>
   selectedDateKey: string | null
@@ -18,15 +19,17 @@ type Props = {
 }
 
 export const MonthRow = memo(function MonthRow({
-  year, month, y, zoomLevel, items, ranges, selectedDateKey, onCellClick,
+  year, month, y, zoomLevel, dayLayout, items, ranges, selectedDateKey, onCellClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
   const todayKey = getTodayKey()
+  const firstDow = getFirstDayOfWeek(year, month)
 
   const cellVMs = useMemo((): DayCellViewModel[] => {
     const result: DayCellViewModel[] = []
     for (let d = 1; d <= days; d++) {
       const dateKey = toDateKey(year, month, d)
+      const dow = getDayOfWeek(year, month, d)
 
       const dayItems = Object.values(items).filter(it => it.date === dateKey)
       const dayRanges = Object.values(ranges).filter(r => r.startDate <= dateKey && r.endDate >= dateKey)
@@ -58,6 +61,9 @@ export const MonthRow = memo(function MonthRow({
         dateKey,
         dayNumber: d,
         monthIndex: month,
+        dayOfWeek: dow,
+        dayOfWeekLabel: getDayOfWeekLabel(dow),
+        isWeekend: isWeekend(year, month, d),
         isToday: dateKey === todayKey,
         primaryStatus: primaryItem?.status || 'none',
         progressPercent: primaryItem?.progress,
@@ -69,9 +75,10 @@ export const MonthRow = memo(function MonthRow({
     return result
   }, [year, month, days, items, ranges, todayKey])
 
+  const showDow = dayLayout === 'linear'
+
   return (
     <g transform={`translate(0, ${y})`}>
-      {/* Month label */}
       <text
         x={MONTH_HEADER_WIDTH - 4}
         y={BASE_CELL_HEIGHT / 2 + 1}
@@ -84,18 +91,21 @@ export const MonthRow = memo(function MonthRow({
         {getMonthShort(month)}
       </text>
 
-      {/* Day cells */}
-      {cellVMs.map((vm, i) => (
-        <DayCell
-          key={vm.dateKey}
-          vm={vm}
-          x={MONTH_HEADER_WIDTH + i * (BASE_CELL_WIDTH + 1)}
-          y={0}
-          zoomLevel={zoomLevel}
-          isSelected={vm.dateKey === selectedDateKey}
-          onClick={onCellClick}
-        />
-      ))}
+      {cellVMs.map((vm, i) => {
+        const col = dayLayout === 'weekday-aligned' ? firstDow + i : i
+        return (
+          <DayCell
+            key={vm.dateKey}
+            vm={vm}
+            x={MONTH_HEADER_WIDTH + col * (BASE_CELL_WIDTH + 1)}
+            y={0}
+            zoomLevel={zoomLevel}
+            isSelected={vm.dateKey === selectedDateKey}
+            showDow={showDow}
+            onClick={onCellClick}
+          />
+        )
+      })}
     </g>
   )
 })

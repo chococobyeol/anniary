@@ -59,6 +59,13 @@
   background: var(--bg-cell-selected);
 }
 
+.toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-light);
+  margin: 0 2px;
+}
+
 .toolbar-right {
   display: flex;
   align-items: center;
