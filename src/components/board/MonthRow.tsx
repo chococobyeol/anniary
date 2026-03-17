@@ -5,6 +5,7 @@ import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../uti
 import type { ZoomLevel, DayLayout } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
+import type { DateIndex } from '../../utils/indexing'
 
 type Props = {
   year: number
@@ -12,14 +13,15 @@ type Props = {
   y: number
   zoomLevel: ZoomLevel
   dayLayout: DayLayout
-  items: Record<string, ItemEntity>
-  ranges: Record<string, RangeEntity>
+  itemIndex: DateIndex<ItemEntity>
+  rangeIndex: DateIndex<RangeEntity>
   selectedDateKey: string | null
   onCellClick: (dateKey: string) => void
+  onCellDoubleClick: (dateKey: string) => void
 }
 
 export const MonthRow = memo(function MonthRow({
-  year, month, y, zoomLevel, dayLayout, items, ranges, selectedDateKey, onCellClick,
+  year, month, y, zoomLevel, dayLayout, itemIndex, rangeIndex, selectedDateKey, onCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
   const todayKey = getTodayKey()
@@ -31,8 +33,8 @@ export const MonthRow = memo(function MonthRow({
       const dateKey = toDateKey(year, month, d)
       const dow = getDayOfWeek(year, month, d)
 
-      const dayItems = Object.values(items).filter(it => it.date === dateKey)
-      const dayRanges = Object.values(ranges).filter(r => r.startDate <= dateKey && r.endDate >= dateKey)
+      const dayItems = itemIndex[dateKey] || []
+      const dayRanges = rangeIndex[dateKey] || []
 
       const sorted = [...dayItems].sort((a, b) => {
         if (a.pinned && !b.pinned) return -1
@@ -73,7 +75,7 @@ export const MonthRow = memo(function MonthRow({
       })
     }
     return result
-  }, [year, month, days, items, ranges, todayKey])
+  }, [year, month, days, itemIndex, rangeIndex, todayKey])
 
   const showDow = dayLayout === 'linear'
 
@@ -103,6 +105,7 @@ export const MonthRow = memo(function MonthRow({
             isSelected={vm.dateKey === selectedDateKey}
             showDow={showDow}
             onClick={onCellClick}
+            onDoubleClick={onCellDoubleClick}
           />
         )
       })}

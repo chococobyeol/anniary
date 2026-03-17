@@ -125,22 +125,54 @@
 - [x] **WeekdayHeader 컴포넌트** — weekday-aligned 모드용 상단 요일 헤더. 열 수는 해당 연도 기준 동적 계산.
 - [x] **레이아웃 전환 시 자동 fitToScreen** — dayLayout 변경 시 보드를 화면에 맞춤.
 
+### v2.0 — 편집 흐름 구축 (2026-03-17)
+- [x] **날짜 인덱싱 최적화** — `Object.values().filter()` 제거. `buildItemDateIndex` / `buildRangeDateIndex`로 사전 인덱싱 후 O(1) 조회. `src/utils/indexing.ts` 신규.
+- [x] **셀 선택 → DetailPanel 자동 오픈** — pan/select 모드에서 셀 클릭 시 해당 날짜 선택 + detail 패널 자동 오픈.
+- [x] ~~**더블클릭 quick add**~~ → **더블클릭 셀 확장**으로 변경 (v2.1). 빈 task 자동 생성 제거, 더블클릭 시 해당 셀이 확장되어 항목 목록 표시.
+- [x] **DetailPanel 편집기 승격** — 읽기 전용 → 실제 편집기로 변환:
+  - 날짜별 item 추가 (kind 선택 + 제목 입력)
+  - item 인라인 편집 (제목/메모 수정)
+  - 상태 토글 (none ↔ done)
+  - 백로그로 이동 (날짜 해제)
+  - 삭제
+- [x] **Interaction mode 규칙 확정**:
+  - `pan`: 드래그=이동, 클릭=셀 선택+편집
+  - `select`: 클릭=셀 선택+편집, 드래그=날짜 범위 선택 (예정)
+  - `draw`: 드래그=range 생성 (예정)
+  - `place`: 클릭=overlay 배치 (예정)
+
+### v2.1 — 셀 UX 개선 (2026-03-17)
+- [x] **셀 높이 증가** — `BASE_CELL_HEIGHT` 22→28. 세로 여유 확보, 내부 요소 y좌표 재배치.
+- [x] **더블클릭 빈 task 생성 제거** — 불필요한 빈 task 자동 생성 동작 삭제.
+- [x] **더블클릭 셀 확장** — 더블클릭 시 해당 셀 위치에 확장 카드(ExpandedCell) 오버레이 표시. 날짜/요일/아이템 목록 표시. 같은 셀 재더블클릭, ✕ 버튼, Escape, 다른 셀 클릭으로 닫힘.
+- [x] **ExpandedCell 컴포넌트 신규** — `src/components/board/ExpandedCell.tsx`. SVG 오버레이 방식, 폭 4배 확장, 높이는 아이템 수에 따라 자동 조절.
+
+### v3.0 — Range 드래그 생성 + 편집 (2026-03-17)
+- [x] **date 유틸 확장** — `getDateKeysBetween`, `normalizeDateRange`, `compareDateKeys` 추가. range 날짜 열거 및 정규화 지원.
+- [x] **screenToDateKey 유틸** — 화면 좌표 → SVG 보드 좌표 → dateKey 변환. linear/weekday-aligned 모드 모두 지원.
+- [x] **draw 모드 드래그 range 생성** — draw 모드에서 셀 위 드래그 시작 → 끝 날짜 계산 → pointerUp 시 range 자동 생성. Escape로 드래그 취소 가능.
+- [x] **RangePreview 컴포넌트** — `src/components/board/RangePreview.tsx`. 드래그 중 선택 범위를 반투명 오버레이로 실시간 표시.
+- [x] **range 생성 → 자동 선택 → DetailPanel 오픈** — range 생성 후 즉시 selection.type='range'로 전환, DetailPanel에서 편집 가능.
+- [x] **DetailPanel range 편집** — 기간 표시, 이름/메모 인라인 편집, 종류(period/note/highlight) 선택, 상태(none/active/done/delayed) 선택, 색상 팔레트(8색) 선택, 삭제.
+- [x] **draw 모드 커서** — draw 모드 시 crosshair 커서 적용.
+- [x] **draw 모드 더블클릭 무시** — draw 모드에서 더블클릭 시 셀 확장 방지.
+
 ---
 
 ## 미구현 항목 (다음 작업 순서)
 
 ### Phase 2 — 핵심 인터랙션
-- [ ] 셀 클릭 → 우측 패널 상세 열기 (select 모드)
-- [ ] 셀 더블클릭 → 빠른 item 생성
-- [ ] 날짜 드래그 선택 → range 생성
+- [x] 셀 클릭 → 좌측 DetailPanel 자동 오픈 (pan/select 모드)
+- [x] 셀 더블클릭 → 셀 확장 (항목 목록 인라인 표시)
+- [x] draw 모드 드래그 → range 생성
 - [ ] Context menu (우클릭 / long press)
-- [ ] Range 선택 및 하이라이트
+- [x] Range 선택 및 DetailPanel 편집
 - [ ] Overlay 선택/이동/리사이즈
 - [ ] 키보드 단축키 (1=pan, 2=select, 3=draw, 4=place)
 
 ### Phase 3 — 패널 내부 완성
-- [ ] Detail 패널 — item 상세 편집 (title, body, status, progress, date, range)
-- [ ] Detail 패널 — range 상세 편집
+- [x] Detail 패널 — item 상세 편집 (title, body, status)
+- [x] Detail 패널 — range 상세 편집 (label, body, kind, status, color)
 - [ ] Detail 패널 — overlay 속성 편집
 - [ ] Search 패널 — 전체 검색
 - [ ] Filter 패널 — view filter
@@ -229,6 +261,7 @@ src/
 ├── utils/
 │   ├── date.ts                 # 날짜 유틸리티
 │   ├── zoom.ts                 # 줌 레벨 계산, 상수
+│   ├── indexing.ts             # 날짜 인덱싱 유틸
 │   └── id.ts                   # nanoid 래퍼
 ├── theme/
 │   ├── theme.css               # CSS 변수 정의
@@ -239,6 +272,8 @@ src/
     │   ├── YearBoard.css
     │   ├── MonthRow.tsx         # 월별 행 (linear/aligned 레이아웃 지원)
     │   ├── DayCell.tsx          # 날짜 셀 (요일 표시 포함)
+    │   ├── ExpandedCell.tsx    # 더블클릭 확장 셀 오버레이
+    │   ├── RangePreview.tsx   # 드래그 중 range 프리뷰 오버레이
     │   └── WeekdayHeader.tsx    # weekday-aligned 모드 상단 요일 헤더
     ├── icons/
     │   └── Icons.tsx            # SVG 벡터 아이콘 모음
@@ -252,7 +287,8 @@ src/
         ├── LeftPanel.css
         ├── BacklogPanel.tsx     # 백로그 패널
         ├── BacklogPanel.css
-        ├── DetailPanel.tsx      # 상세 패널
+        ├── DetailPanel.tsx      # 상세 편집 패널
+        ├── DetailPanel.css
         ├── RightPanel.tsx       # 우측 시스템 패널
         ├── RightPanel.css
         ├── SettingsPanel.tsx    # 설정 패널 (레이아웃/줌 설정)
@@ -268,7 +304,7 @@ src/
 | Canvas first | ✅ | SVG 기반 보드 중심 |
 | Year first | ✅ | 12개월 전체 한 화면 |
 | Zoom driven | ✅ | Z0~Z4 5단계 정보 밀도 |
-| Range based | ✅ 기초 | 타입/저장/표시 구현, 생성 UX 미완 |
+| Range based | ✅ | 드래그 생성 + 상세 편집 완성 |
 | Overlay based | ✅ 기초 | 타입/저장 구현, 배치/편집 미완 |
 | Local first | 🔲 | Dexie 설치됨, 연동 미완 |
 | Command based | ✅ | Zustand actions = commands |

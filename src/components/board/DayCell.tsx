@@ -12,6 +12,7 @@ type Props = {
   isSelected: boolean
   showDow: boolean
   onClick?: (dateKey: string) => void
+  onDoubleClick?: (dateKey: string) => void
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -26,7 +27,7 @@ const DOW_COLOR_SUNDAY = 'var(--status-delayed)'
 const DOW_COLOR_SATURDAY = 'var(--status-in-progress)'
 const DOW_COLOR_DEFAULT = 'var(--text-muted)'
 
-export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, showDow, onClick }: Props) {
+export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, showDow, onClick, onDoubleClick }: Props) {
   const policy: DayCellRenderPolicy = DAY_CELL_POLICY[zoomLevel]
   const w = BASE_CELL_WIDTH
   const h = BASE_CELL_HEIGHT
@@ -46,6 +47,7 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
     <g
       transform={`translate(${x}, ${y})`}
       onClick={() => onClick?.(vm.dateKey)}
+      onDoubleClick={() => onDoubleClick?.(vm.dateKey)}
       style={{ cursor: 'pointer' }}
     >
       <rect
@@ -81,7 +83,7 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
 
       <text
         x={vm.rangeMarkers.length > 0 ? Math.min(vm.rangeMarkers.length, 3) * 3 + 2 : 2}
-        y={zoomLevel === 'Z0' ? h / 2 + 1 : 8}
+        y={zoomLevel === 'Z0' ? h / 2 + 1 : 9}
         fontSize={zoomLevel === 'Z0' ? 7 : 8}
         fill={vm.isToday ? 'var(--status-in-progress)' : vm.isWeekend ? dowColor : 'var(--text-primary)'}
         fontWeight={vm.isToday ? 700 : 400}
@@ -95,7 +97,7 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
 
       {policy.showProgress && vm.progressPercent != null && (
         <rect
-          x={2} y={10}
+          x={2} y={12}
           width={(w - 4) * (vm.progressPercent / 100)}
           height={1.5} rx={0.5}
           fill="var(--status-in-progress)" opacity={0.6}
@@ -103,7 +105,7 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
       )}
 
       {policy.showSummaryLines > 0 && vm.summaryLines.slice(0, policy.showSummaryLines).map((line, i) => (
-        <text key={line.id} x={2} y={13 + i * 4} fontSize={3.5} fill="var(--text-secondary)">
+        <text key={line.id} x={2} y={16 + i * 4.5} fontSize={3.5} fill="var(--text-secondary)">
           {line.title.length > 8 ? line.title.slice(0, 7) + '…' : line.title}
         </text>
       ))}

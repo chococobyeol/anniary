@@ -55,6 +55,29 @@ export function getFirstDayOfWeek(year: number, month: number): number {
   return new Date(year, month, 1).getDay()
 }
 
+export function compareDateKeys(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+export function normalizeDateRange(a: string, b: string): { start: string; end: string } {
+  return a <= b ? { start: a, end: b } : { start: b, end: a }
+}
+
+export function getDateKeysBetween(startKey: string, endKey: string): string[] {
+  const { start, end } = normalizeDateRange(startKey, endKey)
+  const s = parseDateKey(start)
+  const e = parseDateKey(end)
+  const from = new Date(s.year, s.month, s.day)
+  const to = new Date(e.year, e.month, e.day)
+  const keys: string[] = []
+  const cur = new Date(from)
+  while (cur <= to) {
+    keys.push(toDateKey(cur.getFullYear(), cur.getMonth(), cur.getDate()))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return keys
+}
+
 export function getMaxColumnsForYear(year: number): number {
   let max = 0
   for (let m = 0; m < 12; m++) {
