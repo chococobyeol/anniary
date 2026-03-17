@@ -156,6 +156,22 @@
 - [x] **DetailPanel range 편집** — 기간 표시, 이름/메모 인라인 편집, 종류(period/note/highlight) 선택, 상태(none/active/done/delayed) 선택, 색상 팔레트(8색) 선택, 삭제.
 - [x] **draw 모드 커서** — draw 모드 시 crosshair 커서 적용.
 - [x] **draw 모드 더블클릭 무시** — draw 모드에서 더블클릭 시 셀 확장 방지.
+- [x] ~~draw 모드 range 생성~~ → **제거됨**. draw = 그림 그리기용, range 생성은 select 모드 다중 선택 후 생성으로 변경 예정.
+
+### v3.1 — 일정 날짜/시간/기간 설정 (PRD 반영)
+- [x] **ItemEntity 시간 필드** — `startTime`, `endTime` (HH:mm 형식) 추가. store createItem/updateItem 지원.
+- [x] **BacklogPanel 날짜/시간/기간** — "+ 날짜/시간" 펼침 → "날짜 없음 / 특정 날짜 / 기간" 선택. 특정 날짜 시 date + time 범위, 기간 시 start~end + 라벨 + 색상. 기간 선택 시 range 생성 후 item에 rangeId 연결.
+- [x] **DetailPanel 항목 추가 시 시간/기간** — "+ 시간/기간 설정" 펼침 → 시작/종료 시간, 종료일(기간 일정 시). 종료일 있으면 range 생성 후 item에 date+rangeId+시간 설정, 생성 후 selection을 range로 전환.
+- [x] **DetailPanel item 편집 시 시간** — 인라인 편집 폼에 시작/종료 시간 입력. 목록에 시간 표시 (예: 09:00 ~ 18:00).
+- [x] **DetailPanel range 편집 — 소속 항목** — 해당 range에 연결된 item 목록 표시, 연결 해제 버튼. Range 삭제 시 소속 item의 rangeId 해제 후 range 삭제.
+
+### v3.2 — 백로그 UX (mwohaji 스타일 + 태그)
+- [x] **ItemEntity tags** — `tags?: string[]` 추가. 미지정 시 기본 `['일반']`.
+- [x] **BacklogPanel 입력 단순화** — textarea + 추가 버튼만 상단 배치. Enter=추가, Shift+Enter=줄바꿈. kind 선택 제거(기본 task). 날짜/기간/메모 입력 UI 제거(추가·편집은 디테일에서).
+- [x] **태그 선택** — 입력 영역 아래에 태그 행: 기존 태그 칩(일반 + 백로그 항목에서 추출) + "+ 새 태그" 입력란. 선택 안 하면 기본 "일반". 새 태그 입력 시 해당 태그로 생성.
+- [x] **목록 태그별 그룹** — 백로그 목록을 태그별로 그룹화해 표시(그룹 헤더: 태그명 + 개수). 그룹 내·그룹 간 정렬은 updatedAt 기준(최근 수정 먼저).
+- [x] **백로그 표시 개수 설정** — AppSettings에 `backlogDisplayLimit: number | null`. null=전부 보기, N=최근 N개만(updatedAt 기준). 설정 패널에 "표시 개수: 전부 보기 / 최근 50·100·200개" 옵션 추가.
+- [x] **PRD 반영** — prd_v2.md §6.4·§11.4, prd_v2_ux.md §7, prd_v2_entity.md 태그 항목 수정. **수정 전/후 기록**: [docs/PRD_CHANGELOG.md](PRD_CHANGELOG.md).
 
 ---
 
@@ -164,7 +180,7 @@
 ### Phase 2 — 핵심 인터랙션
 - [x] 셀 클릭 → 좌측 DetailPanel 자동 오픈 (pan/select 모드)
 - [x] 셀 더블클릭 → 셀 확장 (항목 목록 인라인 표시)
-- [x] draw 모드 드래그 → range 생성
+- [ ] select 모드 드래그 → 다중 셀 선택 → range 생성
 - [ ] Context menu (우클릭 / long press)
 - [x] Range 선택 및 DetailPanel 편집
 - [ ] Overlay 선택/이동/리사이즈

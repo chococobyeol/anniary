@@ -53,9 +53,15 @@
   gap: 6px;
 }
 
-.settings-hint {
+.settings-hint,
+.settings-hint-block {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
+}
+
+.settings-hint-block {
+  padding: 0 4px;
+  margin-top: -4px;
 }
 
 .settings-toggle {

@@ -62,6 +62,8 @@ export type DayLayout = 'linear' | 'weekday-aligned'
 export type AppSettings = {
   dayLayout: DayLayout
   zoomInverted: boolean
+  /** null = show all, number = show last N (by updatedAt) */
+  backlogDisplayLimit: number | null
 }
 
 export type AppState = {

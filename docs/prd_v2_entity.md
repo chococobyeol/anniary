@@ -507,7 +507,7 @@ type AssetEntity = {
 초기 최소셋에서는 아직 넣지 않는다.
 
 * recurrence 별도 엔티티
-* tag 엔티티
+* tag 엔티티 (대신 **item.tags: string[]** 로 구현. 2026-03-17. [PRD_CHANGELOG.md](PRD_CHANGELOG.md))
 * checklist item 별도 엔티티
 * comment 엔티티
 * reminder 엔티티

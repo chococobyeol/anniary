@@ -9,29 +9,29 @@ export function SettingsPanel() {
   return (
     <div className="settings-panel">
       <div className="settings-section">
-        <div className="settings-section-title">레이아웃</div>
+        <div className="settings-section-title">Layout</div>
 
         <label className="settings-row">
-          <span className="settings-label">요일 표시 모드</span>
+          <span className="settings-label">Day display</span>
           <select
             className="settings-select"
             value={settings.dayLayout}
             onChange={e => updateSettings({ dayLayout: e.target.value as DayLayout })}
           >
-            <option value="linear">셀 내 요일 (순차 배치)</option>
-            <option value="weekday-aligned">상단 헤더 (요일 정렬)</option>
+            <option value="linear">Cell inline (sequence)</option>
+            <option value="weekday-aligned">Top header (weekday aligned)</option>
           </select>
         </label>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-title">줌</div>
+        <div className="settings-section-title">Zoom</div>
 
         <label className="settings-row">
-          <span className="settings-label">줌 방향 반전</span>
+          <span className="settings-label">Zoom direction inverted</span>
           <div className="settings-toggle-wrap">
             <span className="settings-hint">
-              {settings.zoomInverted ? '아래=축소' : '아래=확대'}
+              {settings.zoomInverted ? 'down=zoom out' : 'down=zoom in'}
             </span>
             <button
               className={`settings-toggle ${settings.zoomInverted ? 'active' : ''}`}
@@ -43,6 +43,28 @@ export function SettingsPanel() {
             </button>
           </div>
         </label>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Backlog</div>
+
+        <label className="settings-row">
+          <span className="settings-label">Display count</span>
+          <select
+            className="settings-select"
+            value={settings.backlogDisplayLimit == null ? '' : String(settings.backlogDisplayLimit)}
+            onChange={e => {
+              const v = e.target.value
+              updateSettings({ backlogDisplayLimit: v === '' ? null : Number(v) })
+            }}
+          >
+            <option value="">Show all</option>
+            <option value="50">Last 50</option>
+            <option value="100">Last 100</option>
+            <option value="200">Last 200</option>
+          </select>
+        </label>
+        <p className="settings-hint-block">Based on last updated (updatedAt).</p>
       </div>
     </div>
   )

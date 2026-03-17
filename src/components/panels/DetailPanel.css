@@ -29,9 +29,86 @@
   margin-left: auto;
 }
 
+.detail-add-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .detail-add-row {
   display: flex;
   gap: 4px;
+}
+
+.detail-toggle-options {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.detail-toggle-options:hover {
+  color: var(--text-secondary);
+}
+
+.detail-add-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-cell-hover);
+}
+
+.detail-time-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-time-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  min-width: 36px;
+}
+
+.detail-time-input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  background: var(--bg-panel);
+}
+
+.detail-time-sep {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.detail-date-input {
+  padding: 4px 6px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  background: var(--bg-panel);
+}
+
+.detail-period-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.detail-item-time {
+  font-size: var(--font-size-xs);
+  color: var(--status-in-progress);
+  font-weight: 500;
 }
 
 .detail-kind-select {
@@ -357,4 +434,31 @@
 .range-delete-btn:hover {
   background: var(--status-delayed);
   color: white;
+}
+
+.range-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.range-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-cell-hover);
+}
+
+.range-item-title {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  word-break: break-word;
+}
+
+.range-item-kind {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
 }

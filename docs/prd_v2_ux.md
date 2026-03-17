@@ -1,5 +1,7 @@
 # Panel UX Spec v2 — Linear Year Planner / Canvas Calendar
 
+**변경 이력:** [PRD_CHANGELOG.md](PRD_CHANGELOG.md)
+
 ## 1. 목적
 
 패널 구조는 보드를 중심으로 유지하면서  
@@ -166,34 +168,41 @@ mode는 icon 선택으로 변경된다.
 
 ## 7. backlog 모드
 
+(2026-03-17 수정: 입력·태그·표시 제한 반영. 수정 전 내용: [PRD_CHANGELOG.md](PRD_CHANGELOG.md#3-backlog-모드-상세-prd_v2_uxmd-7))
+
 목적
 
-- 날짜 없는 item 관리
-- 빠른 생성
-- 빠른 편집
+- 날짜 없는 item **인박스** 관리
+- **최소 입력**으로 빠른 생성 (textarea + 추가 버튼)
+- 태그로 분류·그룹 보기
 
 포함
 
-- no-date task
-- no-date note
+- no-date task / note
 - range 미할당 item
 - date 미할당 item
 
+입력 UI
+
+- **상단**: textarea + 추가 버튼만. Enter = 추가, Shift+Enter = 줄바꿈.
+- **태그 행**: 기존 태그 칩(기본 "일반" + 항목에서 추출된 태그) + "+ 새 태그" 입력. 선택 없으면 "일반".
+- 날짜/기간/메모는 백로그에서 받지 않음 → 디테일·보드에서 할당.
+
+목록 UI
+
+- **태그별 그룹** 표시. 그룹 헤더: 태그명 + 개수.
+- **표시 제한**: 설정에서 "전부 보기" 또는 "최근 N개"(updatedAt 기준).
+- 그룹 내·전체 정렬: **updatedAt 내림차순**.
+- 완료 항목: 접이식 "완료됨" 섹션.
+
 기능
 
-- create item
-- edit title
-- set status
-- assign date
-- assign range
+- create item (제목 + 태그)
+- edit title / body (항목 클릭·펼침)
+- set status (완료 토글)
+- assign date / assign range (디테일·보드에서)
 - open detail
-- drag to board
-
-정렬 기본
-
-- pinned
-- in-progress
-- updated desc
+- drag to board (예정)
 
 ---
 

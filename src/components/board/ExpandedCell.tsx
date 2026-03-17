@@ -85,7 +85,7 @@ export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, x, y, o
 
       {items.length === 0 && (
         <text x={EXPANDED_WIDTH / 2} y={HEADER_HEIGHT + 10} fontSize={4} fill="var(--text-muted)" textAnchor="middle">
-          항목 없음
+          No items
         </text>
       )}
 

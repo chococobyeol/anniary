@@ -25,7 +25,10 @@ export type ItemEntity = {
   title?: string
   body?: string
   date?: string
+  startTime?: string
+  endTime?: string
   rangeId?: string
+  tags?: string[]
   status: ItemStatus
   progress?: number
   pinned: boolean

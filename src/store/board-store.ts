@@ -46,8 +46,8 @@ type Actions = {
   updateSettings: (patch: Partial<AppSettings>) => void
 
   createItem: (boardId: string, kind: ItemKind, opts?: {
-    title?: string; body?: string; date?: string; rangeId?: string;
-    status?: ItemStatus; progress?: number; pinned?: boolean
+    title?: string; body?: string; date?: string; startTime?: string; endTime?: string;
+    rangeId?: string; tags?: string[]; status?: ItemStatus; progress?: number; pinned?: boolean
   }) => string
   updateItem: (itemId: string, patch: Partial<ItemEntity>) => void
   deleteItem: (itemId: string) => void
@@ -72,7 +72,7 @@ const initialState: AppState = {
   panel: { leftOpen: false, leftMode: 'backlog', rightOpen: false, rightMode: 'settings' },
   interactionMode: 'pan',
   selection: null,
-  settings: { dayLayout: 'linear', zoomInverted: false },
+  settings: { dayLayout: 'linear', zoomInverted: false, backlogDisplayLimit: null },
   dirty: false,
 }
 
@@ -175,7 +175,9 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     const id = generateId()
     const item: ItemEntity = {
       id, boardId, kind,
-      title: opts?.title, body: opts?.body, date: opts?.date, rangeId: opts?.rangeId,
+      title: opts?.title, body: opts?.body, date: opts?.date,
+      startTime: opts?.startTime, endTime: opts?.endTime, rangeId: opts?.rangeId,
+      tags: opts?.tags && opts.tags.length > 0 ? opts.tags : ['General'],
       status: opts?.status || 'none', progress: opts?.progress,
       pinned: opts?.pinned || false,
       createdAt: now(), updatedAt: now(),
