@@ -291,6 +291,16 @@
   opacity: 0.6;
 }
 
+.backlog-item.selected {
+  background: var(--bg-cell-hover);
+  outline: 1px solid var(--border-selected);
+}
+
+.backlog-item-meta-date {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
 .backlog-item-row {
   display: flex;
   align-items: flex-start;

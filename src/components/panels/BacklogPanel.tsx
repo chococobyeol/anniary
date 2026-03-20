@@ -21,10 +21,17 @@ export function BacklogPanel() {
     if (!s.activeBoardId) return {}
     return s.boards[s.activeBoardId]?.items || {}
   })
+  const ranges = useBoardStore(s => {
+    if (!s.activeBoardId) return {}
+    return s.boards[s.activeBoardId]?.ranges || {}
+  })
+  const selection = useBoardStore(s => s.selection)
   const backlogDisplayLimit = useBoardStore(s => s.settings.backlogDisplayLimit)
   const createItem = useBoardStore(s => s.createItem)
   const updateItem = useBoardStore(s => s.updateItem)
   const deleteItem = useBoardStore(s => s.deleteItem)
+  const setSelection = useBoardStore(s => s.setSelection)
+  const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
 
   const [text, setText] = useState('')
   const [selectedTag, setSelectedTag] = useState(DEFAULT_TAG)
@@ -32,10 +39,30 @@ export function BacklogPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showDone, setShowDone] = useState(false)
 
-  const allBacklog = useMemo(
-    () => Object.values(items).filter(it => !it.date && !it.rangeId),
-    [items]
-  )
+  const allBacklog = useMemo(() => {
+    const list = Object.values(items)
+    if (!selection) return list
+    if (selection.type === 'day') {
+      const dateKey = selection.dateKey
+      return list.filter(it => {
+        if (it.date === dateKey) return true
+        if (it.rangeId) {
+          const r = ranges[it.rangeId]
+          return r != null && dateKey >= r.startDate && dateKey <= r.endDate
+        }
+        return false
+      })
+    }
+    if (selection.type === 'range') return list.filter(it => it.rangeId === selection.rangeId)
+    if (selection.type === 'item') {
+      const item = items[selection.itemId]
+      if (!item) return list
+      if (item.date) return list.filter(it => it.date === item.date)
+      if (item.rangeId) return list.filter(it => it.rangeId === item.rangeId)
+      return list
+    }
+    return list
+  }, [items, ranges, selection])
 
   const sortedByUpdated = useMemo(
     () => [...allBacklog].sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1)),
@@ -92,10 +119,16 @@ export function BacklogPanel() {
     setExpandedId(prev => (prev === id ? null : id))
   }
 
+  const openItemDetail = (itemId: string) => {
+    setSelection({ type: 'item', itemId })
+    toggleLeftPanel('detail')
+  }
+
   const renderItem = (item: (typeof allBacklog)[0]) => {
     const isExpanded = expandedId === item.id
+    const isSelected = selection?.type === 'item' && selection.itemId === item.id
     return (
-      <div key={item.id} className={`backlog-item ${item.status === 'done' ? 'done' : ''}`}>
+      <div key={item.id} className={`backlog-item ${item.status === 'done' ? 'done' : ''} ${isSelected ? 'selected' : ''}`}>
         <div className="backlog-item-row">
           <button
             className={`backlog-status-btn status-${item.status}`}
@@ -104,7 +137,7 @@ export function BacklogPanel() {
           >
             {item.status === 'done' && <IconCheck size={8} />}
           </button>
-          <div className="backlog-item-content" onClick={() => toggleExpand(item.id)}>
+          <div className="backlog-item-content" onClick={() => openItemDetail(item.id)}>
             <span className={`backlog-item-title ${item.status === 'done' ? 'line-through' : ''}`}>
               {item.title || '(untitled)'}
             </span>
@@ -114,18 +147,23 @@ export function BacklogPanel() {
                 {item.body.length > 60 ? '…' : ''}
               </span>
             )}
+            {(item.date || item.startTime || item.endTime) && (
+              <span className="backlog-item-meta-date">
+                {item.date ?? ''} {item.startTime && item.endTime ? `${item.startTime}~${item.endTime}` : item.startTime || item.endTime || ''}
+              </span>
+            )}
           </div>
           <span className="backlog-item-tag">{getItemTag(item)}</span>
           {item.body && (
             <button
               className="backlog-expand-btn"
-              onClick={() => toggleExpand(item.id)}
+              onClick={(e) => { e.stopPropagation(); toggleExpand(item.id) }}
               title={isExpanded ? 'Collapse' : 'Expand'}
             >
               {isExpanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
             </button>
           )}
-          <button className="backlog-delete-btn" onClick={() => deleteItem(item.id)} title="Delete">
+          <button className="backlog-delete-btn" onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }} title="Delete">
             <IconTrash size={12} />
           </button>
         </div>

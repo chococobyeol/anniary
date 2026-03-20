@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import { parseDateKey, getDayOfWeekLabel, getDayOfWeek } from '../../utils/date'
 import type { ItemKind, RangeKind, RangeStatus } from '../../types/entities'
@@ -380,6 +380,141 @@ function RangeDetail() {
   )
 }
 
+const DEFAULT_TAG = 'General'
+
+function ItemDetail() {
+  const selection = useBoardStore(s => s.selection)
+  const activeBoardId = useBoardStore(s => s.activeBoardId)
+  const items = useBoardStore(s => (s.activeBoardId ? s.boards[s.activeBoardId]?.items || {} : {}))
+  const updateItem = useBoardStore(s => s.updateItem)
+  const deleteItem = useBoardStore(s => s.deleteItem)
+  const createRange = useBoardStore(s => s.createRange)
+  const setSelection = useBoardStore(s => s.setSelection)
+  const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
+
+  const [editContent, setEditContent] = useState('')
+  const [editTag, setEditTag] = useState(DEFAULT_TAG)
+  const [editDate, setEditDate] = useState('')
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
+
+  const tagsFromItems = useMemo(() => {
+    const set = new Set<string>([DEFAULT_TAG])
+    Object.values(items).forEach(it => {
+      const t = it.tags?.[0]?.trim()
+      if (t) set.add(t)
+    })
+    return [...set].sort((a, b) => (a === DEFAULT_TAG ? -1 : b === DEFAULT_TAG ? 1 : a.localeCompare(b)))
+  }, [items])
+
+  if (!selection || selection.type !== 'item') return null
+  const item = items[selection.itemId]
+  if (!item) {
+    return (
+      <div className="panel-placeholder">
+        Item not found
+        <button type="button" className="detail-cancel-btn" onClick={() => setSelection(null)}>Close</button>
+      </div>
+    )
+  }
+
+  useEffect(() => {
+    const body = item.body ?? ''
+    const title = item.title ?? ''
+    setEditContent(title ? (body ? `${title}\n${body}` : title) : body)
+    setEditTag((item.tags?.[0]?.trim()) || DEFAULT_TAG)
+    setEditDate(item.date || '')
+    setEditStartTime(item.startTime || '')
+    setEditEndTime(item.endTime || '')
+    setEditEndDate('')
+  }, [item.id, item.title, item.body, item.date, item.startTime, item.endTime, item.tags])
+
+  const saveEdit = () => {
+    if (!activeBoardId) return
+    const trimmed = editContent.trim()
+    const firstLine = trimmed.split('\n')[0] ?? ''
+    const rest = trimmed.includes('\n') ? trimmed.slice(firstLine.length).replace(/^\n/, '') : ''
+    const startDate = editDate.trim() || undefined
+    let rangeId: string | undefined
+    if (editEndDate.trim() && startDate && editEndDate >= startDate) {
+      rangeId = createRange(activeBoardId, 'period', startDate, editEndDate.trim(), { label: firstLine || undefined })
+    } else {
+      rangeId = undefined
+    }
+    updateItem(item.id, {
+      title: firstLine || undefined,
+      body: rest || undefined,
+      tags: [editTag.trim() || DEFAULT_TAG],
+      date: startDate,
+      rangeId,
+      startTime: editStartTime || undefined,
+      endTime: editEndTime || undefined,
+    })
+    setSelection(null)
+    toggleLeftPanel('backlog')
+  }
+
+  const cancelEdit = () => {
+    setSelection(null)
+    toggleLeftPanel('backlog')
+  }
+
+  const handleDelete = () => {
+    deleteItem(item.id)
+    setSelection(null)
+    toggleLeftPanel('backlog')
+  }
+
+  const formatTime = (start?: string, end?: string) => {
+    if (!start && !end) return null
+    if (start && end) return `${start} ~ ${end}`
+    return start || end
+  }
+
+  const headerTitle = editContent.trim().split('\n')[0] || '(untitled)'
+
+  return (
+    <div className="detail-panel">
+      <div className="detail-date-header">
+        <span className="detail-date-main">{headerTitle}</span>
+        {item.date && (
+          <span className="detail-date-dow">
+            {item.date}
+            {formatTime(item.startTime, item.endTime) && ` · ${formatTime(item.startTime, item.endTime)}`}
+          </span>
+        )}
+      </div>
+
+      <div className="detail-item-edit" onKeyDown={e => e.key === 'Escape' && cancelEdit()}>
+        <label className="detail-time-label">Tag</label>
+        <select className="detail-kind-select" value={editTag} onChange={e => setEditTag(e.target.value)}>
+          {tagsFromItems.map(tag => (
+            <option key={tag} value={tag}>{tag}</option>
+          ))}
+        </select>
+        <label className="detail-time-label">Content</label>
+        <textarea className="detail-edit-body detail-edit-content-single" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="Content" rows={4} />
+        <label className="detail-time-label">Date</label>
+        <input type="date" className="detail-date-input" value={editDate} onChange={e => setEditDate(e.target.value)} />
+        <div className="detail-time-row">
+          <label className="detail-time-label">Time</label>
+          <input type="time" className="detail-time-input" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} />
+          <span className="detail-time-sep">~</span>
+          <input type="time" className="detail-time-input" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} />
+        </div>
+        <label className="detail-time-label">End date (period)</label>
+        <input type="date" className="detail-date-input" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} placeholder="Optional" />
+        <div className="detail-edit-actions detail-edit-actions-item">
+          <button className="detail-save-btn" onClick={saveEdit}>Save</button>
+          <button className="detail-cancel-btn" onClick={cancelEdit}>Cancel</button>
+          <button className="detail-cancel-btn danger" onClick={handleDelete}>Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function DetailPanel() {
   const selection = useBoardStore(s => s.selection)
 
@@ -389,6 +524,7 @@ export function DetailPanel() {
 
   if (selection.type === 'day') return <DayDetail />
   if (selection.type === 'range') return <RangeDetail />
+  if (selection.type === 'item') return <ItemDetail />
 
   return <div className="panel-placeholder">Selection: {selection.type}</div>
 }

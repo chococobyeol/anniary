@@ -306,6 +306,31 @@
   gap: 4px;
 }
 
+.detail-edit-actions-item {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-link-btn {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.detail-link-btn:hover {
+  color: var(--text-secondary);
+}
+
+.detail-edit-content-single {
+  min-height: 80px;
+}
+
 .detail-save-btn,
 .detail-cancel-btn {
   padding: 3px 10px;
@@ -324,6 +349,16 @@
 
 .detail-cancel-btn:hover {
   background: var(--bg-cell-hover);
+}
+
+.detail-cancel-btn.danger {
+  color: var(--status-delayed);
+  border-color: var(--status-delayed);
+}
+
+.detail-cancel-btn.danger:hover {
+  background: var(--status-delayed);
+  color: white;
 }
 
 /* Range detail */

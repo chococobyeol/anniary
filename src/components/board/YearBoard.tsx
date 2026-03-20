@@ -55,12 +55,13 @@ export function YearBoard() {
 
     if (mode === 'select' || mode === 'pan') {
       setExpandedDateKey(null)
-      setSelection({ type: 'day', dateKey })
-      if (!state.panel.leftOpen || state.panel.leftMode !== 'detail') {
-        toggleLeftPanel('detail')
+      const alreadySelected = selection?.type === 'day' && selection.dateKey === dateKey
+      setSelection(alreadySelected ? null : { type: 'day', dateKey })
+      if (!alreadySelected && (!state.panel.leftOpen || state.panel.leftMode !== 'backlog')) {
+        toggleLeftPanel('backlog')
       }
     }
-  }, [setSelection, toggleLeftPanel])
+  }, [selection, setSelection, toggleLeftPanel])
 
   const handleCellDoubleClick = useCallback((dateKey: string) => {
     setExpandedDateKey(prev => prev === dateKey ? null : dateKey)

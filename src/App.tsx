@@ -11,6 +11,8 @@ export default function App() {
   const activeBoardId = useBoardStore(s => s.activeBoardId)
   const createBoard = useBoardStore(s => s.createBoard)
   const closeAllPanels = useBoardStore(s => s.closeAllPanels)
+  const selection = useBoardStore(s => s.selection)
+  const setSelection = useBoardStore(s => s.setSelection)
 
   useEffect(() => {
     if (!activeBoardId) {
@@ -20,11 +22,17 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeAllPanels()
+      if (e.key !== 'Escape') return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (selection) {
+        setSelection(null)
+      } else {
+        closeAllPanels()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [closeAllPanels])
+  }, [selection, setSelection, closeAllPanels])
 
   return (
     <div className="app-layout">
