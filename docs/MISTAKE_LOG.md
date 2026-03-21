@@ -44,3 +44,48 @@
 - 재발 방지: **useRef + useEffect로 native 이벤트를 등록할 때, ref가 붙은 element가 조건부 렌더링(early return)에 의해 마운트되지 않을 수 있는지 반드시 확인.** 조건부 content는 항상 container 내부에서 처리할 것.
 - 검증: `npx tsc --noEmit` 통과.
 - 관련 파일: `src/components/board/YearBoard.tsx`, `src/components/board/YearBoard.css`
+
+## [2026-03-17 19:45] 디테일 저장 시 기간 막대(줄) 중복 증식
+
+- 증상: 아이템 디테일을 수정·저장할 때마다 간트/기간 막대(줄)가 하나씩 더 생김.
+- 원인: `ItemDetail`의 `saveEdit`에서 기간(종료일)이 있으면 **매번 `createRange`만** 호출해 새 `RangeEntity`가 누적되고, 기존 `rangeId`가 가리키던 range는 `ranges`에 남아(고아) 화면에 여러 줄로 그려짐.
+- 해결: 기존 `item.rangeId`와 `ranges[id]`가 있으면 **`updateRange`**로 기간/라벨만 갱신. 없을 때만 **`createRange`**. 기간을 끄거나 `rangeId`가 바뀌면 다른 아이템이 참조하지 않을 때 **`deleteRange(oldRid)`**. 중복되던 `deleteRange` 분기 정리. 본문은 `lines.slice(1).join('\n')` 후 `trim()`으로 비었는지만 판별해 내부 줄바꿈은 유지.
+- 재발 방지: 연결된 엔티티( range 등 )를 저장할 때 **항상 생성(create)** 경로만 쓰지 말고, **같은 id가 있으면 update**를 우선하고, 참조가 사라진 리소스는 **고아 정리(delete/unlink)** 규칙을 한 곳에 명시할 것.
+- 검증: `npm run build` 성공, `DetailPanel.tsx` 린트 이슈 없음.
+- 관련 파일: `src/components/panels/DetailPanel.tsx`
+
+## [2026-03-17 20:30] 아이템 디테일 — 기간 색상 즉시 저장으로 취소 무효
+
+- 증상: 아이템 디테일에서 기간 색을 바꾼 뒤 **취소**해도 보드/데이터에 색이 이미 바뀐 채로 남음.
+- 원인: `Period color` 스와치 `onClick`에서 **`updateRange`를 즉시 호출**해 전역 스토어가 바뀌고, 취소는 선택만 닫을 뿐 스토어를 되돌리지 않음.
+- 해결: `editPeriodColor` 로컬 상태로만 미리보기하고, **`saveEdit`에서 `updateRange`/`createRange`에 `color`를 함께 반영**. `useEffect`로 아이템/연결 range 로드 시 스토어 색으로 동기화.
+- 재발 방지: 폼에 **저장/취소**가 있으면, 연관 엔티티(range 등) 필드도 **저장 시점에만** 스토어에 쓰거나, 취소 시 스냅샷으로 복구할 것.
+- 검증: `npm run build` 성공, `DetailPanel.tsx` 린트 이슈 없음.
+- 관련 파일: `src/components/panels/DetailPanel.tsx`
+
+## [2026-03-17 21:15] 디테일 저장/취소 일관성 + 기간 색 실시간 미리보기
+
+- 증상: (1) Range 디테일은 Kind/Status/색이 즉시 저장되어 취소와 불일치 (2) 아이템 디테일에서 기간 색은 저장 전까지 보드 간트에 안 보임.
+- 원인: Range 메타를 즉시 `updateRange`에 쓰는 구조. 색만 로컬이면 간트는 스토어 `range`만 참조.
+- 해결: `rangeEditPreview` + `setRangeEditPreview`(dirty 없음)로 저장 전 간트에 색·kind 병합. RangeDetail 전 필드 draft + Save/Cancel(Esc). ItemDetail은 preview 동기화·헤더 색 보더. ItemDetail hooks 순서 수정.
+- 재발 방지: 취소 가능 폼은 스토어 직접 변경 금지, 보드 미리보기는 preview 레이어로만.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/types/state.ts`, `src/store/board-store.ts`, `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`, `src/components/board/YearBoard.tsx`, `src/components/panels/DetailPanel.tsx`
+
+## [2026-03-17 22:00] 기간 막대 숨김·우선순위 기능 추가
+
+- 증상: (요구) 연간 보드 기간 막대를 숨기거나, 겹칠 때 표시 순위를 조정하고 싶음.
+- 원인: (해당 없음 — 신규 기능)
+- 해결: `RangeEntity`에 `timelineBarHidden`, `timelinePriority` 추가. `layoutMonthGanttSegments`에서 숨김 필터·우선순위 정렬 후 트랙 배치. `RangeEditPreview`에 동일 필드 반영해 저장 전 미리보기. ItemDetail·RangeDetail 폼 + `docs/TIMELINE_BARS.md`·README 문서화.
+- 재발 방지: 보드 시각 정책이 바뀌면 엔티티 필드·`monthGantt`·미리보기 세 곳을 함께 갱신하고 문서(`TIMELINE_BARS.md`)를 맞출 것.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/types/entities.ts`, `src/types/state.ts`, `src/store/board-store.ts`, `src/utils/monthGantt.ts`, `src/components/panels/DetailPanel.tsx`, `src/components/panels/DetailPanel.css`, `docs/TIMELINE_BARS.md`, `README.md`, `docs/IMPLEMENTATION_CHECKLIST.md`
+
+## [2026-03-17 22:45] Priority 라벨·셀 정렬·문서 정합
+
+- 증상: UI가 "Bar priority"로만 읽혀 날짜 셀 안 일정 줄 순서와 무관해 보임. 실제로는 막대뿐 아니라 셀 요약 순서에도 쓰여야 함.
+- 원인: 초기 카피가 막대 중심으로만 작성됨. 셀 정렬은 `linkedRangeTimelinePriority`로 반영하도록 코드가 맞춰진 뒤에도 라벨·힌트·문서가 뒤따르지 않은 상태.
+- 해결: `DetailPanel` 라벨 **Priority**, 힌트에 day cells + bars 명시, `id`를 `range-priority-*` / `item-priority-*`로 정리. `RangeEntity` 주석·`TIMELINE_BARS.md`에 셀 정렬·`itemTimelinePriority.ts` 반영.
+- 재발 방지: 보드에 보이는 정렬/레이아웃 규칙이 바뀌면 **영어 UI 카피·한글 기술 문서·엔티티 주석**을 한 번에 맞출 것.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/components/panels/DetailPanel.tsx`, `src/types/entities.ts`, `docs/TIMELINE_BARS.md`, `src/utils/itemTimelinePriority.ts`, `src/components/board/MonthRow.tsx`

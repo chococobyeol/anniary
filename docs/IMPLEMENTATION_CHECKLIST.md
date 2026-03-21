@@ -48,6 +48,7 @@
 ### SVG 보드
 - [x] YearBoard 컴포넌트 (12개월 세로 배치)
 - [x] MonthRow 컴포넌트 (월별 가로 날짜 배열)
+- [x] 기간 막대: `timelineBarHidden` / `timelinePriority` (`docs/TIMELINE_BARS.md`)
 - [x] DayCell 컴포넌트 (개별 날짜 셀)
 - [x] 날짜 레이아웃: 각 월이 한 줄, 1~31일 가로 연속 배열
 - [x] 줌 레벨별 셀 정보 밀도 변화 (Z0~Z4)

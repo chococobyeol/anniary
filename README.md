@@ -1,4 +1,29 @@
-# React + TypeScript + Vite
+# Anniary
+
+연간 캘린더 보드에서 일정·기간(range)·백로그를 다루는 웹 앱입니다. (React + TypeScript + Vite)
+
+## 문서
+
+| 문서 | 내용 |
+|------|------|
+| [docs/TIMELINE_BARS.md](./docs/TIMELINE_BARS.md) | 연간 보드 **기간 막대** 표시, **숨김**, **우선순위** |
+| [docs/MISTAKE_LOG.md](./docs/MISTAKE_LOG.md) | 개발 중 회고·재발 방지 메모 |
+| [docs/IMPLEMENTATION_CHECKLIST.md](./docs/IMPLEMENTATION_CHECKLIST.md) | 구현 체크리스트 |
+| [docs/prd_v2_entity.md](./docs/prd_v2_entity.md) 등 | PRD / 엔티티 초안 |
+
+## 개발
+
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+---
+
+아래는 Vite 템플릿 기본 안내입니다.
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
@@ -7,11 +32,11 @@ Currently, two official plugins are available:
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
 - [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## React Compiler
+### React Compiler
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Expanding the ESLint configuration
+### Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 

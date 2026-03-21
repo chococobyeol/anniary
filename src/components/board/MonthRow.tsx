@@ -2,10 +2,12 @@ import { memo, useMemo, type PointerEvent as ReactPointerEvent } from 'react'
 import { DayCell } from './DayCell'
 import { getDaysInMonth, toDateKey, getTodayKey, getMonthShort, getDayOfWeek, getDayOfWeekLabel, isWeekend, getFirstDayOfWeek } from '../../utils/date'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../utils/zoom'
-import type { ZoomLevel, DayLayout, InteractionMode } from '../../types/state'
+import type { ZoomLevel, DayLayout, InteractionMode, RangeEditPreview } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
 import type { DateIndex } from '../../utils/indexing'
+import { layoutMonthGanttSegments } from '../../utils/monthGantt'
+import { linkedRangeTimelinePriority } from '../../utils/itemTimelinePriority'
 
 type Props = {
   year: number
@@ -15,7 +17,8 @@ type Props = {
   dayLayout: DayLayout
   interactionMode: InteractionMode
   itemIndex: DateIndex<ItemEntity>
-  rangeIndex: DateIndex<RangeEntity>
+  ranges: Record<string, RangeEntity>
+  rangeEditPreview: RangeEditPreview | null
   highlightDateKeys: Set<string>
   dragSelecting: boolean
   onPanCellClick: (dateKey: string) => void
@@ -25,7 +28,7 @@ type Props = {
 }
 
 export const MonthRow = memo(function MonthRow({
-  year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, rangeIndex,
+  year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, ranges, rangeEditPreview,
   highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
@@ -39,12 +42,16 @@ export const MonthRow = memo(function MonthRow({
       const dow = getDayOfWeek(year, month, d)
 
       const dayItems = itemIndex[dateKey] || []
-      const dayRanges = rangeIndex[dateKey] || []
 
       const sorted = [...dayItems].sort((a, b) => {
         if (a.pinned && !b.pinned) return -1
         if (!a.pinned && b.pinned) return 1
+        const pr =
+          linkedRangeTimelinePriority(b, ranges, rangeEditPreview)
+          - linkedRangeTimelinePriority(a, ranges, rangeEditPreview)
+        if (pr !== 0) return pr
         if (a.status === 'in-progress' && b.status !== 'in-progress') return -1
+        if (a.status !== 'in-progress' && b.status === 'in-progress') return 1
         return 0
       })
 
@@ -54,14 +61,6 @@ export const MonthRow = memo(function MonthRow({
         kind: it.kind,
         title: it.title || '(untitled)',
         status: it.status,
-      }))
-
-      const rangeMarkers = dayRanges.slice(0, 3).map((r, i) => ({
-        id: r.id,
-        color: r.color || 'var(--range-default)',
-        style: (r.kind === 'highlight' ? 'highlight' : r.kind === 'note' ? 'muted' : 'normal') as 'normal' | 'muted' | 'highlight',
-        label: r.label,
-        layerIndex: i,
       }))
 
       result.push({
@@ -76,11 +75,16 @@ export const MonthRow = memo(function MonthRow({
         progressPercent: primaryItem?.progress,
         summaryLines,
         hiddenCount: Math.max(0, dayItems.length - 3),
-        rangeMarkers,
+        rangeMarkers: [],
       })
     }
     return result
-  }, [year, month, days, itemIndex, rangeIndex, todayKey])
+  }, [year, month, days, itemIndex, todayKey, ranges, rangeEditPreview])
+
+  const ganttSegments = useMemo(
+    () => layoutMonthGanttSegments(ranges, year, month, dayLayout, firstDow, BASE_CELL_HEIGHT, rangeEditPreview),
+    [ranges, year, month, dayLayout, firstDow, rangeEditPreview]
+  )
 
   const showDow = dayLayout === 'linear'
 
@@ -118,6 +122,22 @@ export const MonthRow = memo(function MonthRow({
           />
         )
       })}
+
+      {/* Above cells: otherwise opaque cell rects hide the bar except in 1px grid gaps */}
+      <g className="month-row-gantt" pointerEvents="none">
+        {ganttSegments.map(s => (
+          <rect
+            key={`${s.rangeId}-${s.startKey}-${s.track}`}
+            x={s.x}
+            y={s.y}
+            width={s.width}
+            height={s.height}
+            rx={0.45}
+            fill={s.color}
+            opacity={s.kind === 'highlight' ? 0.92 : s.kind === 'note' ? 0.5 : 0.85}
+          />
+        ))}
+      </g>
     </g>
   )
 })

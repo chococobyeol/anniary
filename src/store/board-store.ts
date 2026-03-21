@@ -5,6 +5,7 @@ import type {
   BoardState,
   InteractionMode,
   LeftPanelMode,
+  RangeEditPreview,
   RightPanelMode,
   SelectionTarget,
   ViewState,
@@ -40,6 +41,8 @@ type Actions = {
 
   setInteractionMode: (mode: InteractionMode) => void
   setSelection: (target: SelectionTarget | null) => void
+  /** 저장 전 간트 미리보기만 (dirty 변경 없음) */
+  setRangeEditPreview: (preview: RangeEditPreview | null) => void
 
   updateSettings: (patch: Partial<AppSettings>) => void
 
@@ -52,6 +55,7 @@ type Actions = {
 
   createRange: (boardId: string, kind: RangeKind, startDate: string, endDate: string, opts?: {
     label?: string; body?: string; status?: RangeStatus; color?: string
+    timelineBarHidden?: boolean; timelinePriority?: number
   }) => string
   updateRange: (rangeId: string, patch: Partial<RangeEntity>) => void
   deleteRange: (rangeId: string) => void
@@ -71,6 +75,7 @@ const initialState: AppState = {
   interactionMode: 'pan',
   selection: null,
   settings: { dayLayout: 'linear', zoomInverted: false, backlogDisplayLimit: null },
+  rangeEditPreview: null,
   dirty: false,
 }
 
@@ -165,6 +170,8 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
   setInteractionMode: (mode) => set({ interactionMode: mode }),
   setSelection: (target) => set({ selection: target }),
 
+  setRangeEditPreview: (preview) => set({ rangeEditPreview: preview }),
+
   updateSettings: (patch) => set(s => ({
     settings: { ...s.settings, ...patch },
   })),
@@ -236,6 +243,8 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
       id, boardId, kind, startDate, endDate,
       label: opts?.label, body: opts?.body,
       status: opts?.status || 'none', color: opts?.color,
+      timelineBarHidden: opts?.timelineBarHidden,
+      timelinePriority: opts?.timelinePriority,
       createdAt: now(), updatedAt: now(),
     }
     set(s => {

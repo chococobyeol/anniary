@@ -88,18 +88,6 @@ export const DayCell = memo(function DayCell({
         strokeWidth={strokeW}
       />
 
-      {vm.rangeMarkers.slice(0, 3).map((rm, i) => (
-        <rect
-          key={rm.id}
-          x={i * 3}
-          y={0}
-          width={2.5}
-          height={h}
-          fill={rm.color || 'var(--range-default)'}
-          opacity={rm.style === 'muted' ? 0.4 : rm.style === 'highlight' ? 1 : 0.7}
-        />
-      ))}
-
       {showDow && (
         <text
           x={w - 2} y={5}
@@ -111,7 +99,7 @@ export const DayCell = memo(function DayCell({
       )}
 
       <text
-        x={vm.rangeMarkers.length > 0 ? Math.min(vm.rangeMarkers.length, 3) * 3 + 2 : 2}
+        x={2}
         y={zoomLevel === 'Z0' ? h / 2 + 1 : 9}
         fontSize={zoomLevel === 'Z0' ? 7 : 8}
         fill={vm.isToday ? 'var(--status-in-progress)' : vm.isWeekend ? dowColor : 'var(--text-primary)'}

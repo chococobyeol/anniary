@@ -497,3 +497,96 @@
   color: var(--text-muted);
   text-transform: uppercase;
 }
+
+.detail-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.detail-checkbox-row input {
+  cursor: pointer;
+}
+
+.detail-field-hint {
+  margin: 4px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.detail-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.detail-label-row .range-field-label,
+.detail-label-row .detail-time-label {
+  margin: 0;
+}
+
+.detail-help-tip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.detail-help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.detail-help-tip:hover,
+.detail-help-tip:focus-visible {
+  color: var(--text-secondary);
+  background: var(--bg-cell-hover);
+  outline: none;
+}
+
+.detail-help-tip:focus-visible {
+  box-shadow: 0 0 0 2px var(--border-light);
+}
+
+/* Visible on hover/focus — native title was too slow / cursor:help looked like “?” only (macOS) */
+.detail-help-tooltip {
+  position: absolute;
+  z-index: 200;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 160px;
+  max-width: min(280px, 72vw);
+  padding: 8px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-primary);
+  text-align: left;
+  white-space: normal;
+  word-wrap: break-word;
+  background: var(--bg-cell-hover);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}

@@ -48,6 +48,10 @@ export type RangeEntity = {
   body?: string
   status: RangeStatus
   color?: string
+  /** true면 연간 보드 하단 기간 막대(간트 바)를 그리지 않음. 일정·디테일·백로그는 유지 */
+  timelineBarHidden?: boolean
+  /** 같은 날 셀 안 일정 줄·겹치는 막대 트랙 모두에서 큰 값이 먼저(위쪽). 기본 0 */
+  timelinePriority?: number
   createdAt: string
   updatedAt: string
 }

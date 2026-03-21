@@ -7,7 +7,7 @@ import { useZoomPan } from '../../hooks/useZoomPan'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT } from '../../utils/zoom'
 import { getMaxColumnsForYear, parseDateKey, getFirstDayOfWeek, getDateKeysBetween } from '../../utils/date'
 import { getDateKeyFromPoint, toggleDateKeyInSelection } from '../../utils/dateSelection'
-import { buildItemDateIndex, buildRangeDateIndex } from '../../utils/indexing'
+import { buildItemDateIndex } from '../../utils/indexing'
 import './YearBoard.css'
 
 export const fitToScreenRef: { current: (() => void) | null } = { current: null }
@@ -22,6 +22,7 @@ export function YearBoard() {
   const interactionMode = useBoardStore(s => s.interactionMode)
   const resetView = useBoardStore(s => s.resetView)
   const dayLayout = useBoardStore(s => s.settings.dayLayout)
+  const rangeEditPreview = useBoardStore(s => s.rangeEditPreview)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const didInitRef = useRef(false)
@@ -47,11 +48,6 @@ export function YearBoard() {
     () => boardState ? buildItemDateIndex(boardState.items) : {},
     [boardState?.items]
   )
-  const rangeIndex = useMemo(
-    () => boardState ? buildRangeDateIndex(boardState.ranges) : {},
-    [boardState?.ranges]
-  )
-
   const highlightDateKeys = useMemo(() => {
     if (dragPreviewKeys != null) return new Set(dragPreviewKeys)
     const s = new Set<string>()
@@ -226,7 +222,8 @@ export function YearBoard() {
                 dayLayout={dayLayout}
                 interactionMode={interactionMode}
                 itemIndex={itemIndex}
-                rangeIndex={rangeIndex}
+                ranges={boardState.ranges}
+                rangeEditPreview={rangeEditPreview}
                 highlightDateKeys={highlightDateKeys}
                 dragSelecting={dragSelecting}
                 onPanCellClick={handlePanCellClick}
