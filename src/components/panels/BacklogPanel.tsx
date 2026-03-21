@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useBoardStore } from '../../store/board-store'
+import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
 import type { ItemStatus } from '../../types/entities'
 import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck } from '../icons/Icons'
 import './BacklogPanel.css'
@@ -28,6 +29,7 @@ export function BacklogPanel() {
   const selection = useBoardStore(s => s.selection)
   const backlogDisplayLimit = useBoardStore(s => s.settings.backlogDisplayLimit)
   const createItem = useBoardStore(s => s.createItem)
+  const createRange = useBoardStore(s => s.createRange)
   const updateItem = useBoardStore(s => s.updateItem)
   const deleteItem = useBoardStore(s => s.deleteItem)
   const setSelection = useBoardStore(s => s.setSelection)
@@ -49,6 +51,19 @@ export function BacklogPanel() {
         if (it.rangeId) {
           const r = ranges[it.rangeId]
           return r != null && dateKey >= r.startDate && dateKey <= r.endDate
+        }
+        return false
+      })
+    }
+    if (selection.type === 'days') {
+      const dateKeys = selection.dateKeys
+      return list.filter(it => {
+        for (const dateKey of dateKeys) {
+          if (it.date === dateKey) return true
+          if (it.rangeId) {
+            const r = ranges[it.rangeId]
+            if (r != null && dateKey >= r.startDate && dateKey <= r.endDate) return true
+          }
         }
         return false
       })
@@ -100,10 +115,31 @@ export function BacklogPanel() {
     if (!activeBoardId || !text.trim()) return
     const tagToUse = customTag.trim() || selectedTag
     const tag = tagToUse || DEFAULT_TAG
-    createItem(activeBoardId, 'task', {
-      title: text.trim(),
-      tags: [tag],
-    })
+    const title = text.trim()
+
+    if (selection?.type === 'day') {
+      createItem(activeBoardId, 'task', { title, tags: [tag], date: selection.dateKey })
+    } else if (selection?.type === 'days' && selection.dateKeys.length > 0) {
+      const keys = sortDateKeys([...new Set(selection.dateKeys)])
+      if (isContiguousDateSpan(keys)) {
+        const start = keys[0]
+        const end = keys[keys.length - 1]
+        const rangeId = createRange(activeBoardId, 'period', start, end, { label: title })
+        createItem(activeBoardId, 'task', {
+          title,
+          tags: [tag],
+          date: start,
+          endDate: end,
+          rangeId,
+        })
+      } else {
+        for (const dk of keys) {
+          createItem(activeBoardId, 'task', { title, tags: [tag], date: dk })
+        }
+      }
+    } else {
+      createItem(activeBoardId, 'task', { title, tags: [tag] })
+    }
     setText('')
     setCustomTag('')
   }
@@ -147,9 +183,13 @@ export function BacklogPanel() {
                 {item.body.length > 60 ? '…' : ''}
               </span>
             )}
-            {(item.date || item.startTime || item.endTime) && (
+            {(item.date || item.endDate || item.startTime || item.endTime) && (
               <span className="backlog-item-meta-date">
-                {item.date ?? ''} {item.startTime && item.endTime ? `${item.startTime}~${item.endTime}` : item.startTime || item.endTime || ''}
+                {item.date ?? ''}
+                {item.endDate && item.endDate !== item.date ? `–${item.endDate}` : ''}
+                {(item.startTime || item.endTime) && (
+                  <> {item.startTime && item.endTime ? `${item.startTime}~${item.endTime}` : item.startTime || item.endTime || ''}</>
+                )}
               </span>
             )}
           </div>

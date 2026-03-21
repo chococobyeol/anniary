@@ -5,7 +5,8 @@ import { ExpandedCell } from './ExpandedCell'
 import { useBoardStore } from '../../store/board-store'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT } from '../../utils/zoom'
-import { getMaxColumnsForYear, parseDateKey, getFirstDayOfWeek } from '../../utils/date'
+import { getMaxColumnsForYear, parseDateKey, getFirstDayOfWeek, getDateKeysBetween } from '../../utils/date'
+import { getDateKeyFromPoint, toggleDateKeyInSelection } from '../../utils/dateSelection'
 import { buildItemDateIndex, buildRangeDateIndex } from '../../utils/indexing'
 import './YearBoard.css'
 
@@ -25,6 +26,13 @@ export function YearBoard() {
   const containerRef = useRef<HTMLDivElement>(null)
   const didInitRef = useRef(false)
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null)
+  const [dragPreviewKeys, setDragPreviewKeys] = useState<string[] | null>(null)
+  const dragSessionRef = useRef<{
+    anchorKey: string
+    currentKey: string
+    startX: number
+    startY: number
+  } | null>(null)
 
   const {
     handlePointerDown, handlePointerMove, handlePointerUp,
@@ -44,24 +52,96 @@ export function YearBoard() {
     [boardState?.ranges]
   )
 
-  const selectedDateKey = useMemo(() => {
-    if (selection?.type === 'day') return selection.dateKey
-    return null
-  }, [selection])
+  const highlightDateKeys = useMemo(() => {
+    if (dragPreviewKeys != null) return new Set(dragPreviewKeys)
+    const s = new Set<string>()
+    if (selection?.type === 'day') s.add(selection.dateKey)
+    if (selection?.type === 'days') selection.dateKeys.forEach(k => s.add(k))
+    return s
+  }, [selection, dragPreviewKeys])
 
-  const handleCellClick = useCallback((dateKey: string) => {
+  const dragSelecting = dragPreviewKeys !== null
+
+  const openBacklogIfNeeded = () => {
     const state = useBoardStore.getState()
-    const mode = state.interactionMode
+    if (!state.panel.leftOpen || state.panel.leftMode !== 'backlog') {
+      state.toggleLeftPanel('backlog')
+    }
+  }
 
-    if (mode === 'select' || mode === 'pan') {
-      setExpandedDateKey(null)
-      const alreadySelected = selection?.type === 'day' && selection.dateKey === dateKey
-      setSelection(alreadySelected ? null : { type: 'day', dateKey })
-      if (!alreadySelected && (!state.panel.leftOpen || state.panel.leftMode !== 'backlog')) {
-        toggleLeftPanel('backlog')
-      }
+  const handlePanCellClick = useCallback((dateKey: string) => {
+    const state = useBoardStore.getState()
+    if (state.interactionMode !== 'pan') return
+    setExpandedDateKey(null)
+    const alreadySelected = selection?.type === 'day' && selection.dateKey === dateKey
+    setSelection(alreadySelected ? null : { type: 'day', dateKey })
+    if (!alreadySelected && (!state.panel.leftOpen || state.panel.leftMode !== 'backlog')) {
+      toggleLeftPanel('backlog')
     }
   }, [selection, setSelection, toggleLeftPanel])
+
+  const handleModifierCellClick = useCallback((dateKey: string) => {
+    const state = useBoardStore.getState()
+    if (state.interactionMode !== 'select') return
+    setExpandedDateKey(null)
+    const next = toggleDateKeyInSelection(state.selection, dateKey)
+    setSelection(next)
+    if (next) openBacklogIfNeeded()
+  }, [setSelection])
+
+  const handleSelectPointerDown = useCallback((e: React.PointerEvent, anchorKey: string) => {
+    if (useBoardStore.getState().interactionMode !== 'select') return
+    setExpandedDateKey(null)
+    dragSessionRef.current = {
+      anchorKey,
+      currentKey: anchorKey,
+      startX: e.clientX,
+      startY: e.clientY,
+    }
+    setDragPreviewKeys(getDateKeysBetween(anchorKey, anchorKey))
+
+    const onMove = (ev: PointerEvent) => {
+      const sess = dragSessionRef.current
+      if (!sess) return
+      const k = getDateKeyFromPoint(ev.clientX, ev.clientY)
+      if (!k) return
+      sess.currentKey = k
+      setDragPreviewKeys(getDateKeysBetween(sess.anchorKey, k))
+    }
+
+    const onUp = (_ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      const sess = dragSessionRef.current
+      dragSessionRef.current = null
+      setDragPreviewKeys(null)
+      if (!sess) return
+
+      const keys = getDateKeysBetween(sess.anchorKey, sess.currentKey)
+      const state = useBoardStore.getState()
+      if (keys.length === 1) {
+        const dk = keys[0]
+        const sel = state.selection
+        const onlyThis =
+          (sel?.type === 'day' && sel.dateKey === dk)
+          || (sel?.type === 'days' && sel.dateKeys.length === 1 && sel.dateKeys[0] === dk)
+        if (onlyThis) {
+          state.setSelection(null)
+        } else {
+          state.setSelection({ type: 'day', dateKey: dk })
+          openBacklogIfNeeded()
+        }
+      } else {
+        state.setSelection({ type: 'days', dateKeys: keys })
+        openBacklogIfNeeded()
+      }
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }, [])
 
   const handleCellDoubleClick = useCallback((dateKey: string) => {
     setExpandedDateKey(prev => prev === dateKey ? null : dateKey)
@@ -144,10 +224,14 @@ export function YearBoard() {
                 y={headerH + month * rowHeight}
                 zoomLevel={view.zoomLevel}
                 dayLayout={dayLayout}
+                interactionMode={interactionMode}
                 itemIndex={itemIndex}
                 rangeIndex={rangeIndex}
-                selectedDateKey={selectedDateKey}
-                onCellClick={handleCellClick}
+                highlightDateKeys={highlightDateKeys}
+                dragSelecting={dragSelecting}
+                onPanCellClick={handlePanCellClick}
+                onSelectPointerDown={handleSelectPointerDown}
+                onModifierCellClick={handleModifierCellClick}
                 onCellDoubleClick={handleCellDoubleClick}
               />
             ))}

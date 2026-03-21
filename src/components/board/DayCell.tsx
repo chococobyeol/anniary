@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { DayCellViewModel, DayCellRenderPolicy } from '../../types/view-models'
-import type { ZoomLevel } from '../../types/state'
+import type { ZoomLevel, InteractionMode } from '../../types/state'
 import { DAY_CELL_POLICY } from '../../types/view-models'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT } from '../../utils/zoom'
 
@@ -9,9 +9,13 @@ type Props = {
   x: number
   y: number
   zoomLevel: ZoomLevel
-  isSelected: boolean
+  isHighlighted: boolean
+  highlightPreview?: boolean
   showDow: boolean
-  onClick?: (dateKey: string) => void
+  interactionMode: InteractionMode
+  onPanCellClick?: (dateKey: string) => void
+  onSelectPointerDown?: (e: React.PointerEvent, dateKey: string) => void
+  onModifierCellClick?: (dateKey: string) => void
   onDoubleClick?: (dateKey: string) => void
 }
 
@@ -27,7 +31,10 @@ const DOW_COLOR_SUNDAY = 'var(--status-delayed)'
 const DOW_COLOR_SATURDAY = 'var(--status-in-progress)'
 const DOW_COLOR_DEFAULT = 'var(--text-muted)'
 
-export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, showDow, onClick, onDoubleClick }: Props) {
+export const DayCell = memo(function DayCell({
+  vm, x, y, zoomLevel, isHighlighted, highlightPreview, showDow, interactionMode,
+  onPanCellClick, onSelectPointerDown, onModifierCellClick, onDoubleClick,
+}: Props) {
   const policy: DayCellRenderPolicy = DAY_CELL_POLICY[zoomLevel]
   const w = BASE_CELL_WIDTH
   const h = BASE_CELL_HEIGHT
@@ -43,10 +50,31 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
     : vm.isWeekend ? 'var(--bg-cell-weekend)'
     : 'var(--bg-cell)'
 
+  const strokeColor = isHighlighted
+    ? (highlightPreview ? 'var(--status-in-progress)' : 'var(--border-selected)')
+    : 'var(--border-light)'
+  const strokeW = isHighlighted ? 1.5 : 0.5
+
   return (
     <g
+      data-date-key={vm.dateKey}
       transform={`translate(${x}, ${y})`}
-      onClick={() => onClick?.(vm.dateKey)}
+      onClick={(e) => {
+        if (interactionMode === 'pan') {
+          onPanCellClick?.(vm.dateKey)
+          return
+        }
+        if (interactionMode === 'select' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          onModifierCellClick?.(vm.dateKey)
+        }
+      }}
+      onPointerDown={(e) => {
+        if (interactionMode !== 'select' || e.button !== 0) return
+        if (e.metaKey || e.ctrlKey) return
+        e.stopPropagation()
+        onSelectPointerDown?.(e, vm.dateKey)
+      }}
       onDoubleClick={() => onDoubleClick?.(vm.dateKey)}
       style={{ cursor: 'pointer' }}
     >
@@ -55,8 +83,9 @@ export const DayCell = memo(function DayCell({ vm, x, y, zoomLevel, isSelected, 
         height={h}
         rx={1}
         fill={bgFill}
-        stroke={isSelected ? 'var(--border-selected)' : 'var(--border-light)'}
-        strokeWidth={isSelected ? 1.5 : 0.5}
+        fillOpacity={highlightPreview ? 0.88 : 1}
+        stroke={strokeColor}
+        strokeWidth={strokeW}
       />
 
       {vm.rangeMarkers.slice(0, 3).map((rm, i) => (

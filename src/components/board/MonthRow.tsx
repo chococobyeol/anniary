@@ -1,8 +1,8 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, type PointerEvent as ReactPointerEvent } from 'react'
 import { DayCell } from './DayCell'
 import { getDaysInMonth, toDateKey, getTodayKey, getMonthShort, getDayOfWeek, getDayOfWeekLabel, isWeekend, getFirstDayOfWeek } from '../../utils/date'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../utils/zoom'
-import type { ZoomLevel, DayLayout } from '../../types/state'
+import type { ZoomLevel, DayLayout, InteractionMode } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
 import type { DateIndex } from '../../utils/indexing'
@@ -13,15 +13,20 @@ type Props = {
   y: number
   zoomLevel: ZoomLevel
   dayLayout: DayLayout
+  interactionMode: InteractionMode
   itemIndex: DateIndex<ItemEntity>
   rangeIndex: DateIndex<RangeEntity>
-  selectedDateKey: string | null
-  onCellClick: (dateKey: string) => void
+  highlightDateKeys: Set<string>
+  dragSelecting: boolean
+  onPanCellClick: (dateKey: string) => void
+  onSelectPointerDown: (e: ReactPointerEvent<Element>, dateKey: string) => void
+  onModifierCellClick: (dateKey: string) => void
   onCellDoubleClick: (dateKey: string) => void
 }
 
 export const MonthRow = memo(function MonthRow({
-  year, month, y, zoomLevel, dayLayout, itemIndex, rangeIndex, selectedDateKey, onCellClick, onCellDoubleClick,
+  year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, rangeIndex,
+  highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
   const todayKey = getTodayKey()
@@ -102,9 +107,13 @@ export const MonthRow = memo(function MonthRow({
             x={MONTH_HEADER_WIDTH + col * (BASE_CELL_WIDTH + 1)}
             y={0}
             zoomLevel={zoomLevel}
-            isSelected={vm.dateKey === selectedDateKey}
+            isHighlighted={highlightDateKeys.has(vm.dateKey)}
+            highlightPreview={dragSelecting && highlightDateKeys.has(vm.dateKey)}
             showDow={showDow}
-            onClick={onCellClick}
+            interactionMode={interactionMode}
+            onPanCellClick={onPanCellClick}
+            onSelectPointerDown={onSelectPointerDown}
+            onModifierCellClick={onModifierCellClick}
             onDoubleClick={onCellDoubleClick}
           />
         )

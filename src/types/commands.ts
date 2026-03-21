@@ -29,6 +29,7 @@ export type CreateItemCommand = CommandEnvelope<'createItem', {
   title?: string
   body?: string
   date?: string
+  endDate?: string
   rangeId?: string
   status?: ItemStatus
   progress?: number
@@ -42,6 +43,7 @@ export type UpdateItemCommand = CommandEnvelope<'updateItem', {
     title?: string
     body?: string
     date?: string | null
+    endDate?: string | null
     rangeId?: string | null
     status?: ItemStatus
     progress?: number | null

@@ -25,6 +25,8 @@ export type ItemEntity = {
   title?: string
   body?: string
   date?: string
+  /** Inclusive end of a multi-day task; should match linked range.endDate when rangeId is set */
+  endDate?: string
   startTime?: string
   endTime?: string
   rangeId?: string

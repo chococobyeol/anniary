@@ -78,6 +78,18 @@ export function getDateKeysBetween(startKey: string, endKey: string): string[] {
   return keys
 }
 
+export function sortDateKeys(keys: string[]): string[] {
+  return [...keys].sort(compareDateKeys)
+}
+
+/** True if sortedUnique is every calendar day from first to last with no gaps */
+export function isContiguousDateSpan(sortedUniqueKeys: string[]): boolean {
+  if (sortedUniqueKeys.length <= 1) return true
+  const span = getDateKeysBetween(sortedUniqueKeys[0], sortedUniqueKeys[sortedUniqueKeys.length - 1])
+  if (span.length !== sortedUniqueKeys.length) return false
+  return span.every((k, i) => k === sortedUniqueKeys[i])
+}
+
 export function getMaxColumnsForYear(year: number): number {
   let max = 0
   for (let m = 0; m < 12; m++) {

@@ -3,13 +3,11 @@ import type {
   AppState,
   AppSettings,
   BoardState,
-  DayLayout,
   InteractionMode,
   LeftPanelMode,
   RightPanelMode,
   SelectionTarget,
   ViewState,
-  ZoomLevel,
 } from '../types/state'
 import type {
   BoardEntity,
@@ -46,7 +44,7 @@ type Actions = {
   updateSettings: (patch: Partial<AppSettings>) => void
 
   createItem: (boardId: string, kind: ItemKind, opts?: {
-    title?: string; body?: string; date?: string; startTime?: string; endTime?: string;
+    title?: string; body?: string; date?: string; endDate?: string; startTime?: string; endTime?: string;
     rangeId?: string; tags?: string[]; status?: ItemStatus; progress?: number; pinned?: boolean
   }) => string
   updateItem: (itemId: string, patch: Partial<ItemEntity>) => void
@@ -175,7 +173,7 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     const id = generateId()
     const item: ItemEntity = {
       id, boardId, kind,
-      title: opts?.title, body: opts?.body, date: opts?.date,
+      title: opts?.title, body: opts?.body, date: opts?.date, endDate: opts?.endDate,
       startTime: opts?.startTime, endTime: opts?.endTime, rangeId: opts?.rangeId,
       tags: opts?.tags && opts.tags.length > 0 ? opts.tags : ['General'],
       status: opts?.status || 'none', progress: opts?.progress,
@@ -210,9 +208,24 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     const boardId = findBoardForEntity(s.boards, 'items', itemId)
     if (!boardId) return s
     const bs = s.boards[boardId]
+    const item = bs.items[itemId]
+    if (!item) return s
+
+    let ranges = bs.ranges
+    if (item.rangeId) {
+      const rid = item.rangeId
+      const stillUsed = Object.values(bs.items).some(
+        it => it.id !== itemId && it.rangeId === rid
+      )
+      if (!stillUsed) {
+        const { [rid]: _removed, ...restRanges } = ranges
+        ranges = restRanges
+      }
+    }
+
     const { [itemId]: _, ...rest } = bs.items
     return {
-      boards: { ...s.boards, [boardId]: { ...bs, items: rest } },
+      boards: { ...s.boards, [boardId]: { ...bs, items: rest, ranges } },
       dirty: true,
     }
   }),

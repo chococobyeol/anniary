@@ -52,6 +52,7 @@ function DayDetail() {
       createItem(activeBoardId, newKind, {
         title: newTitle.trim(),
         date: selection.dateKey,
+        endDate: addEndDate,
         rangeId,
         startTime: addStartTime || undefined,
         endTime: addEndTime || undefined,
@@ -104,7 +105,7 @@ function DayDetail() {
   const cancelEdit = () => setEditingId(null)
 
   const moveToBacklog = (itemId: string) => {
-    updateItem(itemId, { date: undefined, rangeId: undefined })
+    updateItem(itemId, { date: undefined, endDate: undefined, rangeId: undefined })
   }
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
@@ -386,6 +387,7 @@ function ItemDetail() {
   const selection = useBoardStore(s => s.selection)
   const activeBoardId = useBoardStore(s => s.activeBoardId)
   const items = useBoardStore(s => (s.activeBoardId ? s.boards[s.activeBoardId]?.items || {} : {}))
+  const ranges = useBoardStore(s => (s.activeBoardId ? s.boards[s.activeBoardId]?.ranges || {} : {}))
   const updateItem = useBoardStore(s => s.updateItem)
   const deleteItem = useBoardStore(s => s.deleteItem)
   const createRange = useBoardStore(s => s.createRange)
@@ -427,8 +429,9 @@ function ItemDetail() {
     setEditDate(item.date || '')
     setEditStartTime(item.startTime || '')
     setEditEndTime(item.endTime || '')
-    setEditEndDate('')
-  }, [item.id, item.title, item.body, item.date, item.startTime, item.endTime, item.tags])
+    const linked = item.rangeId ? ranges[item.rangeId] : undefined
+    setEditEndDate(item.endDate || linked?.endDate || '')
+  }, [item.id, item.title, item.body, item.date, item.endDate, item.startTime, item.endTime, item.tags, item.rangeId, item.rangeId ? ranges[item.rangeId]?.endDate : undefined])
 
   const saveEdit = () => {
     if (!activeBoardId) return
@@ -442,11 +445,13 @@ function ItemDetail() {
     } else {
       rangeId = undefined
     }
+    const periodEnd = editEndDate.trim() && startDate && editEndDate >= startDate ? editEndDate.trim() : undefined
     updateItem(item.id, {
       title: firstLine || undefined,
       body: rest || undefined,
       tags: [editTag.trim() || DEFAULT_TAG],
       date: startDate,
+      endDate: periodEnd,
       rangeId,
       startTime: editStartTime || undefined,
       endTime: editEndTime || undefined,
@@ -473,6 +478,7 @@ function ItemDetail() {
   }
 
   const headerTitle = editContent.trim().split('\n')[0] || '(untitled)'
+  const headerEndDate = item.endDate || (item.rangeId ? ranges[item.rangeId]?.endDate : undefined)
 
   return (
     <div className="detail-panel">
@@ -480,7 +486,7 @@ function ItemDetail() {
         <span className="detail-date-main">{headerTitle}</span>
         {item.date && (
           <span className="detail-date-dow">
-            {item.date}
+            {headerEndDate && headerEndDate !== item.date ? `${item.date} – ${headerEndDate}` : item.date}
             {formatTime(item.startTime, item.endTime) && ` · ${formatTime(item.startTime, item.endTime)}`}
           </span>
         )}
