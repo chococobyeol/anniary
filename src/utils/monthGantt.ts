@@ -1,6 +1,7 @@
 import type { RangeEntity } from '../types/entities'
 import type { DayLayout, RangeEditPreview } from '../types/state'
 import { compareDateKeys, getDaysInMonth, parseDateKey, toDateKey } from './date'
+import { parseTimeToDayFraction } from './timeOfDay'
 import { BASE_CELL_WIDTH, MONTH_HEADER_WIDTH } from './zoom'
 
 export type MonthGanttSegment = {
@@ -77,6 +78,57 @@ function effectiveTimelinePriority(range: RangeEntity, preview: RangeEditPreview
   return range.timelinePriority ?? 0
 }
 
+function effectiveBarStartTime(range: RangeEntity, preview: RangeEditPreview | null): string | undefined {
+  if (preview?.rangeId === range.id && Object.prototype.hasOwnProperty.call(preview, 'barStartTime')) {
+    const v = preview.barStartTime?.trim()
+    return v || undefined
+  }
+  return range.barStartTime
+}
+
+function effectiveBarEndTime(range: RangeEntity, preview: RangeEditPreview | null): string | undefined {
+  if (preview?.rangeId === range.id && Object.prototype.hasOwnProperty.call(preview, 'barEndTime')) {
+    const v = preview.barEndTime?.trim()
+    return v || undefined
+  }
+  return range.barEndTime
+}
+
+/** Fractions of cell width [0,1] for first/last visible day in this month clip */
+function cellTimeFractionsForClip(
+  range: RangeEntity,
+  clip: { startKey: string; endKey: string; dayStart: number; dayEnd: number },
+  preview: RangeEditPreview | null
+): { startCellFrac: number; endCellFrac: number } {
+  let startCellFrac = 0
+  if (clip.startKey === range.startDate) {
+    const f = parseTimeToDayFraction(effectiveBarStartTime(range, preview))
+    if (f !== undefined) startCellFrac = Math.min(1, Math.max(0, f))
+  }
+  let endCellFrac = 1
+  if (clip.endKey === range.endDate) {
+    const f = parseTimeToDayFraction(effectiveBarEndTime(range, preview))
+    if (f !== undefined) endCellFrac = Math.min(1, Math.max(0, f))
+  }
+  if (clip.startKey === clip.endKey && startCellFrac >= endCellFrac) {
+    return { startCellFrac: 0, endCellFrac: 1 }
+  }
+  return { startCellFrac, endCellFrac }
+}
+
+function segmentLeftWidth(
+  seg: { dayStart: number; dayEnd: number; startCellFrac: number; endCellFrac: number },
+  dayLayout: DayLayout,
+  firstDow: number
+): { x: number; width: number } {
+  const col0 = dayColumn(seg.dayStart, dayLayout, firstDow)
+  const col1 = dayColumn(seg.dayEnd, dayLayout, firstDow)
+  const left = cellOuterLeft(col0) + seg.startCellFrac * BASE_CELL_WIDTH
+  const right = cellOuterLeft(col1) + seg.endCellFrac * BASE_CELL_WIDTH
+  const width = Math.max(right - left, 1)
+  return { x: left, width }
+}
+
 export function layoutMonthGanttSegments(
   ranges: Record<string, RangeEntity>,
   year: number,
@@ -92,6 +144,8 @@ export function layoutMonthGanttSegments(
     endKey: string
     dayStart: number
     dayEnd: number
+    startCellFrac: number
+    endCellFrac: number
     color: string
     kind: RangeEntity['kind']
     priority: number
@@ -102,12 +156,15 @@ export function layoutMonthGanttSegments(
     const clip = rangeClipToMonth(range, year, month)
     if (!clip) continue
     const vis = resolveRangeVisual(range, rangeEditPreview)
+    const { startCellFrac, endCellFrac } = cellTimeFractionsForClip(range, clip, rangeEditPreview)
     raw.push({
       rangeId: range.id,
       startKey: clip.startKey,
       endKey: clip.endKey,
       dayStart: clip.dayStart,
       dayEnd: clip.dayEnd,
+      startCellFrac,
+      endCellFrac,
       color: vis.color,
       kind: vis.kind,
       priority: effectiveTimelinePriority(range, rangeEditPreview),
@@ -134,26 +191,20 @@ export function layoutMonthGanttSegments(
       )
       if (noOverlap) {
         row.push({ start: seg.startKey, end: seg.endKey })
-        const col0 = dayColumn(seg.dayStart, dayLayout, firstDow)
-        const col1 = dayColumn(seg.dayEnd, dayLayout, firstDow)
-        const x = cellOuterLeft(col0)
-        const x2 = cellOuterLeft(col1) + BASE_CELL_WIDTH
-        const width = Math.max(x2 - x, 1)
+        const { x, width } = segmentLeftWidth(seg, dayLayout, firstDow)
         const y = cellHeight - BOTTOM_PAD - BAR_H - track * (BAR_H + BAR_GAP)
-        out.push({ ...seg, track, x, width, y, height: BAR_H })
+        const { startCellFrac: _sc, endCellFrac: _ec, ...restSeg } = seg
+        out.push({ ...restSeg, track, x, width, y, height: BAR_H })
         placed = true
         break
       }
     }
     if (!placed) {
       const track = MAX_TRACKS - 1
-      const col0 = dayColumn(seg.dayStart, dayLayout, firstDow)
-      const col1 = dayColumn(seg.dayEnd, dayLayout, firstDow)
-      const x = cellOuterLeft(col0)
-      const x2 = cellOuterLeft(col1) + BASE_CELL_WIDTH
-      const width = Math.max(x2 - x, 1)
+      const { x, width } = segmentLeftWidth(seg, dayLayout, firstDow)
       const y = cellHeight - BOTTOM_PAD - BAR_H - track * (BAR_H + BAR_GAP)
-      out.push({ ...seg, track, x, width, y, height: BAR_H })
+      const { startCellFrac: _sc2, endCellFrac: _ec2, ...restSeg } = seg
+      out.push({ ...restSeg, track, x, width, y, height: BAR_H })
     }
   }
 

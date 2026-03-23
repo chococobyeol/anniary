@@ -46,7 +46,7 @@ export function ItemDetail() {
   const [editDate, setEditDate] = useState(() => item?.date || '')
   const [editStartTime, setEditStartTime] = useState(() => item?.startTime || '')
   const [editEndTime, setEditEndTime] = useState(() => item?.endTime || '')
-  const [editEndDate, setEditEndDate] = useState(() => item?.endDate || linkedRange?.endDate || '')
+  const [editEndDate, setEditEndDate] = useState(() => item?.endDate || linkedRange?.endDate || item?.date || '')
   const [editPeriodColor, setEditPeriodColor] = useState<string | undefined>(() => linkedRange?.color)
   const [editTimelineBarHidden, setEditTimelineBarHidden] = useState(() => linkedRange?.timelineBarHidden === true)
   const [editTimelinePriority, setEditTimelinePriority] = useState(() => linkedRange?.timelinePriority ?? 0)
@@ -71,9 +71,11 @@ export function ItemDetail() {
       color: editPeriodColor,
       timelineBarHidden: editTimelineBarHidden,
       timelinePriority: clampTimelinePriority(editTimelinePriority),
+      barStartTime: editStartTime.trim(),
+      barEndTime: editEndTime.trim(),
     })
     return () => setRangeEditPreview(null)
-  }, [itemRangeId, editPeriodColor, editTimelineBarHidden, editTimelinePriority, setRangeEditPreview])
+  }, [itemRangeId, editPeriodColor, editTimelineBarHidden, editTimelinePriority, editStartTime, editEndTime, setRangeEditPreview])
 
   if (!selection || selection.type !== 'item') return null
   if (!item) {
@@ -95,30 +97,33 @@ export function ItemDetail() {
     const lines = trimmed.split('\n')
     const firstLine = lines[0] ?? ''
     const startDate = editDate.trim() || undefined
-    const hasPeriod = Boolean(editEndDate.trim() && startDate && editEndDate >= startDate)
-    const periodEnd = hasPeriod ? editEndDate.trim() : undefined
+    const endInput = editEndDate.trim()
+    const periodEnd =
+      startDate && endInput && endInput >= startDate ? endInput : startDate
+    const barStart = editStartTime.trim() || undefined
+    const barEnd = editEndTime.trim() || undefined
     const pr = clampTimelinePriority(editTimelinePriority)
     setEditTimelinePriority(pr)
 
     let newRangeId: string | undefined
-    if (hasPeriod && startDate && periodEnd) {
+    if (startDate && periodEnd) {
+      const rangeOpts = {
+        label: firstLine || undefined,
+        color: editPeriodColor,
+        timelineBarHidden: editTimelineBarHidden ? true : undefined,
+        timelinePriority: pr !== 0 ? pr : undefined,
+        barStartTime: barStart,
+        barEndTime: barEnd,
+      }
       if (item.rangeId && bs.ranges[item.rangeId]) {
         updateRange(item.rangeId, {
           startDate,
           endDate: periodEnd,
-          label: firstLine || undefined,
-          color: editPeriodColor,
-          timelineBarHidden: editTimelineBarHidden ? true : undefined,
-          timelinePriority: pr !== 0 ? pr : undefined,
+          ...rangeOpts,
         })
         newRangeId = item.rangeId
       } else {
-        newRangeId = createRange(activeBoardId, 'period', startDate, periodEnd, {
-          label: firstLine || undefined,
-          color: editPeriodColor,
-          timelineBarHidden: editTimelineBarHidden ? true : undefined,
-          timelinePriority: pr !== 0 ? pr : undefined,
-        })
+        newRangeId = createRange(activeBoardId, 'period', startDate, periodEnd, rangeOpts)
       }
     } else {
       newRangeId = undefined
@@ -132,8 +137,8 @@ export function ItemDetail() {
       date: startDate,
       endDate: periodEnd,
       rangeId: newRangeId,
-      startTime: editStartTime || undefined,
-      endTime: editEndTime || undefined,
+      startTime: barStart,
+      endTime: barEnd,
     })
 
     const oldRid = item.rangeId
@@ -167,10 +172,16 @@ export function ItemDetail() {
   }
 
   const headerTitle = editContent.trim().split('\n')[0] || '(untitled)'
-  const headerEndDate = item.endDate || (item.rangeId ? ranges[item.rangeId]?.endDate : undefined)
-  const draftHasPeriod = Boolean(editDate.trim() && editEndDate.trim() && editDate <= editEndDate)
+  const draftEndForHeader = editEndDate.trim()
+  const headerEndDate =
+    draftEndForHeader && draftEndForHeader !== editDate.trim()
+      ? draftEndForHeader
+      : undefined
+  const draftHasPeriod = Boolean(
+    editDate.trim() && (!editEndDate.trim() || editEndDate >= editDate)
+  )
   const periodAccentColor = draftHasPeriod ? (editPeriodColor ?? linkedRange?.color) : undefined
-  const showTimelineFields = draftHasPeriod
+  const showTimelineFields = Boolean(editDate.trim())
 
   return (
     <div className="detail-panel">
@@ -179,10 +190,10 @@ export function ItemDetail() {
         style={periodAccentColor ? { borderLeft: `3px solid ${periodAccentColor}`, paddingLeft: 8, marginLeft: -2 } : undefined}
       >
         <span className="detail-date-main">{headerTitle}</span>
-        {item.date && (
+        {editDate.trim() && (
           <span className="detail-date-dow">
-            {headerEndDate && headerEndDate !== item.date ? `${item.date} – ${headerEndDate}` : item.date}
-            {formatTime(item.startTime, item.endTime) && ` · ${formatTime(item.startTime, item.endTime)}`}
+            {headerEndDate ? `${editDate.trim()} – ${headerEndDate}` : editDate.trim()}
+            {formatTime(editStartTime, editEndTime) && ` · ${formatTime(editStartTime, editEndTime)}`}
           </span>
         )}
       </div>

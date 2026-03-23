@@ -42,6 +42,8 @@ export function RangeDetail() {
   const [draftColor, setDraftColor] = useState<string | undefined>(() => range?.color)
   const [draftTimelineBarHidden, setDraftTimelineBarHidden] = useState(() => range?.timelineBarHidden === true)
   const [draftTimelinePriority, setDraftTimelinePriority] = useState(() => range?.timelinePriority ?? 0)
+  const [draftBarStartTime, setDraftBarStartTime] = useState(() => range?.barStartTime || '')
+  const [draftBarEndTime, setDraftBarEndTime] = useState(() => range?.barEndTime || '')
 
   const currentRangeId = range?.id
   useEffect(() => {
@@ -55,9 +57,11 @@ export function RangeDetail() {
       kind: draftKind,
       timelineBarHidden: draftTimelineBarHidden,
       timelinePriority: clampTimelinePriority(draftTimelinePriority),
+      barStartTime: draftBarStartTime.trim(),
+      barEndTime: draftBarEndTime.trim(),
     })
     return () => setRangeEditPreview(null)
-  }, [currentRangeId, draftColor, draftKind, draftTimelineBarHidden, draftTimelinePriority, setRangeEditPreview])
+  }, [currentRangeId, draftColor, draftKind, draftTimelineBarHidden, draftTimelinePriority, draftBarStartTime, draftBarEndTime, setRangeEditPreview])
 
   if (!selection || selection.type !== 'range' || !boardState) return null
   if (!range) return <div className="panel-placeholder">Range not found</div>
@@ -77,6 +81,8 @@ export function RangeDetail() {
     setDraftColor(r.color)
     setDraftTimelineBarHidden(r.timelineBarHidden === true)
     setDraftTimelinePriority(r.timelinePriority ?? 0)
+    setDraftBarStartTime(r.barStartTime || '')
+    setDraftBarEndTime(r.barEndTime || '')
   }
 
   const saveDraft = () => {
@@ -90,6 +96,8 @@ export function RangeDetail() {
       color: draftColor,
       timelineBarHidden: draftTimelineBarHidden ? true : undefined,
       timelinePriority: pr !== 0 ? pr : undefined,
+      barStartTime: draftBarStartTime.trim() || undefined,
+      barEndTime: draftBarEndTime.trim() || undefined,
     })
     setRangeEditPreview(null)
   }
@@ -127,6 +135,27 @@ export function RangeDetail() {
         <span className="range-period-value">
           {startP.month + 1}/{startP.day} ~ {endP.month + 1}/{endP.day}
         </span>
+      </div>
+
+      <div className="range-field">
+        <label className="range-field-label">Bar start (first day)</label>
+        <input
+          type="time"
+          className="detail-time-input"
+          value={draftBarStartTime}
+          onChange={e => setDraftBarStartTime(e.target.value)}
+          title="Optional. Trims the bar on the start date cell (year board)."
+        />
+      </div>
+      <div className="range-field">
+        <label className="range-field-label">Bar end (last day)</label>
+        <input
+          type="time"
+          className="detail-time-input"
+          value={draftBarEndTime}
+          onChange={e => setDraftBarEndTime(e.target.value)}
+          title="Optional. Trims the bar on the end date cell (year board)."
+        />
       </div>
 
       <div className="range-field">

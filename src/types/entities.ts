@@ -50,6 +50,14 @@ export type RangeEntity = {
   color?: string
   /** true면 연간 보드 하단 기간 막대(간트 바)를 그리지 않음. 일정·디테일·백로그는 유지 */
   timelineBarHidden?: boolean
+  /**
+   * `startDate` 칸 안에서 막대 시작 위치 (HH:mm, 24h). 없으면 그날 칸 왼쪽(자정)부터.
+   */
+  barStartTime?: string
+  /**
+   * `endDate` 칸 안에서 막대 끝 위치 (HH:mm, 24h). 없으면 그날 칸 오른쪽까지.
+   */
+  barEndTime?: string
   /** 표시 순서: 같은 날 셀 안 일정 줄·겹치는 막대 트랙에서 큰 값이 위쪽에 표시됨. 기본 0 */
   timelinePriority?: number
   createdAt: string

@@ -7,6 +7,8 @@
 | 필드 | 타입 | 기본(미설정 시) | 설명 |
 |------|------|-----------------|------|
 | `timelineBarHidden` | `boolean` (optional) | `false` | `true`이면 **막대만** 그리지 않음. 아이템·백로그·디테일·날짜 인덱스는 그대로. |
+| `barStartTime` | `string` (optional, `HH:mm`) | 없음 | **시작일(`startDate`) 칸** 안에서 막대가 **왼쪽(자정)이 아니라 해당 시각**부터 시작. 없으면 그날은 칸 전체 너비의 왼쪽부터. |
+| `barEndTime` | `string` (optional, `HH:mm`) | 없음 | **종료일(`endDate`) 칸** 안에서 막대가 **해당 시각**에서 끝남. 없으면 그날은 칸 오른쪽까지. |
 | `timelinePriority` | `number` (optional) | `0` | **표시 순서(Display order)**. **날짜 셀**에서 해당 기간에 묶인 일정 줄이 **큰 값일수록 위에** 보이고, 같은 달에서 막대가 겹칠 때도 **더 위쪽 트랙**에 옴. 허용 범위: **-50 ~ 50** (UI·저장 시 클램프). |
 
 - 기존 저장 데이터에 필드가 없으면 막대 표시 + 표시 순서 0으로 동작합니다.
@@ -20,6 +22,9 @@
 2. **표시 순서 (막대)**  
    막대 후보를 모은 뒤 `timelinePriority` **오름차순** → 시작일 → 종료일 → `rangeId`로 정렬하여 트랙에 배치합니다. 낮은 값이 먼저 하단 트랙을 차지하고, **큰 값은 위쪽 트랙**에 배치됩니다. 트랙 수 상한(`MAX_TRACKS`)은 `monthGantt.ts`에 정의되어 있어, 매우 많이 겹치면 하단 트랙에 쌓일 수 있습니다.
 
+2a. **시간으로 막대 자르기**  
+   `barStartTime` / `barEndTime`이 있으면, 해당 월 클립에서 **맨 첫 날이 범위의 `startDate`일 때만** 시작 쪽을 칸 안에서 잘라 그리고, **맨 마지막 날이 `endDate`일 때만** 끝 쪽을 잘라 그립니다. 월 중간 구간은 기존처럼 날짜 칸 전체 너비입니다. 같은 날 한 칸 안에서 시작·끝 분수가 역전되면(잘못된 조합) **그 구간은 종일 막대**로 폴백합니다. 파싱은 `src/utils/timeOfDay.ts`의 `parseTimeToDayFraction`을 사용합니다.
+
 2b. **표시 순서 (날짜 셀 요약)**  
    `MonthRow`에서 하루에 여러 아이템이 있을 때, **고정(pin)** 이 먼저이고, 그다음 **연결된 기간의** `timelinePriority` **내림차순**(큰 값이 위), 그다음 **in-progress** 우선입니다. `rangeEditPreview`가 해당 `rangeId`를 가리키면 미리보기 값으로 정렬합니다 (`linkedRangeTimelinePriority`, `src/utils/itemTimelinePriority.ts`).
 
@@ -29,7 +34,7 @@
 ## UI에서 설정하는 위치
 
 - **아이템 디테일** (`DetailPanel` → `ItemDetail`): 시작일·기간 종료일이 유효할 때 **Period color**, **Period bar** (Hide period bar on year board), **Display order** 표시. 기존 `rangeId`가 없으면 첫 저장 시 `createRange`에 함께 기록됩니다.
-- **범위 디테일** (`DetailPanel` → `RangeDetail`): 동일 옵션을 draft로 편집 후 **Save / Cancel**.
+- **범위 디테일** (`DetailPanel` → `RangeDetail`): 동일 옵션 + **Bar start / Bar end** 시간(선택) draft 후 **Save / Cancel**.
 - 각 항목 옆 **정보 아이콘**(벡터 `IconInfo`, 다른 패널 아이콘과 동일 stroke)에 마우스를 올리거나 포커스하면 **즉시 뜨는 말풍선**으로 영어 설명이 표시됩니다. (브라우저 기본 `title`·`cursor: help`는 macOS에서 물음표 커서만 보이거나 늦게 떠서 사용하지 않음.) 체크 행·숫자 입력·색 스와치에는 보조로 `title`이 붙어 있습니다.
 
 ## 관련 소스 파일

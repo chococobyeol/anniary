@@ -116,3 +116,30 @@
 - 재발 방지: 정렬 방향과 시각적 배치 방향(track Y 좌표)의 관계를 실제 렌더링으로 확인할 것. "큰 값 = 먼저 처리"와 "먼저 처리 = 위쪽"이 항상 일치하지 않음.
 - 검증: `npm run build` 성공.
 - 관련 파일: `src/utils/monthGantt.ts`, `docs/TIMELINE_BARS.md`
+
+## [2026-03-23 14:30] 단일 셀 일정 막대 일관성 + 시간 기반 부분 막대
+
+- 증상: 셀 하루만 선택해 일정을 추가하면 `endDate`/range가 없어 연간 보드 기간 막대가 안 보임. 야간 등 같은 이틀에 걸친 시각은 날짜 칸 전체 막대로만 표현됨.
+- 원인: 백로그·DayDetail이 하루짜리는 `createRange` 없이 item만 생성. 간트는 `RangeEntity`만 그리며 날짜 단위 폭만 사용.
+- 해결: (1) `day` 선택·DayDetail 무기간 추가 시 `createRange(…, d, d)` + item에 `endDate: d`, `rangeId` 연결. (2) `ItemDetail`은 시작일이 있으면 종료일 비어 있어도 `periodEnd = startDate`로 항상 range 유지, `barStartTime`/`barEndTime`을 item 시간과 함께 저장. (3) `RangeEntity`에 `barStartTime`/`barEndTime`, `RangeEditPreview`·`layoutMonthGanttSegments`에서 첫/끝 날 칸 내 분수 폭으로 막대. 같은 칸에서 분수 역전 시 종일 폴백. (4) `RangeDetail`에서 바 시간 편집. `docs/TIMELINE_BARS.md` 반영.
+- 재발 방지: 막대 표시는 range와 날짜 스팬을 한 세트로 두고, “하루만”도 `startDate===endDate` range로 통일. 시간 UI 변경 시 미리보기·엔티티·문서 세 곳을 맞출 것.
+- 검증: `npm run build` 성공, `npx eslint src/` 0 error 0 warning.
+- 관련 파일: `src/utils/timeOfDay.ts`, `src/types/entities.ts`, `src/types/state.ts`, `src/store/board-store.ts`, `src/utils/monthGantt.ts`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/detail/RangeDetail.tsx`, `docs/TIMELINE_BARS.md`
+
+## [2026-03-23 15:30] 디테일 패널 날짜·시간 단축 버튼 일관성
+
+- 증상: `<input type="time">`는 브라우저에 따라 지우기가 없어 시간을 비울 수 없고, 날짜는 네이티브 피커에 오늘/삭제가 있는 경우가 있어 UX가 어긋남.
+- 원인: 시간 필드에 명시적 Clear/Now 미제공.
+- 해결: `DetailInputShortcuts`로 **날짜: Today / Clear**, **시간: Now / Clear** 버튼 추가. `ItemDetail`·`DayDetail`·`RangeDetail`에 적용. `formatLocalTimeHHMM`을 `timeOfDay.ts`에 추가. `DetailPanel.css`에 `.detail-mini-btn` 등 스타일 추가.
+- 재발 방지: 날짜·시간 편집 UI를 추가할 때 네이티브 피커만 믿지 말고, 비우기·오늘/지금 같은 기본 액션을 버튼으로 제공할 것.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/DetailInputShortcuts.tsx`, `src/utils/timeOfDay.ts`, `src/components/panels/DetailPanel.css`, `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/RangeDetail.tsx`
+
+## [2026-03-23 16:00] 디테일 패널 Today/Clear/Now 버튼 롤백
+
+- 증상: 날짜 네이티브 캘린더 하단의「삭제」「오늘」과 동일한 UX를 **시간 입력에도** 원했는데, 디테일 폼 옆에 별도 버튼을 넣은 구현이 의도와 달랐음.
+- 원인: `<input type="time">` 팝업은 OS/브라우저 고정 UI라 HTML만으로 날짜 피커와 같은 푸터를 붙일 수 없음. 대안으로 패널에 단축 버튼을 두었으나 사용자는 패널이 아닌 **피커 내부** 일관성을 요구.
+- 해결: `DetailInputShortcuts` 삭제, `ItemDetail`·`DayDetail`·`RangeDetail`의 Today/Clear/Now 및 관련 CSS 제거, `formatLocalTimeHHMM` 제거. 날짜·시간은 다시 순수 `<input type="date|time">`만 사용.
+- 재발 방지: 네이티브 피커와 동일한 UX가 필요하면 **커스텀 시간 선택 UI**(모달+휠/슬롯+하단 삭제·지금)를 별도 컴포넌트로 설계할 것. 폼 인라인 버튼은 요구사항 확인 후 적용.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/RangeDetail.tsx`, `src/components/panels/DetailPanel.css`, `src/utils/timeOfDay.ts` (`DetailInputShortcuts.tsx` 삭제)

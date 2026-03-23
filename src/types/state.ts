@@ -80,6 +80,11 @@ export type RangeEditPreview = {
   timelineBarHidden?: boolean
   /** undefined면 저장된 range.timelinePriority 사용 */
   timelinePriority?: number
+  /**
+   * 키가 있으면 미리보기 값 사용. 빈 문자열이면 해당 끝을 “칸 전체”로(시간 자름 없음).
+   */
+  barStartTime?: string
+  barEndTime?: string
 }
 
 export type AppState = {

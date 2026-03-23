@@ -57,6 +57,7 @@ type Actions = {
   createRange: (boardId: string, kind: RangeKind, startDate: string, endDate: string, opts?: {
     label?: string; body?: string; status?: RangeStatus; color?: string
     timelineBarHidden?: boolean; timelinePriority?: number
+    barStartTime?: string; barEndTime?: string
   }) => string
   updateRange: (rangeId: string, patch: Partial<RangeEntity>) => void
   deleteRange: (rangeId: string) => void
@@ -249,6 +250,8 @@ export const useBoardStore = create<AppState & Actions>()(
       status: opts?.status || 'none', color: opts?.color,
       timelineBarHidden: opts?.timelineBarHidden,
       timelinePriority: opts?.timelinePriority,
+      barStartTime: opts?.barStartTime,
+      barEndTime: opts?.barEndTime,
       createdAt: now(), updatedAt: now(),
     }
     set(s => {

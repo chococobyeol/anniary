@@ -41,24 +41,38 @@ export function DayDetail() {
     if (!activeBoardId || !newTitle.trim()) return
 
     if (addEndDate) {
+      const barStart = addStartTime.trim() || undefined
+      const barEnd = addEndTime.trim() || undefined
       const rangeId = createRange(activeBoardId, 'period', selection.dateKey, addEndDate, {
         label: newTitle.trim(),
+        barStartTime: barStart,
+        barEndTime: barEnd,
       })
       createItem(activeBoardId, newKind, {
         title: newTitle.trim(),
         date: selection.dateKey,
         endDate: addEndDate,
         rangeId,
-        startTime: addStartTime || undefined,
-        endTime: addEndTime || undefined,
+        startTime: barStart,
+        endTime: barEnd,
       })
       setSelection({ type: 'range', rangeId })
     } else {
+      const dk = selection.dateKey
+      const barStart = addStartTime.trim() || undefined
+      const barEnd = addEndTime.trim() || undefined
+      const rangeId = createRange(activeBoardId, 'period', dk, dk, {
+        label: newTitle.trim(),
+        barStartTime: barStart,
+        barEndTime: barEnd,
+      })
       createItem(activeBoardId, newKind, {
-        date: selection.dateKey,
+        date: dk,
+        endDate: dk,
         title: newTitle.trim(),
-        startTime: addStartTime || undefined,
-        endTime: addEndTime || undefined,
+        startTime: barStart,
+        endTime: barEnd,
+        rangeId,
       })
     }
 

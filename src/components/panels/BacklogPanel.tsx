@@ -118,7 +118,15 @@ export function BacklogPanel() {
     const title = text.trim()
 
     if (selection?.type === 'day') {
-      createItem(activeBoardId, 'task', { title, tags: [tag], date: selection.dateKey })
+      const dk = selection.dateKey
+      const rangeId = createRange(activeBoardId, 'period', dk, dk, { label: title })
+      createItem(activeBoardId, 'task', {
+        title,
+        tags: [tag],
+        date: dk,
+        endDate: dk,
+        rangeId,
+      })
     } else if (selection?.type === 'days' && selection.dateKeys.length > 0) {
       const keys = sortDateKeys([...new Set(selection.dateKeys)])
       if (isContiguousDateSpan(keys)) {
