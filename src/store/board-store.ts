@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type {
   AppState,
   AppSettings,
@@ -68,6 +69,7 @@ type Actions = {
 }
 
 const initialState: AppState = {
+  _hydrated: false,
   activeBoardId: null,
   boards: {},
   view: { scale: 1, translateX: 0, translateY: 0, zoomLevel: 'Z1' },
@@ -99,7 +101,9 @@ function getBoardColumns(state: AppState): number {
   return getMaxColumnsForYear(bs.board.year)
 }
 
-export const useBoardStore = create<AppState & Actions>()((set, get) => ({
+export const useBoardStore = create<AppState & Actions>()(
+  persist(
+    (set, get) => ({
   ...initialState,
 
   createBoard: (year, title) => {
@@ -275,9 +279,21 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     const boardId = findBoardForEntity(s.boards, 'ranges', rangeId)
     if (!boardId) return s
     const bs = s.boards[boardId]
-    const { [rangeId]: _, ...rest } = bs.ranges
+    const { [rangeId]: _removed, ...restRanges } = bs.ranges
+
+    const updatedItems: Record<string, ItemEntity> = {}
+    let itemsChanged = false
+    for (const [id, item] of Object.entries(bs.items)) {
+      if (item.rangeId === rangeId) {
+        updatedItems[id] = { ...item, rangeId: undefined, updatedAt: now() }
+        itemsChanged = true
+      } else {
+        updatedItems[id] = item
+      }
+    }
+
     return {
-      boards: { ...s.boards, [boardId]: { ...bs, ranges: rest } },
+      boards: { ...s.boards, [boardId]: { ...bs, ranges: restRanges, items: itemsChanged ? updatedItems : bs.items } },
       dirty: true,
     }
   }),
@@ -319,10 +335,28 @@ export const useBoardStore = create<AppState & Actions>()((set, get) => ({
     const boardId = findBoardForEntity(s.boards, 'overlays', overlayId)
     if (!boardId) return s
     const bs = s.boards[boardId]
-    const { [overlayId]: _, ...rest } = bs.overlays
+    const { [overlayId]: _removed, ...rest } = bs.overlays
     return {
       boards: { ...s.boards, [boardId]: { ...bs, overlays: rest } },
       dirty: true,
     }
   }),
-}))
+    }),
+    {
+      name: 'anniary-storage',
+      version: 1,
+      partialize: (state) => ({
+        activeBoardId: state.activeBoardId,
+        boards: state.boards,
+        settings: state.settings,
+      }),
+    }
+  )
+)
+
+useBoardStore.persist.onFinishHydration(() => {
+  useBoardStore.setState({ _hydrated: true })
+})
+if (useBoardStore.persist.hasHydrated()) {
+  useBoardStore.setState({ _hydrated: true })
+}

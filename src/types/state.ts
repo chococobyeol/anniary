@@ -83,6 +83,7 @@ export type RangeEditPreview = {
 }
 
 export type AppState = {
+  _hydrated: boolean
   activeBoardId: string | null
   boards: Record<string, BoardState>
   view: ViewState

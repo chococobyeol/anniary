@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import type { InteractionMode } from '../../types/state'
-import { fitToScreenRef } from '../board/YearBoard'
+import { fitToScreenRef } from '../../utils/fitToScreen'
 import { IconMove, IconCursor, IconPencil, IconPin, IconSettings, IconMaximize } from '../icons/Icons'
 import './TopToolbar.css'
 

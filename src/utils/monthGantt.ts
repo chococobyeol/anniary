@@ -116,7 +116,7 @@ export function layoutMonthGanttSegments(
 
   raw.sort(
     (a, b) =>
-      b.priority - a.priority
+      a.priority - b.priority
       || compareDateKeys(a.startKey, b.startKey)
       || compareDateKeys(a.endKey, b.endKey)
       || a.rangeId.localeCompare(b.rangeId)

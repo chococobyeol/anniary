@@ -89,3 +89,30 @@
 - 재발 방지: 보드에 보이는 정렬/레이아웃 규칙이 바뀌면 **영어 UI 카피·한글 기술 문서·엔티티 주석**을 한 번에 맞출 것.
 - 검증: `npm run build` 성공.
 - 관련 파일: `src/components/panels/DetailPanel.tsx`, `src/types/entities.ts`, `docs/TIMELINE_BARS.md`, `src/utils/itemTimelinePriority.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-23 00:00] 구조 정리 — 저장계층·DetailPanel 분리·참조 무결성·린트
+
+- 증상: (1) 저장/복원 없어 새로고침 시 데이터 유실 (2) DetailPanel 781줄 단일 파일, effect 안 setState로 ESLint error (3) deleteRange가 item.rangeId를 정리 안 함 (4) ESLint 9 error + 7 warning (5) YearBoard의 fitToScreenRef 상수 export로 react-refresh 에러
+- 원인: 프로토타입 단계에서 persistence 미연동, 파일 분리 미실시, 삭제 로직 단방향 구현.
+- 해결: (1) zustand persist 미들웨어로 localStorage 자동 저장/복원 + _hydrated 플래그로 hydration 대기. 기존 타입(InteractionMode, LeftPanelMode, RightPanelMode)과 dirty 플래그 모두 유지. (2) DetailPanel → detail/DayDetail·RangeDetail·ItemDetail 3파일 분리. key prop 기반 remount로 sync useEffect 제거, cascading setState 해소. JSX/CSS 클래스 100% 동일 유지. (3) deleteRange에서 연결 item의 rangeId를 undefined로 정리. (4) eslint.config에 varsIgnorePattern/argsIgnorePattern 추가, YearBoard memo 의존성을 별도 변수로 추출. (5) fitToScreenRef를 utils/fitToScreen.ts로 분리.
+- 재발 방지: (1) 기존 설계 의도(미구현 기능 자리표, 타입 선언)를 삭제하지 말 것 — 미구현 기능은 구현하거나 비활성 표시만 (2) 파일 분리 시 원본 JSX/스타일을 1:1로 유지하고, 동작 변경은 별도 커밋으로 (3) 양방향 참조가 있는 엔티티 삭제 시 역방향 정리를 함께 구현
+- 검증: `npm run build` 성공, `npx eslint src/` 0 error 0 warning.
+- 관련 파일: `src/types/state.ts`, `src/store/board-store.ts`, `src/App.tsx`, `src/components/panels/DetailPanel.tsx`, `src/components/panels/detail/constants.ts`, `src/components/panels/detail/HelpTip.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/RangeDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `src/components/board/YearBoard.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/utils/fitToScreen.ts`, `eslint.config.js`
+
+## [2026-03-23 12:00] UI 라벨 "Priority" → "Display order" 변경
+
+- 증상: "Priority"라는 라벨이 UX적으로 혼란을 줌. "우선순위를 올린다"(숫자↑=더 중요)와 "1순위"(숫자↓=더 중요)가 충돌.
+- 원인: 이 필드는 실제로 "정렬/표시 순서"인데 "Priority"라는 라벨이 중요도 개념과 혼동됨.
+- 해결: UI 라벨을 "Display order"로, 힌트를 "Higher numbers appear on top…"으로 변경. 엔티티 주석·한글 기술 문서(`TIMELINE_BARS.md`)도 "우선순위" → "표시 순서"로 일괄 정합.
+- 재발 방지: UI 카피 변경 시 라벨·힌트·엔티티 주석·기술 문서를 한 번에 맞출 것.
+- 검증: `npm run build` 성공, `npx eslint src/` 0 error 0 warning.
+- 관련 파일: `src/components/panels/detail/constants.ts`, `src/components/panels/detail/RangeDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `src/types/entities.ts`, `docs/TIMELINE_BARS.md`
+
+## [2026-03-23 12:15] 간트 막대 표시 순서 정렬 방향 버그
+
+- 증상: Display order 값을 높이면 막대가 위쪽이 아닌 아래쪽에 배치됨.
+- 원인: `monthGantt.ts`에서 `b.priority - a.priority`(내림차순)로 정렬 후 track 0부터 배치하지만, track 0의 Y 좌표가 가장 아래쪽이므로 높은 값이 오히려 아래에 붙음.
+- 해결: 정렬을 `a.priority - b.priority`(오름차순)으로 변경. 낮은 값이 먼저 하단 track을 차지하고, 높은 값은 나중에 처리되어 상단 track(위쪽)에 배치됨.
+- 재발 방지: 정렬 방향과 시각적 배치 방향(track Y 좌표)의 관계를 실제 렌더링으로 확인할 것. "큰 값 = 먼저 처리"와 "먼저 처리 = 위쪽"이 항상 일치하지 않음.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `docs/TIMELINE_BARS.md`

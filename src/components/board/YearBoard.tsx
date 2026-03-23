@@ -8,9 +8,8 @@ import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_H
 import { getMaxColumnsForYear, parseDateKey, getFirstDayOfWeek, getDateKeysBetween } from '../../utils/date'
 import { getDateKeyFromPoint, toggleDateKeyInSelection } from '../../utils/dateSelection'
 import { buildItemDateIndex } from '../../utils/indexing'
+import { fitToScreenRef } from '../../utils/fitToScreen'
 import './YearBoard.css'
-
-export const fitToScreenRef: { current: (() => void) | null } = { current: null }
 
 export function YearBoard() {
   const activeBoardId = useBoardStore(s => s.activeBoardId)
@@ -44,9 +43,10 @@ export function YearBoard() {
   const isAligned = dayLayout === 'weekday-aligned'
   const totalColumns = useMemo(() => isAligned ? getMaxColumnsForYear(year) : 31, [isAligned, year])
 
+  const boardItems = boardState?.items
   const itemIndex = useMemo(
-    () => boardState ? buildItemDateIndex(boardState.items) : {},
-    [boardState?.items]
+    () => boardItems ? buildItemDateIndex(boardItems) : {},
+    [boardItems]
   )
   const highlightDateKeys = useMemo(() => {
     if (dragPreviewKeys != null) return new Set(dragPreviewKeys)

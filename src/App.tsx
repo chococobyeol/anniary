@@ -14,11 +14,13 @@ export default function App() {
   const selection = useBoardStore(s => s.selection)
   const setSelection = useBoardStore(s => s.setSelection)
 
+  const hydrated = useBoardStore(s => s._hydrated)
+
   useEffect(() => {
-    if (!activeBoardId) {
+    if (hydrated && !activeBoardId) {
       createBoard(new Date().getFullYear())
     }
-  }, [activeBoardId, createBoard])
+  }, [hydrated, activeBoardId, createBoard])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
