@@ -141,7 +141,8 @@ export function YearBoard() {
 
   const handleCellDoubleClick = useCallback((dateKey: string) => {
     setExpandedDateKey(prev => prev === dateKey ? null : dateKey)
-  }, [])
+    setSelection({ type: 'day', dateKey })
+  }, [setSelection])
 
   const closeExpanded = useCallback(() => {
     setExpandedDateKey(null)

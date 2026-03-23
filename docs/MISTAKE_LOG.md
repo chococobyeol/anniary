@@ -179,3 +179,12 @@
 - 재발 방지: 주·월 “스텝” 추가 시 `expandRepeatDateKeys`와 `itemOccursOnDate`를 항상 쌍으로 수정.
 - 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
 - 관련 파일: `src/types/entities.ts`, `src/utils/repeat.ts`, `src/components/panels/detail/ItemDetail.tsx`, `docs/TIMELINE_BARS.md`
+
+## [2026-03-24 00:00] 셀 더블클릭 시 왼쪽 패널에 전체 아이템 표시
+
+- 증상: 셀을 더블클릭하면 왼쪽 패널(백로그/디테일)에 해당 날짜 일정만이 아니라 전체 아이템이 표시됨.
+- 원인: 더블클릭 시 브라우저가 click 이벤트를 2번 발사. 첫 번째 click이 `selection`을 설정하고, 두 번째 click이 `alreadySelected === true`로 `setSelection(null)` 호출. `handleCellDoubleClick`은 `expandedDateKey`만 토글하고 `selection`을 건드리지 않아 `null` 상태 유지. BacklogPanel은 `selection === null`일 때 전체 아이템을 반환.
+- 해결: `handleCellDoubleClick`에서 `setSelection({ type: 'day', dateKey })`를 추가하여 두 번째 click이 지운 selection을 복구.
+- 재발 방지: 싱글 클릭이 토글 동작(선택↔해제)을 하는 핸들러와 더블클릭 핸들러가 공존할 때, 더블클릭 = click×2 + dblclick임을 고려하여 dblclick 핸들러에서 의도한 최종 상태를 명시적으로 설정할 것.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/components/board/YearBoard.tsx`
