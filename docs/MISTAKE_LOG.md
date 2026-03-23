@@ -143,3 +143,12 @@
 - 재발 방지: 네이티브 피커와 동일한 UX가 필요하면 **커스텀 시간 선택 UI**(모달+휠/슬롯+하단 삭제·지금)를 별도 컴포넌트로 설계할 것. 폼 인라인 버튼은 요구사항 확인 후 적용.
 - 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
 - 관련 파일: `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/RangeDetail.tsx`, `src/components/panels/DetailPanel.css`, `src/utils/timeOfDay.ts` (`DetailInputShortcuts.tsx` 삭제)
+
+## [2026-03-23 17:10] 디테일 Start/End time 인풋 정렬·너비 불일치
+
+- 증상: `ItemDetail` 등에서 Start time / End time 행마다 라벨 길이가 달라 `<input type="time">`의 왼쪽 시작선과 칸 너비가 서로 다르게 보임.
+- 원인: `.detail-time-row`가 `flex`이고 라벨은 내용 너비·`min-width: 36px`만 있어 행마다 라벨 폭이 달라졌고, 인풋은 `flex: 1`로 남는 공간만 차지함.
+- 해결: `.detail-time-row`를 `grid`로 바꾸고 라벨 열을 `7.5rem` 고정, 인풋 열은 `minmax(0,1fr)`. `~` 구분 두 칸 행은 `:has(.detail-time-sep)`로 4열 그리드. `.detail-time-input`은 `width:100%` + `min-width:0` + `box-sizing:border-box`.
+- 재발 방지: 같은 폼에서 여러 행의 컨트롤 세로 정렬이 필요하면 flex 라벨 자동 너비에만 의존하지 말고 그리드 고정 열 또는 공통 `label` 폭을 둘 것.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/DetailPanel.css`

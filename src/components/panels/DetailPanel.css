@@ -65,19 +65,28 @@
 }
 
 .detail-time-row {
-  display: flex;
+  display: grid;
+  /* 고정 라벨 열: "Start time" / "End time" 등 길이 차이로 인풋 시작점이 어긋나지 않게 */
+  grid-template-columns: 7.5rem minmax(0, 1fr);
   align-items: center;
   gap: 6px;
+}
+
+/* 한 줄에 시작~종료 두 칸 (DayDetail 등) */
+.detail-time-row:has(.detail-time-sep) {
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto minmax(0, 1fr);
 }
 
 .detail-time-label {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
-  min-width: 36px;
+  min-width: 0;
 }
 
 .detail-time-input {
-  flex: 1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 4px 6px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
