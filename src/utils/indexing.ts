@@ -1,15 +1,23 @@
 import type { ItemEntity, RangeEntity } from '../types/entities'
 import { getDateKeysBetween } from './date'
+import { getIndexedDateKeysForItem } from './repeat'
 
 export type DateIndex<T> = Record<string, T[]>
 
-/** One entry per item.date only — task title lines appear on the anchor day, not on every day of a period */
-export function buildItemDateIndex(items: Record<string, ItemEntity>): DateIndex<ItemEntity> {
+/**
+ * 각 날짜 키에 그날 보여줄 item 목록.
+ * `repeat`가 있으면 보드 연도 안 발생일마다 동일 item을 인덱싱(참조 동일).
+ */
+export function buildItemDateIndex(
+  items: Record<string, ItemEntity>,
+  boardYear: number
+): DateIndex<ItemEntity> {
   const index: DateIndex<ItemEntity> = {}
   for (const item of Object.values(items)) {
-    if (item.date) {
-      if (!index[item.date]) index[item.date] = []
-      index[item.date].push(item)
+    if (!item.date) continue
+    for (const key of getIndexedDateKeysForItem(item, boardYear)) {
+      if (!index[key]) index[key] = []
+      index[key].push(item)
     }
   }
   return index

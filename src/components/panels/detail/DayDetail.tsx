@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useBoardStore } from '../../../store/board-store'
 import { parseDateKey, getDayOfWeekLabel, getDayOfWeek } from '../../../utils/date'
+import { itemOccursOnDate } from '../../../utils/repeat'
 import type { ItemKind } from '../../../types/entities'
 import { IconPlus, IconTrash, IconCheck } from '../../icons/Icons'
 import '../DetailPanel.css'
@@ -12,6 +13,9 @@ export function DayDetail() {
     if (!s.activeBoardId) return {}
     return s.boards[s.activeBoardId]?.items || {}
   })
+  const boardYear = useBoardStore(s =>
+    s.activeBoardId ? s.boards[s.activeBoardId]?.board.year ?? new Date().getFullYear() : new Date().getFullYear()
+  )
   const createItem = useBoardStore(s => s.createItem)
   const createRange = useBoardStore(s => s.createRange)
   const updateItem = useBoardStore(s => s.updateItem)
@@ -35,7 +39,7 @@ export function DayDetail() {
   const { year, month, day } = parseDateKey(selection.dateKey)
   const dow = getDayOfWeek(year, month, day)
   const dowLabel = getDayOfWeekLabel(dow)
-  const dayItems = Object.values(items).filter(it => it.date === selection.dateKey)
+  const dayItems = Object.values(items).filter(it => itemOccursOnDate(it, selection.dateKey, boardYear))
 
   const handleAdd = () => {
     if (!activeBoardId || !newTitle.trim()) return

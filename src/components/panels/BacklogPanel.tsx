@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
+import { formatRepeatSummary, getEffectiveItemRepeat, itemOccursOnDate } from '../../utils/repeat'
 import type { ItemStatus } from '../../types/entities'
 import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck } from '../icons/Icons'
 import './BacklogPanel.css'
@@ -34,6 +35,9 @@ export function BacklogPanel() {
   const deleteItem = useBoardStore(s => s.deleteItem)
   const setSelection = useBoardStore(s => s.setSelection)
   const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
+  const boardYear = useBoardStore(s =>
+    s.activeBoardId ? s.boards[s.activeBoardId]?.board.year ?? new Date().getFullYear() : new Date().getFullYear()
+  )
 
   const [text, setText] = useState('')
   const [selectedTag, setSelectedTag] = useState(DEFAULT_TAG)
@@ -47,7 +51,7 @@ export function BacklogPanel() {
     if (selection.type === 'day') {
       const dateKey = selection.dateKey
       return list.filter(it => {
-        if (it.date === dateKey) return true
+        if (itemOccursOnDate(it, dateKey, boardYear)) return true
         if (it.rangeId) {
           const r = ranges[it.rangeId]
           return r != null && dateKey >= r.startDate && dateKey <= r.endDate
@@ -59,7 +63,7 @@ export function BacklogPanel() {
       const dateKeys = selection.dateKeys
       return list.filter(it => {
         for (const dateKey of dateKeys) {
-          if (it.date === dateKey) return true
+          if (itemOccursOnDate(it, dateKey, boardYear)) return true
           if (it.rangeId) {
             const r = ranges[it.rangeId]
             if (r != null && dateKey >= r.startDate && dateKey <= r.endDate) return true
@@ -72,12 +76,12 @@ export function BacklogPanel() {
     if (selection.type === 'item') {
       const item = items[selection.itemId]
       if (!item) return list
-      if (item.date) return list.filter(it => it.date === item.date)
+      if (item.date) return list.filter(it => itemOccursOnDate(it, item.date!, boardYear))
       if (item.rangeId) return list.filter(it => it.rangeId === item.rangeId)
       return list
     }
     return list
-  }, [items, ranges, selection])
+  }, [items, ranges, selection, boardYear])
 
   const sortedByUpdated = useMemo(
     () => [...allBacklog].sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1)),
@@ -191,12 +195,15 @@ export function BacklogPanel() {
                 {item.body.length > 60 ? '…' : ''}
               </span>
             )}
-            {(item.date || item.endDate || item.startTime || item.endTime) && (
+            {(item.date || item.endDate || item.startTime || item.endTime || getEffectiveItemRepeat(item)) && (
               <span className="backlog-item-meta-date">
                 {item.date ?? ''}
                 {item.endDate && item.endDate !== item.date ? `–${item.endDate}` : ''}
                 {(item.startTime || item.endTime) && (
                   <> {item.startTime && item.endTime ? `${item.startTime}~${item.endTime}` : item.startTime || item.endTime || ''}</>
+                )}
+                {getEffectiveItemRepeat(item) && (
+                  <> · {formatRepeatSummary(item)}</>
                 )}
               </span>
             )}

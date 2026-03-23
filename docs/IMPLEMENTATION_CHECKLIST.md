@@ -127,7 +127,7 @@
 - [x] **레이아웃 전환 시 자동 fitToScreen** — dayLayout 변경 시 보드를 화면에 맞춤.
 
 ### v2.0 — 편집 흐름 구축 (2026-03-17)
-- [x] **날짜 인덱싱 최적화** — `Object.values().filter()` 제거. `buildItemDateIndex` / `buildRangeDateIndex`로 사전 인덱싱 후 O(1) 조회. `src/utils/indexing.ts` 신규.
+- [x] **날짜 인덱싱 최적화** — `Object.values().filter()` 제거. `buildItemDateIndex(items, boardYear)` / `buildRangeDateIndex`로 사전 인덱싱 후 O(1) 조회. 반복 일정은 `src/utils/repeat.ts`에서 연도 내 발생일 확장. `src/utils/indexing.ts`.
 - [x] **셀 선택 → DetailPanel 자동 오픈** — pan/select 모드에서 셀 클릭 시 해당 날짜 선택 + detail 패널 자동 오픈.
 - [x] ~~**더블클릭 quick add**~~ → **더블클릭 셀 확장**으로 변경 (v2.1). 빈 task 자동 생성 제거, 더블클릭 시 해당 셀이 확장되어 항목 목록 표시.
 - [x] **DetailPanel 편집기 승격** — 읽기 전용 → 실제 편집기로 변환:

@@ -1,3 +1,25 @@
+/** mwohaji_v1과 동일: 1=월 … 7=일 */
+export type Weekday1to7 = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+/**
+ * 반복 규칙 (mwohaji: 매일/매주/매월/시간 간격 + 매년).
+ * `interval`은 연간 칸에는 시작일만 표시(알림·상세용); 날짜 확장 없음.
+ */
+export type ItemRepeatRule =
+  | { kind: 'daily'; everyNDays: number; untilDate?: string }
+  | { kind: 'weekly'; weekdays: Weekday1to7[]; everyNWeeks?: number; untilDate?: string }
+  | { kind: 'monthly'; monthDays: number[]; everyNMonths?: number; untilDate?: string }
+  | { kind: 'yearly'; untilDate?: string }
+  | { kind: 'interval'; everyNMinutes: number; limit?: number }
+
+/** 구버전 저장분 (frequency) — 런타임에서 `kind` 형식으로 정규화 */
+export type LegacyItemRepeat = {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  untilDate?: string
+}
+
+export type ItemStoredRepeat = ItemRepeatRule | LegacyItemRepeat
+
 export type ItemKind = 'task' | 'note' | 'event'
 export type ItemStatus = 'none' | 'in-progress' | 'done' | 'delayed' | 'important'
 export type RangeKind = 'period' | 'note' | 'highlight'
@@ -34,6 +56,11 @@ export type ItemEntity = {
   status: ItemStatus
   progress?: number
   pinned: boolean
+  /**
+   * 시작일=종료일인 경우 날짜·막대 확장( interval 제외: 시작일만 ).
+   * 저장소에 구 `frequency` 형식이 있을 수 있음 → `getEffectiveItemRepeat`로 정규화.
+   */
+  repeat?: ItemStoredRepeat
   createdAt: string
   updatedAt: string
 }

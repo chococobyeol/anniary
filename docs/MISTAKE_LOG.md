@@ -152,3 +152,30 @@
 - 재발 방지: 같은 폼에서 여러 행의 컨트롤 세로 정렬이 필요하면 flex 라벨 자동 너비에만 의존하지 말고 그리드 고정 열 또는 공통 `label` 폭을 둘 것.
 - 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
 - 관련 파일: `src/components/panels/DetailPanel.css`
+
+## [2026-03-23 18:30] Item 반복(repeat) 규칙 + 디테일·보드 연동
+
+- 증상: 일정을 주기적으로 같은 보드 연도 안 여러 날에 표시할 수 없음.
+- 원인: `ItemEntity`에 반복 정보 없음, `buildItemDateIndex`가 `item.date` 단일 키만 인덱싱.
+- 해결: `ItemRepeatRule`(daily/weekly/monthly/yearly, optional `untilDate`)과 `Item.repeat` 추가. `expandRepeatDateKeys`/`itemOccursOnDate`로 연도 내 발생일 계산. `buildItemDateIndex(items, boardYear)` 확장. `ItemDetail`에서 Repeat·Repeat until 편집(단일일만). 백로그·DayDetail 필터 반영. 기간 막대는 기존처럼 시작일 range만 유지.
+- 재발 방지: 반복은 엔티티 필드·인덱스·필터·UI 네 곳을 함께 갱신. 다일 기간과 반복 동시 지원이 필요하면 별도 설계(시리즈 ID 등) 후 구현.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/types/entities.ts`, `src/utils/repeat.ts`, `src/utils/indexing.ts`, `src/store/board-store.ts`, `src/components/board/YearBoard.tsx`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/detail/DayDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `docs/IMPLEMENTATION_CHECKLIST.md`
+
+## [2026-03-23 20:15] 반복 UX를 mwohaji_v1에 맞춤 + 반복일 막대
+
+- 증상: 반복이 단순 frequency만 있고, mwohaji의 **N일 간격·요일 다중·월의 날짜 다중·분 간격**이 없음. 반복일에 **기간 막대가 안 그려짐**.
+- 원인: 초기 구현을 최소 스키마로만 넣었고, 간트는 `RangeEntity` 원본 한 번만 그렸음.
+- 해결: `ItemRepeatRule`을 `kind` 유니온으로 재정의(daily+everyNDays, weekly+weekdays 1–7=월–일, monthly+monthDays, yearly, interval+everyNMinutes+limit). 구 `frequency` 저장분은 `getEffectiveItemRepeat`로 정규화. `ItemDetail`에 mwohaji와 유사한 폼(요일·월일 버튼, 분 간격·횟수). `layoutMonthGanttSegments(ranges, items, …)`에서 반복 발생일마다 하루짜리 synth range로 막대 추가, 원본 range는 `rangeIdsWithRepeatBars`로 한 번 스킵. `interval`은 연간 칸에는 시작일만(알림용에 가깝게).
+- 재발 방지: 외부 앱과 UX 패리티 필요 시 원본(예: `mwohaji_v1/js/app.js` repeat-modal) 필드와 1:1 매핑표를 문서에 남길 것. 반복 변경 시 `repeat.ts`·인덱스·간트·디테일 네 곳을 함께 점검.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/types/entities.ts`, `src/utils/repeat.ts`, `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`, `src/components/board/YearBoard.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/DetailPanel.css`, `src/components/panels/BacklogPanel.tsx`, `docs/TIMELINE_BARS.md`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-23 21:00] 반복 N주 / N달 간격
+
+- 증상: 매주·매월만 있고 **2주마다·3달마다** 같은 스텝이 없음.
+- 원인: `weekly`/`monthly`가 1주·1달 고정으로만 확장됨.
+- 해결: `ItemRepeatRule`에 `everyNWeeks?`·`everyNMonths?`(기본 1). 주는 시작일이 속한 주의 **월요일** 기준 `weeksBetweenMondays % N === 0`, 월은 시작 연월 대비 `diffMonths % N === 0`. `ItemDetail`에 숫자 입력. 저장 시 1이면 필드 생략.
+- 재발 방지: 주·월 “스텝” 추가 시 `expandRepeatDateKeys`와 `itemOccursOnDate`를 항상 쌍으로 수정.
+- 검증: `npx tsc --noEmit`, `npx eslint src/`, `npm run build` 성공.
+- 관련 파일: `src/types/entities.ts`, `src/utils/repeat.ts`, `src/components/panels/detail/ItemDetail.tsx`, `docs/TIMELINE_BARS.md`

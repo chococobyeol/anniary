@@ -1,7 +1,14 @@
-import type { RangeEntity } from '../types/entities'
+import type { ItemEntity, RangeEntity } from '../types/entities'
 import type { DayLayout, RangeEditPreview } from '../types/state'
 import { compareDateKeys, getDaysInMonth, parseDateKey, toDateKey } from './date'
 import { parseTimeToDayFraction } from './timeOfDay'
+import {
+  expandRepeatDateKeysInMonth,
+  getEffectiveItemRepeat,
+  hasRepeatDatesExpanded,
+  isSingleDayItemForRepeat,
+  rangeIdsWithRepeatBars,
+} from './repeat'
 import { BASE_CELL_WIDTH, MONTH_HEADER_WIDTH } from './zoom'
 
 export type MonthGanttSegment = {
@@ -131,6 +138,7 @@ function segmentLeftWidth(
 
 export function layoutMonthGanttSegments(
   ranges: Record<string, RangeEntity>,
+  items: Record<string, ItemEntity>,
   year: number,
   month: number,
   dayLayout: DayLayout,
@@ -151,7 +159,10 @@ export function layoutMonthGanttSegments(
     priority: number
   }
   const raw: Raw[] = []
+  const skipRangeIds = rangeIdsWithRepeatBars(items)
+
   for (const range of Object.values(ranges)) {
+    if (skipRangeIds.has(range.id)) continue
     if (effectiveTimelineBarHidden(range, rangeEditPreview)) continue
     const clip = rangeClipToMonth(range, year, month)
     if (!clip) continue
@@ -169,6 +180,37 @@ export function layoutMonthGanttSegments(
       kind: vis.kind,
       priority: effectiveTimelinePriority(range, rangeEditPreview),
     })
+  }
+
+  for (const item of Object.values(items)) {
+    if (!item.rangeId || !hasRepeatDatesExpanded(item) || !isSingleDayItemForRepeat(item)) continue
+    const range = ranges[item.rangeId]
+    if (!range) continue
+    if (range.startDate !== range.endDate || range.startDate !== item.date) continue
+    if (effectiveTimelineBarHidden(range, rangeEditPreview)) continue
+    const rule = getEffectiveItemRepeat(item)
+    if (!rule) continue
+    const occKeys = expandRepeatDateKeysInMonth(item.date, rule, year, month)
+    const vis = resolveRangeVisual(range, rangeEditPreview)
+    const pr = effectiveTimelinePriority(range, rangeEditPreview)
+    for (const occKey of occKeys) {
+      const synth: RangeEntity = { ...range, startDate: occKey, endDate: occKey }
+      const clip = rangeClipToMonth(synth, year, month)
+      if (!clip) continue
+      const { startCellFrac, endCellFrac } = cellTimeFractionsForClip(synth, clip, rangeEditPreview)
+      raw.push({
+        rangeId: range.id,
+        startKey: clip.startKey,
+        endKey: clip.endKey,
+        dayStart: clip.dayStart,
+        dayEnd: clip.dayEnd,
+        startCellFrac,
+        endCellFrac,
+        color: vis.color,
+        kind: vis.kind,
+        priority: pr,
+      })
+    }
   }
 
   raw.sort(

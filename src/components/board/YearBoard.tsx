@@ -45,8 +45,8 @@ export function YearBoard() {
 
   const boardItems = boardState?.items
   const itemIndex = useMemo(
-    () => boardItems ? buildItemDateIndex(boardItems) : {},
-    [boardItems]
+    () => (boardItems ? buildItemDateIndex(boardItems, year) : {}),
+    [boardItems, year]
   )
   const highlightDateKeys = useMemo(() => {
     if (dragPreviewKeys != null) return new Set(dragPreviewKeys)
@@ -222,6 +222,7 @@ export function YearBoard() {
                 dayLayout={dayLayout}
                 interactionMode={interactionMode}
                 itemIndex={itemIndex}
+                items={boardState.items}
                 ranges={boardState.ranges}
                 rangeEditPreview={rangeEditPreview}
                 highlightDateKeys={highlightDateKeys}

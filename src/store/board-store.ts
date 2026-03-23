@@ -18,6 +18,7 @@ import type {
   OverlayEntity,
   ItemKind,
   ItemStatus,
+  ItemStoredRepeat,
   RangeKind,
   RangeStatus,
   OverlayType,
@@ -49,7 +50,7 @@ type Actions = {
 
   createItem: (boardId: string, kind: ItemKind, opts?: {
     title?: string; body?: string; date?: string; endDate?: string; startTime?: string; endTime?: string;
-    rangeId?: string; tags?: string[]; status?: ItemStatus; progress?: number; pinned?: boolean
+    rangeId?: string; tags?: string[]; status?: ItemStatus; progress?: number; pinned?: boolean; repeat?: ItemStoredRepeat
   }) => string
   updateItem: (itemId: string, patch: Partial<ItemEntity>) => void
   deleteItem: (itemId: string) => void
@@ -190,6 +191,7 @@ export const useBoardStore = create<AppState & Actions>()(
       tags: opts?.tags && opts.tags.length > 0 ? opts.tags : ['General'],
       status: opts?.status || 'none', progress: opts?.progress,
       pinned: opts?.pinned || false,
+      repeat: opts?.repeat,
       createdAt: now(), updatedAt: now(),
     }
     set(s => {

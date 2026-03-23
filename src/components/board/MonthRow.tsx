@@ -17,6 +17,7 @@ type Props = {
   dayLayout: DayLayout
   interactionMode: InteractionMode
   itemIndex: DateIndex<ItemEntity>
+  items: Record<string, ItemEntity>
   ranges: Record<string, RangeEntity>
   rangeEditPreview: RangeEditPreview | null
   highlightDateKeys: Set<string>
@@ -28,7 +29,7 @@ type Props = {
 }
 
 export const MonthRow = memo(function MonthRow({
-  year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, ranges, rangeEditPreview,
+  year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, items, ranges, rangeEditPreview,
   highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
@@ -82,8 +83,8 @@ export const MonthRow = memo(function MonthRow({
   }, [year, month, days, itemIndex, todayKey, ranges, rangeEditPreview])
 
   const ganttSegments = useMemo(
-    () => layoutMonthGanttSegments(ranges, year, month, dayLayout, firstDow, BASE_CELL_HEIGHT, rangeEditPreview),
-    [ranges, year, month, dayLayout, firstDow, rangeEditPreview]
+    () => layoutMonthGanttSegments(ranges, items, year, month, dayLayout, firstDow, BASE_CELL_HEIGHT, rangeEditPreview),
+    [ranges, items, year, month, dayLayout, firstDow, rangeEditPreview]
   )
 
   const showDow = dayLayout === 'linear'

@@ -2,6 +2,11 @@
 
 연일정(기간)은 `RangeEntity`와 연결되며, **연간 보드 각 월 행 하단**에 가로 막대(SVG)로 표시됩니다. 레이아웃은 `src/utils/monthGantt.ts`의 `layoutMonthGanttSegments`가 담당합니다.
 
+**반복 일정**(단일일 + `Item.repeat`가 날짜 확장형): 같은 `rangeId`의 하루짜리 막대를 `repeat` 규칙에 맞는 **각 발생일**에도 그립니다(`rangeIdsWithRepeatBars`로 원본 range 한 번 그리기는 생략). `interval`(N분)은 연간 칸에는 시작일 막대만 유지(mwohaji_v1과 동일하게 알림용에 가깝게).
+
+- **매주**: `everyNWeeks`(선택, 기본 1) — 포함 주는 **시작일이 속한 주의 월요일**을 기준으로 N주마다.
+- **매월**: `everyNMonths`(선택, 기본 1) — **시작일의 연·월**부터 N달마다 같은 `monthDays` 규칙.
+
 ## 데이터 모델 (`RangeEntity`)
 
 | 필드 | 타입 | 기본(미설정 시) | 설명 |

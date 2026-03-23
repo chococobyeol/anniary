@@ -575,6 +575,70 @@
 }
 
 /* Visible on hover/focus — native title was too slow / cursor:help looked like “?” only (macOS) */
+.detail-repeat-block {
+  padding: 4px 0;
+}
+
+.detail-repeat-subrow {
+  margin-top: 4px;
+}
+
+.detail-repeat-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.detail-weekday-btn {
+  min-width: 2rem;
+  padding: 4px 6px;
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.detail-weekday-btn:hover {
+  background: var(--bg-cell-hover);
+}
+
+.detail-weekday-btn.active {
+  background: var(--status-in-progress);
+  color: white;
+  border-color: var(--status-in-progress);
+}
+
+.detail-monthday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-top: 6px;
+  max-width: 11rem;
+}
+
+.detail-monthday-btn {
+  padding: 3px 0;
+  font-size: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.detail-monthday-btn:hover {
+  background: var(--bg-cell-hover);
+}
+
+.detail-monthday-btn.active {
+  background: var(--status-in-progress);
+  color: white;
+  border-color: var(--status-in-progress);
+}
+
 .detail-help-tooltip {
   position: absolute;
   z-index: 200;

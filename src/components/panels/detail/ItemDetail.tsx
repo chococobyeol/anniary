@@ -13,7 +13,96 @@ import {
   COPY_FIRST_PERIOD_SAVE_HINT,
 } from './constants'
 import { HelpTip } from './HelpTip'
+import type { ItemEntity, ItemRepeatRule, ItemStoredRepeat, Weekday1to7 } from '../../../types/entities'
+import { parseDateKey } from '../../../utils/date'
+import {
+  formatRepeatRule,
+  getEffectiveItemRepeat,
+  mwohajiWeekdayFromDateKey,
+} from '../../../utils/repeat'
 import '../DetailPanel.css'
+
+type RepeatKindUi = 'none' | ItemRepeatRule['kind']
+
+const WEEKDAY_BTNS: { value: Weekday1to7; label: string }[] = [
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+  { value: 7, label: 'Sun' },
+]
+
+function initRepeatEditor(item: ItemEntity | undefined) {
+  const r = item ? getEffectiveItemRepeat(item) : undefined
+  return {
+    kind: (r?.kind ?? 'none') as RepeatKindUi,
+    everyNDays: r?.kind === 'daily' ? r.everyNDays : 1,
+    everyNWeeks: r?.kind === 'weekly' ? Math.max(1, r.everyNWeeks ?? 1) : 1,
+    weekdays: (r?.kind === 'weekly' ? [...r.weekdays] : []) as Weekday1to7[],
+    everyNMonths: r?.kind === 'monthly' ? Math.max(1, r.everyNMonths ?? 1) : 1,
+    monthDays: r?.kind === 'monthly' ? [...r.monthDays] : [],
+    everyNMinutes: r?.kind === 'interval' ? r.everyNMinutes : 30,
+    intervalLimitStr: r?.kind === 'interval' && r.limit != null ? String(r.limit) : '',
+    until: r && r.kind !== 'interval' && r.untilDate ? r.untilDate : '',
+  }
+}
+
+function composeRepeatPatch(
+  singleDay: boolean,
+  kind: RepeatKindUi,
+  startDate: string | undefined,
+  everyNDays: number,
+  everyNWeeks: number,
+  weekdays: Weekday1to7[],
+  everyNMonths: number,
+  monthDays: number[],
+  everyNMinutes: number,
+  intervalLimitStr: string,
+  until: string
+): ItemStoredRepeat | undefined {
+  if (!singleDay || kind === 'none' || !startDate) return undefined
+  const u = until.trim() || undefined
+  switch (kind) {
+    case 'daily':
+      return {
+        kind: 'daily',
+        everyNDays: Math.max(1, Math.floor(Number(everyNDays)) || 1),
+        untilDate: u,
+      }
+    case 'weekly': {
+      let wd = [...weekdays].filter(w => w >= 1 && w <= 7) as Weekday1to7[]
+      if (wd.length === 0) wd = [mwohajiWeekdayFromDateKey(startDate)]
+      const nw = Math.max(1, Math.floor(everyNWeeks) || 1)
+      return {
+        kind: 'weekly',
+        weekdays: wd,
+        ...(nw > 1 ? { everyNWeeks: nw } : {}),
+        untilDate: u,
+      }
+    }
+    case 'monthly': {
+      let md = [...new Set(monthDays)].filter(d => d >= 1 && d <= 31)
+      if (md.length === 0) md = [parseDateKey(startDate).day]
+      const nm = Math.max(1, Math.floor(everyNMonths) || 1)
+      return {
+        kind: 'monthly',
+        monthDays: md,
+        ...(nm > 1 ? { everyNMonths: nm } : {}),
+        untilDate: u,
+      }
+    }
+    case 'yearly':
+      return { kind: 'yearly', untilDate: u }
+    case 'interval': {
+      const mins = Math.max(1, Math.floor(Number(everyNMinutes)) || 30)
+      const limStr = intervalLimitStr.trim()
+      const limit = limStr ? Math.max(1, parseInt(limStr, 10) || 1) : undefined
+      return { kind: 'interval', everyNMinutes: mins, limit }
+    }
+  }
+}
 
 /**
  * Rendered with key={itemId} so it remounts when selection changes.
@@ -50,6 +139,15 @@ export function ItemDetail() {
   const [editPeriodColor, setEditPeriodColor] = useState<string | undefined>(() => linkedRange?.color)
   const [editTimelineBarHidden, setEditTimelineBarHidden] = useState(() => linkedRange?.timelineBarHidden === true)
   const [editTimelinePriority, setEditTimelinePriority] = useState(() => linkedRange?.timelinePriority ?? 0)
+  const [editRepeatKind, setEditRepeatKind] = useState<RepeatKindUi>(() => initRepeatEditor(item).kind)
+  const [editEveryNDays, setEditEveryNDays] = useState(() => initRepeatEditor(item).everyNDays)
+  const [editEveryNWeeks, setEditEveryNWeeks] = useState(() => initRepeatEditor(item).everyNWeeks)
+  const [editWeekdays, setEditWeekdays] = useState<Weekday1to7[]>(() => initRepeatEditor(item).weekdays)
+  const [editEveryNMonths, setEditEveryNMonths] = useState(() => initRepeatEditor(item).everyNMonths)
+  const [editMonthDays, setEditMonthDays] = useState<number[]>(() => initRepeatEditor(item).monthDays)
+  const [editEveryNMinutes, setEditEveryNMinutes] = useState(() => initRepeatEditor(item).everyNMinutes)
+  const [editIntervalLimitStr, setEditIntervalLimitStr] = useState(() => initRepeatEditor(item).intervalLimitStr)
+  const [editRepeatUntil, setEditRepeatUntil] = useState(() => initRepeatEditor(item).until)
 
   const tagsFromItems = useMemo(() => {
     const tagSet = new Set<string>([DEFAULT_TAG])
@@ -104,6 +202,20 @@ export function ItemDetail() {
     const barEnd = editEndTime.trim() || undefined
     const pr = clampTimelinePriority(editTimelinePriority)
     setEditTimelinePriority(pr)
+    const singleDay = Boolean(startDate && periodEnd === startDate)
+    const repeatPatch = composeRepeatPatch(
+      singleDay,
+      editRepeatKind,
+      startDate,
+      editEveryNDays,
+      editEveryNWeeks,
+      editWeekdays,
+      editEveryNMonths,
+      editMonthDays,
+      editEveryNMinutes,
+      editIntervalLimitStr,
+      editRepeatUntil
+    )
 
     let newRangeId: string | undefined
     if (startDate && periodEnd) {
@@ -139,6 +251,7 @@ export function ItemDetail() {
       rangeId: newRangeId,
       startTime: barStart,
       endTime: barEnd,
+      repeat: repeatPatch,
     })
 
     const oldRid = item.rangeId
@@ -177,6 +290,27 @@ export function ItemDetail() {
     draftEndForHeader && draftEndForHeader !== editDate.trim()
       ? draftEndForHeader
       : undefined
+  const startDateStr = editDate.trim()
+  const endInputStr = editEndDate.trim()
+  const periodEndDraft =
+    startDateStr && endInputStr && endInputStr >= startDateStr ? endInputStr : startDateStr
+  const isSingleDay = Boolean(startDateStr && periodEndDraft === startDateStr)
+  const draftRepeatPatch = composeRepeatPatch(
+    isSingleDay,
+    editRepeatKind,
+    startDateStr || undefined,
+    editEveryNDays,
+    editEveryNWeeks,
+    editWeekdays,
+    editEveryNMonths,
+    editMonthDays,
+    editEveryNMinutes,
+    editIntervalLimitStr,
+    editRepeatUntil
+  )
+  const draftRepeatSummary =
+    draftRepeatPatch && 'kind' in draftRepeatPatch ? formatRepeatRule(draftRepeatPatch) : null
+
   const draftHasPeriod = Boolean(
     editDate.trim() && (!editEndDate.trim() || editEndDate >= editDate)
   )
@@ -194,6 +328,7 @@ export function ItemDetail() {
           <span className="detail-date-dow">
             {headerEndDate ? `${editDate.trim()} – ${headerEndDate}` : editDate.trim()}
             {formatTime(editStartTime, editEndTime) && ` · ${formatTime(editStartTime, editEndTime)}`}
+            {draftRepeatSummary && ` · ${draftRepeatSummary}`}
           </span>
         )}
       </div>
@@ -219,6 +354,161 @@ export function ItemDetail() {
         </div>
         <label className="detail-time-label">Period end date</label>
         <input type="date" className="detail-date-input" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} placeholder="Optional" />
+        <div className="range-field detail-repeat-block">
+          <label className="detail-time-label" htmlFor={`item-repeat-${item.id}`}>Repeat</label>
+          <select
+            id={`item-repeat-${item.id}`}
+            className="detail-kind-select"
+            value={isSingleDay ? editRepeatKind : 'none'}
+            disabled={!isSingleDay}
+            onChange={e => {
+              const v = e.target.value as RepeatKindUi
+              setEditRepeatKind(v)
+              const dk = editDate.trim()
+              if (!dk) return
+              if (v === 'weekly' && editWeekdays.length === 0) {
+                setEditWeekdays([mwohajiWeekdayFromDateKey(dk)])
+              }
+              if (v === 'monthly' && editMonthDays.length === 0) {
+                setEditMonthDays([parseDateKey(dk).day])
+              }
+            }}
+          >
+            <option value="none">None</option>
+            <option value="daily">Every N days</option>
+            <option value="weekly">Weekly (weekdays)</option>
+            <option value="monthly">Monthly (dates)</option>
+            <option value="yearly">Same date yearly</option>
+            <option value="interval">Every N minutes</option>
+          </select>
+          {!isSingleDay && (
+            <p className="detail-field-hint">Repeats (except minute-based) need a single-day item: start date = period end.</p>
+          )}
+          {isSingleDay && editRepeatKind === 'daily' && (
+            <div className="detail-time-row detail-repeat-subrow">
+              <label className="detail-time-label" htmlFor={`item-repeat-n-${item.id}`}>Every</label>
+              <input
+                id={`item-repeat-n-${item.id}`}
+                type="number"
+                min={1}
+                className="detail-edit-title"
+                style={{ maxWidth: '4.5rem' }}
+                value={editEveryNDays}
+                onChange={e => setEditEveryNDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              />
+              <span className="detail-field-hint" style={{ margin: 0 }}>day(s)</span>
+            </div>
+          )}
+          {isSingleDay && editRepeatKind === 'weekly' && (
+            <div className="detail-time-row detail-repeat-subrow">
+              <label className="detail-time-label" htmlFor={`item-repeat-nw-${item.id}`}>Every</label>
+              <input
+                id={`item-repeat-nw-${item.id}`}
+                type="number"
+                min={1}
+                className="detail-edit-title"
+                style={{ maxWidth: '4.5rem' }}
+                value={editEveryNWeeks}
+                onChange={e => setEditEveryNWeeks(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              />
+              <span className="detail-field-hint" style={{ margin: 0 }}>week(s) (Mon-based phase from start date)</span>
+            </div>
+          )}
+          {isSingleDay && editRepeatKind === 'weekly' && (
+            <div className="detail-repeat-weekdays">
+              {WEEKDAY_BTNS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`detail-weekday-btn ${editWeekdays.includes(value) ? 'active' : ''}`}
+                  onClick={() =>
+                    setEditWeekdays(prev =>
+                      prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value].sort((a, b) => a - b)
+                    )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {isSingleDay && editRepeatKind === 'monthly' && (
+            <div className="detail-time-row detail-repeat-subrow">
+              <label className="detail-time-label" htmlFor={`item-repeat-nm-${item.id}`}>Every</label>
+              <input
+                id={`item-repeat-nm-${item.id}`}
+                type="number"
+                min={1}
+                className="detail-edit-title"
+                style={{ maxWidth: '4.5rem' }}
+                value={editEveryNMonths}
+                onChange={e => setEditEveryNMonths(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              />
+              <span className="detail-field-hint" style={{ margin: 0 }}>month(s) from start month</span>
+            </div>
+          )}
+          {isSingleDay && editRepeatKind === 'monthly' && (
+            <div className="detail-monthday-grid">
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`detail-monthday-btn ${editMonthDays.includes(d) ? 'active' : ''}`}
+                  onClick={() =>
+                    setEditMonthDays(prev =>
+                      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b)
+                    )}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+          {isSingleDay && editRepeatKind === 'interval' && (
+            <>
+              <div className="detail-time-row detail-repeat-subrow">
+                <label className="detail-time-label" htmlFor={`item-repeat-min-${item.id}`}>Every</label>
+                <input
+                  id={`item-repeat-min-${item.id}`}
+                  type="number"
+                  min={1}
+                  max={1440}
+                  className="detail-edit-title"
+                  style={{ maxWidth: '4.5rem' }}
+                  value={editEveryNMinutes}
+                  onChange={e => setEditEveryNMinutes(Math.max(1, parseInt(e.target.value, 10) || 30))}
+                />
+                <span className="detail-field-hint" style={{ margin: 0 }}>minutes (same day; year board shows one bar on start date)</span>
+              </div>
+              <div className="detail-time-row detail-repeat-subrow">
+                <label className="detail-time-label" htmlFor={`item-repeat-lim-${item.id}`}>Max count</label>
+                <input
+                  id={`item-repeat-lim-${item.id}`}
+                  type="number"
+                  min={1}
+                  className="detail-edit-title"
+                  style={{ maxWidth: '5rem' }}
+                  placeholder="∞"
+                  value={editIntervalLimitStr}
+                  onChange={e => setEditIntervalLimitStr(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          {isSingleDay && editRepeatKind !== 'none' && editRepeatKind !== 'interval' && (
+            <>
+              <label className="detail-time-label" htmlFor={`item-repeat-until-${item.id}`}>Repeat until</label>
+              <input
+                id={`item-repeat-until-${item.id}`}
+                type="date"
+                className="detail-date-input"
+                value={editRepeatUntil}
+                onChange={e => setEditRepeatUntil(e.target.value)}
+                title="Empty = through Dec 31 of the board year"
+              />
+              <p className="detail-field-hint">Empty = through Dec 31 of this board year. Bars follow each occurrence.</p>
+            </>
+          )}
+        </div>
         {showTimelineFields && (
           <>
             <div className="range-field">
