@@ -238,6 +238,7 @@ export function YearBoard() {
               <ExpandedCell
                 dateKey={expandedDateKey}
                 items={itemIndex[expandedDateKey] || []}
+                ranges={boardState.ranges}
                 x={expandedPosition.x}
                 y={expandedPosition.y}
                 onClose={closeExpanded}

@@ -188,3 +188,21 @@
 - 재발 방지: 싱글 클릭이 토글 동작(선택↔해제)을 하는 핸들러와 더블클릭 핸들러가 공존할 때, 더블클릭 = click×2 + dblclick임을 고려하여 dblclick 핸들러에서 의도한 최종 상태를 명시적으로 설정할 것.
 - 검증: `npm run build` 성공.
 - 관련 파일: `src/components/board/YearBoard.tsx`
+
+## [2026-03-24 10:45] ExpandedCell — 하루 타임라인 + 무시간 리스트
+
+- 증상: (요구) 셀 더블클릭 확장 영역에 **시작 시간이 있는 일정**은 최소 시간 구간 타임라인으로, **시간 없는 일정**은 별도 리스트로 표시. 자정을 넘기는 일정은 당일/익일 구간을 배경·막대 투명도로 구분.
+- 원인: (해당 없음 — 신규 기능)
+- 해결: `src/utils/dayTimeline.ts`에 `HH:mm` 파싱·구간 집계·겹침 레인 배치. `ExpandedCell`에서 구간 길이에 비례한 타임라인 높이(상·하한), `24:00` 점선·익일 구역 `bg-cell-hover`, 막대를 자정 전후로 분할 렌더. 확장 패널 `onPointerDown`에서 `stopPropagation`으로 보드 팬과 충돌 완화.
+- 재발 방지: 시간·자정 오프셋 규칙을 바꿀 때 `dayTimeline.ts`와 `ExpandedCell`을 함께 수정. SVG 위 오버레이는 포인터 이벤트가 보드와 겹치면 전파 차단을 유지할 것.
+- 검증: `npx tsc --noEmit`, `npx eslint` (변경 파일), `npm run build` 성공.
+- 관련 파일: `src/utils/dayTimeline.ts`, `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-24 12:10] ExpandedCell — 시간축 눈금·range 색·무시간 목록 정리
+
+- 증상: (1) 확장 셀 타임라인에서 구간이 직관적으로 안 읽힘 (2) 막대가 상태색만 사용해 기간에 설정한 색과 불일치 (3) 시간 없는 일정 오른쪽 `task`/`note` 등 kind 표기가 의미 없음.
+- 원인: 좌측에 끝시각만 두 줄로 두고 가로 눈금 없음. 막대 fill를 `STATUS_DOT`로만 지정. 리스트 우측에 `item.kind` 출력.
+- 해결: `buildTimelineTickTimes`·`timelineTickStep`으로 눈금 시각 집합 생성, 배경 위 가로 그리드 + 좌측 라벨(겹침 시 생략). 상단에 `min–max` 요약. 막대는 `rangeId` 연결 시 `ranges[rid].color`, 없으면 `var(--range-default)` + 완료 시 투명도만 낮춤. 무시간·전체 무시간 리스트에서 kind 컬럼 제거, 점 색은 range 색 우선. `YearBoard`에서 `ranges` 전달.
+- 재발 방지: 확장 셀에서 기간 색을 쓰면 보드와 동일하게 `ranges`를 props로 넘길 것. 시간축 UI 추가 시 `dayTimeline`의 눈금 생성과 레이블 충돌 규칙을 함께 조정.
+- 검증: `npx tsc --noEmit`, `eslint` 변경 파일, `npm run build` 성공.
+- 관련 파일: `src/utils/dayTimeline.ts`, `src/components/board/ExpandedCell.tsx`, `src/components/board/YearBoard.tsx`
