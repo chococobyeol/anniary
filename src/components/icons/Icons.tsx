@@ -84,6 +84,20 @@ export function IconFilter({ size = 18, className }: P) {
   )
 }
 
+/**
+ * 클래식 가격표 태그 (Lucide Tag 실루엣).
+ * 겹친 사각형보다 인식이 좋고, 구멍은 r=1.5로 작은 점이 아닌 “뚫린 구멍”으로 보이게 함.
+ * 사이드바는 IconClipboard 등과 동일 stroke 2.
+ */
+export function IconTag({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.344-6.344a2.426 2.426 0 0 0 0-3.42z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
+    </svg>
+  )
+}
+
 export function IconCalendar({ size = 18, className }: P) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>

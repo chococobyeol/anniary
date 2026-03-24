@@ -17,7 +17,7 @@ export type LeftPanelMode =
   | 'search'
   | 'filter'
   | 'layers'
-  | 'ranges'
+  | 'tags'
   | 'overlays'
   | 'detail'
 

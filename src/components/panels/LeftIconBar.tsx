@@ -1,13 +1,13 @@
 import { useBoardStore } from '../../store/board-store'
 import type { LeftPanelMode } from '../../types/state'
-import { IconClipboard, IconSearch, IconFilter, IconCalendar, IconStar, IconFileText } from '../icons/Icons'
+import { IconClipboard, IconSearch, IconFilter, IconTag, IconStar, IconFileText } from '../icons/Icons'
 import './LeftIconBar.css'
 
 const ICONS: { mode: LeftPanelMode; Icon: typeof IconClipboard; label: string }[] = [
   { mode: 'backlog', Icon: IconClipboard, label: 'Backlog' },
   { mode: 'search', Icon: IconSearch, label: 'Search' },
   { mode: 'filter', Icon: IconFilter, label: 'Filter' },
-  { mode: 'ranges', Icon: IconCalendar, label: 'Ranges' },
+  { mode: 'tags', Icon: IconTag, label: 'Tags' },
   { mode: 'overlays', Icon: IconStar, label: 'Overlays' },
   { mode: 'detail', Icon: IconFileText, label: 'Detail' },
 ]
