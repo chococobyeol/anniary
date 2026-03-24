@@ -59,6 +59,14 @@ export function compareDateKeys(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
+/** `dateKey`에서 달력 기준 `deltaDays`만큼 이동 (음수 허용). */
+export function addDaysToDateKey(dateKey: string, deltaDays: number): string {
+  const { year, month, day } = parseDateKey(dateKey)
+  const d = new Date(year, month, day)
+  d.setDate(d.getDate() + deltaDays)
+  return toDateKey(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
 export function normalizeDateRange(a: string, b: string): { start: string; end: string } {
   return a <= b ? { start: a, end: b } : { start: b, end: a }
 }

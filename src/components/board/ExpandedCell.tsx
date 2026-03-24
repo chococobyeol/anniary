@@ -1,7 +1,7 @@
-import { memo, useMemo } from 'react'
+import { memo, useId, useMemo } from 'react'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT } from '../../utils/zoom'
-import { parseDateKey, getDayOfWeekLabel, getDayOfWeek } from '../../utils/date'
+import { parseDateKey, getDayOfWeekLabel, getDayOfWeek, addDaysToDateKey, compareDateKeys } from '../../utils/date'
 import {
   assignTimelineLanes,
   buildTimedSegments,
@@ -10,6 +10,7 @@ import {
   formatMinuteOffsetLabel,
   MIDNIGHT_OFF,
   timelineWindow,
+  type TimedSegment,
 } from '../../utils/dayTimeline'
 
 type Props = {
@@ -30,6 +31,7 @@ const RANGE_TITLE_ROW = 8
 const MIN_TIMELINE_INNER_H = 36
 const MAX_TIMELINE_INNER_H = 120
 const MIN_BAR_PX = 4
+const BAR_RX = 1
 const SECTION_GAP = 6
 const PX_PER_MINUTE = 0.32
 const MIN_LABEL_DY = 9
@@ -80,7 +82,56 @@ function barParts(
   ]
 }
 
+/** 자정으로 쪼갠 두 조각에 각각 `rx`를 주면 이음이 캡슐 두 개처럼 보임 → 맞닿는 면만 직각 */
+function timelineBarPathD(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rIn: number,
+  roundTop: boolean,
+  roundBottom: boolean
+): string {
+  const r = Math.min(Math.max(0, rIn), w / 2, h / 2)
+  const rt = roundTop ? r : 0
+  const rb = roundBottom ? r : 0
+  const x1 = x + w
+  const y1 = y + h
+  const d: string[] = []
+  if (rt > 0) {
+    d.push(`M ${x + rt} ${y}`, `H ${x1 - rt}`, `A ${rt} ${rt} 0 0 1 ${x1} ${y + rt}`)
+  } else {
+    d.push(`M ${x} ${y}`, `H ${x1}`)
+  }
+  if (rb > 0) {
+    d.push(`V ${y1 - rb}`, `A ${rb} ${rb} 0 0 1 ${x1 - rb} ${y1}`, `H ${x + rb}`, `A ${rb} ${rb} 0 0 1 ${x} ${y1 - rb}`)
+  } else {
+    d.push(`V ${y1}`, `H ${x}`)
+  }
+  if (rt > 0) {
+    d.push(`V ${y + rt}`, `A ${rt} ${rt} 0 0 1 ${x + rt} ${y}`)
+  } else {
+    d.push(`V ${y}`)
+  }
+  d.push('Z')
+  return d.join(' ')
+}
+
+/** 자정 넘김 + 기간이 ‘다음날’ 이후까지 → 이 날 타임라인 끝이 전체 종료가 아님 */
+function segmentNeedsContinuationHint(
+  dateKey: string,
+  seg: TimedSegment,
+  ranges: Record<string, RangeEntity>
+): boolean {
+  const crosses = seg.startOff < MIDNIGHT_OFF && seg.endOff > MIDNIGHT_OFF
+  if (!crosses) return false
+  const endKey = (seg.item.rangeId && ranges[seg.item.rangeId]?.endDate) || seg.item.endDate
+  if (!endKey) return false
+  return compareDateKeys(endKey, addDaysToDateKey(dateKey, 1)) > 0
+}
+
 export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges, x, y, onClose }: Props) {
+  const continuationGradPrefix = useId().replace(/:/g, '')
   const { month, day } = parseDateKey(dateKey)
   const dow = getDayOfWeek(
     parseInt(dateKey.slice(0, 4)),
@@ -274,23 +325,78 @@ export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges,
                 const timeLbl = formatItemTimeRangeLabel(seg.startOff, seg.endOff)
                 const title = (seg.item.title || '(untitled)').slice(0, 12)
                 const dotFill = STATUS_DOT[seg.item.status] || STATUS_DOT['none']
+                const showContHint = segmentNeedsContinuationHint(dateKey, seg, ranges)
+                const fullW = Math.max(2, laneW - 1)
+                const x0 = bx + 0.5
                 return (
                   <g key={seg.item.id}>
                     {parts.map((p, idx) => {
                       const { fill, fillOpacity } = barFill(seg.item, ranges, done, p.nextZone)
+                      const partCount = parts.length
+                      const barD = timelineBarPathD(x0, p.y, fullW, p.h, BAR_RX, idx === 0, idx === partCount - 1)
+                      const isLast = idx === partCount - 1
+                      const wantFade = showContHint && isLast
+                      /** 막대 높이의 상당 부분을 페이드에 쓰지 않으면(기존: ~3px 상한) 멀리서 끊김처럼 보임 */
+                      const fadeH = Math.min(p.h * 0.58, Math.max(2.2, p.h * 0.36))
+                      const fadeRender = wantFade && p.h - fadeH >= MIN_BAR_PX * 0.5
+                      const safeSeg = seg.item.id.replace(/[^a-zA-Z0-9_-]/g, '_')
+                      const maskGradId = `${continuationGradPrefix}-mgrad-${safeSeg}-${idx}`
+                      const fadeMaskId = `${continuationGradPrefix}-mk-${safeSeg}-${idx}`
+                      /** 막대 전체 높이 기준 아래쪽만 페이드 — fill 그라데이션이면 stroke만 남아 U자 테두리가 됨 → 마스크로 통째로 흐림 */
+                      const pctSolid =
+                        fadeRender && p.h > 0
+                          ? Math.max(0, Math.min(100, ((p.h - fadeH) / p.h) * 100))
+                          : 100
+                      const span = 100 - pctSolid
+                      const p1 = pctSolid + span * 0.22
+                      const p2 = pctSolid + span * 0.48
+                      const p3 = pctSolid + span * 0.76
                       return (
-                        <rect
-                          key={idx}
-                          x={bx + 0.5}
-                          y={p.y}
-                          width={Math.max(2, laneW - 1)}
-                          height={p.h}
-                          rx={1}
-                          fill={fill}
-                          fillOpacity={fillOpacity}
-                          stroke="var(--border-medium)"
-                          strokeWidth={0.2}
-                        />
+                        <g key={idx}>
+                          {fadeRender ? (
+                            <>
+                              <defs>
+                                <linearGradient id={maskGradId} x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+                                  <stop offset="0%" stopColor="white" stopOpacity={1} />
+                                  <stop offset={`${pctSolid}%`} stopColor="white" stopOpacity={1} />
+                                  <stop offset={`${p1}%`} stopColor="white" stopOpacity={0.82} />
+                                  <stop offset={`${p2}%`} stopColor="white" stopOpacity={0.38} />
+                                  <stop offset={`${p3}%`} stopColor="white" stopOpacity={0.1} />
+                                  <stop offset="100%" stopColor="white" stopOpacity={0} />
+                                </linearGradient>
+                                <mask
+                                  id={fadeMaskId}
+                                  maskUnits="objectBoundingBox"
+                                  maskContentUnits="objectBoundingBox"
+                                  x={0}
+                                  y={0}
+                                  width={1}
+                                  height={1}
+                                >
+                                  <rect x={0} y={0} width={1} height={1} fill={`url(#${maskGradId})`} />
+                                </mask>
+                              </defs>
+                              <path
+                                d={barD}
+                                fill={fill}
+                                fillOpacity={fillOpacity}
+                                stroke="var(--border-medium)"
+                                strokeWidth={0.2}
+                                mask={`url(#${fadeMaskId})`}
+                              >
+                                <title>Period continues on later dates</title>
+                              </path>
+                            </>
+                          ) : (
+                            <path
+                              d={barD}
+                              fill={fill}
+                              fillOpacity={fillOpacity}
+                              stroke="var(--border-medium)"
+                              strokeWidth={0.2}
+                            />
+                          )}
+                        </g>
                       )
                     })}
                     <circle cx={bx + 3} cy={parts[0].y + 2.2} r={1.2} fill={dotFill} style={{ pointerEvents: 'none' }} />

@@ -342,11 +342,74 @@
 - 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
 - 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`, `src/components/board/MonthRow.tsx`, `src/components/panels/FilterPanel.tsx`
 
-## [2026-03-25 01:05] 타임라인 — Hide single-day = 종일 하루만 숨김, 시간 막대 유지
+## [2026-03-25 01:25] ExpandedCell — 세로 타임라인에 막대 **오른쪽** 물결 롤백
 
-- 증상: (요구) Hide single-day period bars 시 **시간 미지정(종일)** 하루 막대만 없애고, bar 시간이 있는 하루 막대는 남기고 싶음.
-- 원인: `showTimelineBarsSingleDay` false면 이 달 한 칸 클립·반복 일칸을 전부 스킵.
-- 해결: 한 칸 클립에서 `cellTimeFractionsForClip` 후 `segmentUsesTimeOfDayClip`이 false(종일)일 때만 스킵. 반복 루프는 `singleDay` off여도 동일 규칙으로 돌림. `multiDay`·`singleDay` 둘 다 off여도 timed 단일이 나올 수 있어 상단 `return []` 제거. `MonthRow`는 `ganttSegments.length > 0`일 때만 간트 `<g>` 렌더. 라벨 **Hide all-day single-day bars**.
-- 재발 방지: 싱글데이 토글이 “전부 끔”이 아니라 “종일만 끔”이면 레이아웃·빈 간트 early return·UI 문구를 함께 맞출 것.
-- 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
-- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`, `src/components/board/MonthRow.tsx`, `src/components/panels/FilterPanel.tsx`
+- 증상: 확장 셀 타임라인은 **위→아래** 시간축인데 막대 끝을 오른쪽 물결로 처리해 방향이 어긋남.
+- 원인: 가로 막대(간트)처럼 보이게 오른쪽 가장자리만 꾸밈.
+- 해결: `[01:20]` 물결·`addDaysToDateKey` 등 해당 구현 제거, 막대는 기존 `rect`만. 이후 “계속됨”은 **하단** 가장자리·아이콘·캡션 등 세로축에 맞는 패턴으로 재설계 검토.
+- 재발 방지: 타임라인 축 방향을 먼저 정한 뒤 종료/연속 시각 언어를 맞출 것.
+- 검증: 당시 롤백 후 물결 코드 없음(이후 `[01:35]`에서 하단 물결 재도입).
+- 관련 파일: (롤백) `src/components/board/ExpandedCell.tsx`, `src/utils/date.ts`
+
+## [2026-03-25 01:35] ExpandedCell — 세로 타임라인 막대 **하단** 가로 물결(계속됨)
+
+- 증상: (요구) 장기 야간 일정이 이 날 뷰에서 끝나 보이는 오해. 물결은 **세로축 끝=아래**에.
+- 원인: `[01:25]`에서 오른쪽 물결 제거만 하고 대체 시각 미구현.
+- 해결: 자정 넘김·`endDate` &gt; `dateKey+1일`이면 **마지막 막대 조각**을 위쪽 `rect` + 하단 `continuationWaveBottomD` path로 분리. 막대 낮으면 `amp` 축소·물결 생략. `addDaysToDateKey` 복구.
+- 재발 방지: 타임라인은 위→아래; “연속” 장식은 **수평 변조(하단)** 에만 둘 것.
+- 검증: `npx tsc --noEmit`, eslint `ExpandedCell.tsx`·`date.ts`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`, `src/utils/date.ts`
+
+## [2026-03-25 01:40] ExpandedCell — 하단 물결 스플라인(직선 다각형 제거)
+
+- 증상: 하단 물결이 `L` 연결로 각져 보이고 양끝 이음이 거침.
+- 원인: 샘플 점을 직선으로만 잇음; 끝 위상이 맞지 않으면 모서리 깨짐.
+- 해결: `y = yFlat + amp·sin²(π·cycles·u)`(정수 `cycles`, `u∈[0,1]`에서 양끝 `yFlat`) 후 샘플을 **우→좌**로 Catmull–Rom→cubic `C` 체인. `strokeLinejoin`/`cap` round, `shapeRendering="geometricPrecision"`.
+- 재발 방지: 부드러운 장식 경로는 베지어 스플라인 또는 고해상도 단일 곡선으로; 끝점은 기하적으로 닫히게 설계.
+- 검증: `npx tsc --noEmit`, eslint `ExpandedCell.tsx`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25 01:45] ExpandedCell — 계속됨 표시를 물결→하단 그라데이션 페이드로
+
+- 증상: (요구) 물결 path가 미관상 별로; 그라데이션·블러 느낌이 더 낫고 단순했으면 함.
+- 원인: `[01:35]`~`[01:40]` 물결/스플라인 기반.
+- 해결: 동일 조건(`segmentNeedsContinuationHint`)에서 위는 기존 `rect`, 아래 띠는 `linearGradient`(위→아래 불투명→투명, `stopColor`는 막대와 동일). 물결·Catmull 코드 제거. `useId`로 gradient id 충돌 방지.
+- 재발 방지: 세로 타임라인 “소멸” 연출은 opacity 그라데이션이 가장 단순; 진짜 `feGaussianBlur`는 비용·번짐 이슈 있어 필요 시만.
+- 검증: `npx tsc --noEmit`, eslint `ExpandedCell.tsx`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25 01:50] ExpandedCell — 계속됨 페이드 단일 rect(모서리 홈 제거)
+
+- 증상: 위 `rect`(rx) + 아래 그라데이션 띠 이음에서 양옆 위에 흰 홈·틈처럼 보임.
+- 원인: 둥근 아래변과 직사각 띠의 기하 불일치.
+- 해결: 페이드 시 **막대 하나**만 두고 `fill=linearGradient`(objectBoundingBox, 막대 높이 기준 아래쪽만 흐림) + 동일 `rx=1`. 분리 rect 제거.
+- 재발 방지: 모서리가 있는 도형에 덧붙인 띠는 피하고, 단일 도형+그라데이션으로 통합.
+- 검증: `npx tsc --noEmit`, eslint `ExpandedCell.tsx`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25 01:55] ExpandedCell — 계속됨 페이드 시 stroke가 남는 문제(마스크로 통합)
+
+- 증상: `fill`만 그라데이션으로 투명해지면 `stroke`는 불투명이라 아래가 비어 보이는데 회색 테두리만 남음(U자 트레이 느낌).
+- 원인: SVG에서 `fill` 그라데이션은 채우기만 바꾸고 외곽선은 그대로 그려짐.
+- 해결: 막대는 단색 `fill`+`stroke` 유지, `mask` 안에 흰색 세로 그라데이션(objectBoundingBox)으로 **채우기·테두리를 함께** 아래로 페이드. `maskGradId`/`fadeMaskId`를 `useId` 접두와 세그먼트별로 분리.
+- 재발 방지: “전체가 사라지는” 연출은 fill 알파만 쓰지 말고 마스크(또는 clip+그룹 opacity)로 도형 전체에 적용할지 먼저 판단.
+- 검증: `npx tsc --noEmit`, `npm run build` 성공, `ExpandedCell.tsx` 린트 이상 없음.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25 02:05] ExpandedCell — 계속됨 마스크 페이드를 더 완만하게
+
+- 증상: 페이드 구간이 픽셀 상한(~3px) 위주라 멀리서 보면 끊김과 구분이 어려움.
+- 원인: `fadeH = min(baseFadeH, …)`로 긴 막대도 하단 몇 픽셀만 그라데이션; 마스크 스톱도 구간 대비 급격함.
+- 해결: `fadeH = min(p.h·0.58, max(2.2, p.h·0.36))`로 높이 비율 기반(대략 하단 36~58% 구간에서 소멸). 마스크는 22/48/76% 지점에 중간 알파(0.82→0.38→0.1)로 곡선형 페이드.
+- 재발 방지: 타임라인 막대 페이드는 픽셀 상한만 두지 말고 `p.h` 비율로 최소 전환 길이를 확보.
+- 검증: `npx tsc --noEmit`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25 02:12] ExpandedCell — 자정 분할 막대 이음면 둥근 모서리 제거
+
+- 증상: `barParts`로 위·아래 두 `rect`에 동일 `rx`를 주면 점선(자정)에서 캡슐 두 개가 붙은 것처럼 보여 끊김 강조.
+- 원인: 맞닿는 가로변까지 라운드 처리됨.
+- 해결: `timelineBarPathD`로 막대를 그림. 첫 조각은 위쪽만·마지막 조각은 아래쪽만 `BAR_RX` 적용, 중간 이음은 직각. 단일 조각은 네 모서리 유지.
+- 재발 방지: 타임라인에서 구간 분할 시 “바깥” 모서리만 라운드할지 분기할 것.
+- 검증: `npx tsc --noEmit`, `npm run build` 성공.
+- 관련 파일: `src/components/board/ExpandedCell.tsx`
