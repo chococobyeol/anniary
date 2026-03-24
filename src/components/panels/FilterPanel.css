@@ -1,0 +1,68 @@
+.filter-panel-hint {
+  margin-top: 0;
+}
+
+.filter-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+}
+
+.filter-tag-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--bg-panel);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.filter-tag-chip:hover {
+  background: var(--bg-cell-hover);
+  border-color: var(--border-medium);
+}
+
+.filter-tag-chip.active {
+  border-color: var(--status-in-progress);
+  color: var(--text-primary);
+  background: var(--bg-cell-hover);
+}
+
+.filter-clear-tags {
+  align-self: flex-start;
+  margin-left: 4px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-xs);
+  color: var(--status-in-progress);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.filter-clear-tags:hover {
+  color: var(--text-primary);
+}
+
+.filter-reset-btn {
+  margin: 4px;
+  padding: 8px 12px;
+  width: calc(100% - 8px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.filter-reset-btn:hover:not(:disabled) {
+  background: var(--bg-cell-hover);
+}
+
+.filter-reset-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

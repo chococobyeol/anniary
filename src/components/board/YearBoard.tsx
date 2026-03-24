@@ -8,6 +8,7 @@ import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_H
 import { getMaxColumnsForYear, parseDateKey, getFirstDayOfWeek, getDateKeysBetween } from '../../utils/date'
 import { getDateKeyFromPoint, toggleDateKeyInSelection } from '../../utils/dateSelection'
 import { buildItemDateIndex } from '../../utils/indexing'
+import { filterItemsByBoardView, normalizeBoardViewFilter } from '../../utils/boardViewFilter'
 import { fitToScreenRef } from '../../utils/fitToScreen'
 import './YearBoard.css'
 
@@ -21,6 +22,11 @@ export function YearBoard() {
   const interactionMode = useBoardStore(s => s.interactionMode)
   const resetView = useBoardStore(s => s.resetView)
   const dayLayout = useBoardStore(s => s.settings.dayLayout)
+  const boardViewFilterRaw = useBoardStore(s => s.settings.boardViewFilter)
+  const boardViewFilter = useMemo(
+    () => normalizeBoardViewFilter(boardViewFilterRaw),
+    [boardViewFilterRaw]
+  )
   const rangeEditPreview = useBoardStore(s => s.rangeEditPreview)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -44,9 +50,13 @@ export function YearBoard() {
   const totalColumns = useMemo(() => isAligned ? getMaxColumnsForYear(year) : 31, [isAligned, year])
 
   const boardItems = boardState?.items
+  const filteredBoardItems = useMemo(
+    () => (boardItems ? filterItemsByBoardView(boardItems, boardViewFilter) : {}),
+    [boardItems, boardViewFilter]
+  )
   const itemIndex = useMemo(
-    () => (boardItems ? buildItemDateIndex(boardItems, year) : {}),
-    [boardItems, year]
+    () => buildItemDateIndex(filteredBoardItems, year),
+    [filteredBoardItems, year]
   )
   const highlightDateKeys = useMemo(() => {
     if (dragPreviewKeys != null) return new Set(dragPreviewKeys)
@@ -223,9 +233,10 @@ export function YearBoard() {
                 dayLayout={dayLayout}
                 interactionMode={interactionMode}
                 itemIndex={itemIndex}
-                items={boardState.items}
+                items={filteredBoardItems}
                 ranges={boardState.ranges}
                 rangeEditPreview={rangeEditPreview}
+                showTimelineBars={boardViewFilter.showTimelineBars}
                 highlightDateKeys={highlightDateKeys}
                 dragSelecting={dragSelecting}
                 onPanCellClick={handlePanCellClick}

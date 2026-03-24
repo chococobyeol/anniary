@@ -61,11 +61,26 @@ export type BoardState = {
 
 export type DayLayout = 'linear' | 'weekday-aligned'
 
+/** 연간 보드 뷰 전용 (엔티티 변경 없음). `includeTags` 빈 배열 = 모든 태그 표시. */
+export type BoardViewFilter = {
+  /** 비어 있지 않으면, item의 tags 중 하나라도 일치하면 표시 (OR) */
+  includeTags: string[]
+  hideDoneItems: boolean
+  showTimelineBars: boolean
+}
+
+export const DEFAULT_BOARD_VIEW_FILTER: BoardViewFilter = {
+  includeTags: [],
+  hideDoneItems: false,
+  showTimelineBars: true,
+}
+
 export type AppSettings = {
   dayLayout: DayLayout
   zoomInverted: boolean
   /** null = show all, number = show last N (by updatedAt) */
   backlogDisplayLimit: number | null
+  boardViewFilter: BoardViewFilter
 }
 
 /** 저장 전 간트/스타일 미리보기 (persist/dirty 아님) */

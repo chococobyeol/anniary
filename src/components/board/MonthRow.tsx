@@ -20,6 +20,7 @@ type Props = {
   items: Record<string, ItemEntity>
   ranges: Record<string, RangeEntity>
   rangeEditPreview: RangeEditPreview | null
+  showTimelineBars: boolean
   highlightDateKeys: Set<string>
   dragSelecting: boolean
   onPanCellClick: (dateKey: string) => void
@@ -30,7 +31,7 @@ type Props = {
 
 export const MonthRow = memo(function MonthRow({
   year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, items, ranges, rangeEditPreview,
-  highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
+  showTimelineBars, highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
   const todayKey = getTodayKey()
@@ -124,21 +125,22 @@ export const MonthRow = memo(function MonthRow({
         )
       })}
 
-      {/* Above cells: otherwise opaque cell rects hide the bar except in 1px grid gaps */}
-      <g className="month-row-gantt" pointerEvents="none">
-        {ganttSegments.map(s => (
-          <rect
-            key={`${s.rangeId}-${s.startKey}-${s.track}`}
-            x={s.x}
-            y={s.y}
-            width={s.width}
-            height={s.height}
-            rx={0.45}
-            fill={s.color}
-            opacity={s.kind === 'highlight' ? 0.92 : s.kind === 'note' ? 0.5 : 0.85}
-          />
-        ))}
-      </g>
+      {showTimelineBars && (
+        <g className="month-row-gantt" pointerEvents="none">
+          {ganttSegments.map(s => (
+            <rect
+              key={`${s.rangeId}-${s.startKey}-${s.track}`}
+              x={s.x}
+              y={s.y}
+              width={s.width}
+              height={s.height}
+              rx={0.45}
+              fill={s.color}
+              opacity={s.kind === 'highlight' ? 0.92 : s.kind === 'note' ? 0.5 : 0.85}
+            />
+          ))}
+        </g>
+      )}
     </g>
   )
 })

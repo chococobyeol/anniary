@@ -108,11 +108,20 @@ export function BacklogPanel() {
     return [...order, ...rest].filter(k => map.has(k)).map(tag => ({ tag, list: map.get(tag)! }))
   }, [activeInView])
 
+  /** 보드 전체 item 기준 — 선택 날짜의 목록(allBacklog)이 아니라 어디에든 쓰인 태그를 칩에 표시 */
   const uniqueTags = useMemo(() => {
     const set = new Set<string>([DEFAULT_TAG])
-    allBacklog.forEach(it => set.add(getItemTag(it)))
+    for (const it of Object.values(items)) {
+      if (it.tags?.length) {
+        for (const t of it.tags) {
+          set.add((t && t.trim()) || DEFAULT_TAG)
+        }
+      } else {
+        set.add(DEFAULT_TAG)
+      }
+    }
     return [...set].sort((a, b) => (a === DEFAULT_TAG ? -1 : b === DEFAULT_TAG ? 1 : a.localeCompare(b)))
-  }, [allBacklog])
+  }, [items])
 
 
   const handleAdd = () => {
@@ -158,6 +167,13 @@ export function BacklogPanel() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleAdd()
+    }
+  }
+
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleAdd()
     }
@@ -267,6 +283,7 @@ export function BacklogPanel() {
               placeholder="+ New tag"
               value={customTag}
               onChange={e => setCustomTag(e.target.value)}
+              onKeyDown={handleTagInputKeyDown}
             />
           </div>
         </div>

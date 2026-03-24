@@ -1,6 +1,7 @@
 import { useBoardStore } from '../../store/board-store'
 import { BacklogPanel } from './BacklogPanel'
 import { DetailPanel } from './DetailPanel'
+import { FilterPanel } from './FilterPanel'
 import './LeftPanel.css'
 
 export function LeftPanel() {
@@ -18,7 +19,7 @@ export function LeftPanel() {
         {leftMode === 'backlog' && <BacklogPanel />}
         {leftMode === 'detail' && <DetailPanel />}
         {leftMode === 'search' && <div className="panel-placeholder">Search</div>}
-        {leftMode === 'filter' && <div className="panel-placeholder">Filter</div>}
+        {leftMode === 'filter' && <FilterPanel />}
         {leftMode === 'ranges' && <div className="panel-placeholder">Ranges</div>}
         {leftMode === 'overlays' && <div className="panel-placeholder">Overlays</div>}
       </div>

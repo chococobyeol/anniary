@@ -4,6 +4,7 @@ import type {
   AppState,
   AppSettings,
   BoardState,
+  BoardViewFilter,
   InteractionMode,
   LeftPanelMode,
   RangeEditPreview,
@@ -11,6 +12,8 @@ import type {
   SelectionTarget,
   ViewState,
 } from '../types/state'
+import { DEFAULT_BOARD_VIEW_FILTER } from '../types/state'
+import { normalizeBoardViewFilter } from '../utils/boardViewFilter'
 import type {
   BoardEntity,
   ItemEntity,
@@ -47,6 +50,8 @@ type Actions = {
   setRangeEditPreview: (preview: RangeEditPreview | null) => void
 
   updateSettings: (patch: Partial<AppSettings>) => void
+  updateBoardViewFilter: (patch: Partial<BoardViewFilter>) => void
+  resetBoardViewFilter: () => void
 
   createItem: (boardId: string, kind: ItemKind, opts?: {
     title?: string; body?: string; date?: string; endDate?: string; startTime?: string; endTime?: string;
@@ -78,7 +83,12 @@ const initialState: AppState = {
   panel: { leftOpen: false, leftMode: 'backlog', rightOpen: false, rightMode: 'settings' },
   interactionMode: 'pan',
   selection: null,
-  settings: { dayLayout: 'linear', zoomInverted: false, backlogDisplayLimit: null },
+  settings: {
+    dayLayout: 'linear',
+    zoomInverted: false,
+    backlogDisplayLimit: null,
+    boardViewFilter: { ...DEFAULT_BOARD_VIEW_FILTER },
+  },
   rangeEditPreview: null,
   dirty: false,
 }
@@ -178,8 +188,28 @@ export const useBoardStore = create<AppState & Actions>()(
 
   setRangeEditPreview: (preview) => set({ rangeEditPreview: preview }),
 
-  updateSettings: (patch) => set(s => ({
-    settings: { ...s.settings, ...patch },
+  updateSettings: (patch) => set(s => {
+    const next: AppSettings = { ...s.settings, ...patch }
+    next.boardViewFilter = normalizeBoardViewFilter(
+      patch.boardViewFilter
+        ? { ...normalizeBoardViewFilter(s.settings.boardViewFilter), ...patch.boardViewFilter }
+        : s.settings.boardViewFilter
+    )
+    return { settings: next }
+  }),
+
+  updateBoardViewFilter: (patch) => set(s => ({
+    settings: {
+      ...s.settings,
+      boardViewFilter: normalizeBoardViewFilter({ ...s.settings.boardViewFilter, ...patch }),
+    },
+  })),
+
+  resetBoardViewFilter: () => set(s => ({
+    settings: {
+      ...s.settings,
+      boardViewFilter: { ...DEFAULT_BOARD_VIEW_FILTER },
+    },
   })),
 
   createItem: (boardId, kind, opts) => {
@@ -349,7 +379,18 @@ export const useBoardStore = create<AppState & Actions>()(
     }),
     {
       name: 'anniary-storage',
-      version: 1,
+      version: 2,
+      migrate: (persisted) => {
+        const p = persisted as { settings?: AppSettings }
+        if (!p?.settings) return persisted
+        return {
+          ...p,
+          settings: {
+            ...p.settings,
+            boardViewFilter: normalizeBoardViewFilter(p.settings.boardViewFilter),
+          },
+        }
+      },
       partialize: (state) => ({
         activeBoardId: state.activeBoardId,
         boards: state.boards,
