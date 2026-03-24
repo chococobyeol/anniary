@@ -1,12 +1,18 @@
-import { memo, useMemo, type PointerEvent as ReactPointerEvent } from 'react'
+import { memo, useId, useMemo, type PointerEvent as ReactPointerEvent } from 'react'
 import { DayCell } from './DayCell'
 import { getDaysInMonth, toDateKey, getTodayKey, getMonthShort, getDayOfWeek, getDayOfWeekLabel, isWeekend, getFirstDayOfWeek } from '../../utils/date'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../utils/zoom'
 import type { ZoomLevel, DayLayout, InteractionMode, RangeEditPreview } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
+
+function stackLayerFillOpacity(kind: RangeEntity['kind']): number {
+  if (kind === 'note') return 0.42
+  if (kind === 'highlight') return 0.52
+  return 0.46
+}
 import type { DateIndex } from '../../utils/indexing'
-import { layoutMonthGanttSegments } from '../../utils/monthGantt'
+import { dateKeysUnderGanttBars, layoutMonthGanttSegments } from '../../utils/monthGantt'
 import { linkedRangeTimelinePriority } from '../../utils/itemTimelinePriority'
 
 type Props = {
@@ -83,10 +89,25 @@ export const MonthRow = memo(function MonthRow({
     return result
   }, [year, month, days, itemIndex, todayKey, ranges, rangeEditPreview])
 
+  const ganttClipPrefix = useId().replace(/:/g, '')
+
   const ganttSegments = useMemo(
-    () => layoutMonthGanttSegments(ranges, items, year, month, dayLayout, firstDow, BASE_CELL_HEIGHT, rangeEditPreview),
-    [ranges, items, year, month, dayLayout, firstDow, rangeEditPreview]
+    () =>
+      layoutMonthGanttSegments(
+        ranges,
+        items,
+        year,
+        month,
+        dayLayout,
+        firstDow,
+        BASE_CELL_HEIGHT,
+        zoomLevel,
+        rangeEditPreview
+      ),
+    [ranges, items, year, month, dayLayout, firstDow, zoomLevel, rangeEditPreview]
   )
+
+  const ganttDateKeys = useMemo(() => dateKeysUnderGanttBars(ganttSegments), [ganttSegments])
 
   const showDow = dayLayout === 'linear'
 
@@ -116,6 +137,7 @@ export const MonthRow = memo(function MonthRow({
             isHighlighted={highlightDateKeys.has(vm.dateKey)}
             highlightPreview={dragSelecting && highlightDateKeys.has(vm.dateKey)}
             showDow={showDow}
+            suppressListUnderGantt={showTimelineBars && ganttDateKeys.has(vm.dateKey)}
             interactionMode={interactionMode}
             onPanCellClick={onPanCellClick}
             onSelectPointerDown={onSelectPointerDown}
@@ -127,18 +149,68 @@ export const MonthRow = memo(function MonthRow({
 
       {showTimelineBars && (
         <g className="month-row-gantt" pointerEvents="none">
-          {ganttSegments.map(s => (
-            <rect
-              key={`${s.rangeId}-${s.startKey}-${s.track}`}
-              x={s.x}
-              y={s.y}
-              width={s.width}
-              height={s.height}
-              rx={0.45}
-              fill={s.color}
-              opacity={s.kind === 'highlight' ? 0.92 : s.kind === 'note' ? 0.5 : 0.85}
-            />
-          ))}
+          {ganttSegments.map(s => {
+            const clipId = `${ganttClipPrefix}-gc-${year}-${month}-${s.rangeId.replace(/[^a-zA-Z0-9_-]/g, '_')}-${s.startKey.replace(/-/g, '')}-t${s.track}`
+            const opacity = s.kind === 'highlight' ? 0.92 : s.kind === 'note' ? 0.5 : 0.85
+            const layers = s.stackLayers
+            return (
+              <g key={`${s.rangeId}-${s.startKey}-${s.track}`}>
+                <defs>
+                  <clipPath id={clipId}>
+                    <rect x={s.x} y={s.y} width={s.width} height={s.height} rx={0.45} />
+                  </clipPath>
+                </defs>
+                <g style={{ clipPath: `url(#${clipId})` }}>
+                  {layers && layers.length >= 2 ? (
+                    layers.map((layer, idx) => (
+                      <rect
+                        key={idx}
+                        x={s.x}
+                        y={s.y}
+                        width={s.width}
+                        height={s.height}
+                        rx={0.45}
+                        fill={layer.color}
+                        opacity={stackLayerFillOpacity(layer.kind)}
+                      />
+                    ))
+                  ) : (
+                    <rect
+                      x={s.x}
+                      y={s.y}
+                      width={s.width}
+                      height={s.height}
+                      rx={0.45}
+                      fill={s.color}
+                      opacity={opacity}
+                    />
+                  )}
+                  {s.displayLabel && s.labelFontSize > 0 ? (
+                    <text
+                      x={
+                        s.labelTextAnchor === 'middle' || s.labelCentered
+                          ? s.x + s.width / 2
+                          : s.x + 1.5
+                      }
+                      y={s.y + s.height * 0.5 + s.labelFontSize * 0.28}
+                      fontSize={s.labelFontSize}
+                      fontWeight={600}
+                      fill="var(--text-inverse)"
+                      stroke="rgba(0,0,0,0.35)"
+                      strokeWidth={0.12}
+                      paintOrder="stroke fill"
+                      textAnchor={
+                        s.labelTextAnchor === 'middle' || s.labelCentered ? 'middle' : 'start'
+                      }
+                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                    >
+                      {s.displayLabel}
+                    </text>
+                  ) : null}
+                </g>
+              </g>
+            )
+          })}
         </g>
       )}
     </g>

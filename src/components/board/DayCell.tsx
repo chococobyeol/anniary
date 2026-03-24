@@ -12,6 +12,8 @@ type Props = {
   isHighlighted: boolean
   highlightPreview?: boolean
   showDow: boolean
+  /** When true, hide summary/progress/+N under timeline bars for this day */
+  suppressListUnderGantt?: boolean
   interactionMode: InteractionMode
   onPanCellClick?: (dateKey: string) => void
   onSelectPointerDown?: (e: React.PointerEvent, dateKey: string) => void
@@ -32,7 +34,7 @@ const DOW_COLOR_SATURDAY = 'var(--status-in-progress)'
 const DOW_COLOR_DEFAULT = 'var(--text-muted)'
 
 export const DayCell = memo(function DayCell({
-  vm, x, y, zoomLevel, isHighlighted, highlightPreview, showDow, interactionMode,
+  vm, x, y, zoomLevel, isHighlighted, highlightPreview, showDow, suppressListUnderGantt = false, interactionMode,
   onPanCellClick, onSelectPointerDown, onModifierCellClick, onDoubleClick,
 }: Props) {
   const policy: DayCellRenderPolicy = DAY_CELL_POLICY[zoomLevel]
@@ -109,10 +111,15 @@ export const DayCell = memo(function DayCell({
       </text>
 
       {hasStatus && (
-        <circle cx={w - 4} cy={h - 4} r={1.8} fill={statusColor} />
+        <circle
+          cx={w - 4}
+          cy={10}
+          r={1.8}
+          fill={statusColor}
+        />
       )}
 
-      {policy.showProgress && vm.progressPercent != null && (
+      {!suppressListUnderGantt && policy.showProgress && vm.progressPercent != null && (
         <rect
           x={2} y={12}
           width={(w - 4) * (vm.progressPercent / 100)}
@@ -121,13 +128,14 @@ export const DayCell = memo(function DayCell({
         />
       )}
 
-      {policy.showSummaryLines > 0 && vm.summaryLines.slice(0, policy.showSummaryLines).map((line, i) => (
-        <text key={line.id} x={2} y={16 + i * 4.5} fontSize={3.5} fill="var(--text-secondary)">
-          {line.title.length > 8 ? line.title.slice(0, 7) + '…' : line.title}
-        </text>
-      ))}
+      {!suppressListUnderGantt && policy.showSummaryLines > 0
+        && vm.summaryLines.slice(0, policy.showSummaryLines).map((line, i) => (
+          <text key={line.id} x={2} y={16 + i * 4.5} fontSize={3.5} fill="var(--text-secondary)">
+            {line.title.length > 8 ? line.title.slice(0, 7) + '…' : line.title}
+          </text>
+        ))}
 
-      {policy.showHiddenCount && vm.hiddenCount > 0 && (
+      {!suppressListUnderGantt && policy.showHiddenCount && vm.hiddenCount > 0 && (
         <text x={w - 2} y={h - 2} fontSize={3} fill="var(--text-muted)" textAnchor="end">
           +{vm.hiddenCount}
         </text>

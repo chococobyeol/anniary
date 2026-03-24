@@ -206,3 +206,84 @@
 - 재발 방지: 확장 셀에서 기간 색을 쓰면 보드와 동일하게 `ranges`를 props로 넘길 것. 시간축 UI 추가 시 `dayTimeline`의 눈금 생성과 레이블 충돌 규칙을 함께 조정.
 - 검증: `npx tsc --noEmit`, `eslint` 변경 파일, `npm run build` 성공.
 - 관련 파일: `src/utils/dayTimeline.ts`, `src/components/board/ExpandedCell.tsx`, `src/components/board/YearBoard.tsx`
+
+## [2026-03-24 14:30] 월 행 기간 막대 — 두께·막대 내 라벨·좁을 때 +N
+
+- 증상: (요구) 기간 막대를 두껍게 하고 막대 안에 기간 이름을 넣되, 공간이 부족하면 `+N` 등으로 겹침을 피하고 싶음.
+- 원인: (해당 없음 — UX 개선)
+- 해결: `layoutMonthGanttSegments`에 `zoomLevel`을 넘겨 Z0/Z1은 얇은 막대·라벨 없음, Z2+는 막대 높이·하단 패딩을 키우고 `range.label` 없으면 연결 아이템 제목으로 라벨. 너비가 임계값 미만이고 동일 range에 연결된 아이템이 2개 이상이면 `+n`만 표시. 그 외는 픽셀 기준으로 말줄임(`…`). 셀 높이를 넘지 않도록 막대 스택 높이가 맞을 때까지 `barH`/`barGap`을 소폭 축소. `MonthRow`에서 `clipPath`+`text`(역색+얇은 스트로크)로 막대 내부 렌더, `useId` 접두로 clip id 충돌 방지.
+- 재발 방지: 간트 막대 시각·라벨 정책을 바꿀 때 `monthGantt.ts`의 줌별 메트릭·`computeBarLabel`과 `MonthRow` SVG를 함께 수정할 것. `layoutMonthGanttSegments` 시그니처 변경 시 호출부(현재 `MonthRow`) 동기화.
+- 검증: `npx tsc --noEmit` 통과, 변경 파일 eslint 이슈 없음.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 16:00] 기간 막대 — 날짜 가림·리스트 겹침·라벨 중복
+
+- 증상: 막대 라벨과 셀 안 요약 텍스트가 겹쳐 보임. 막대가 날짜 숫자까지 덮음. 하단 `+N`·상태 점이 막대와 겹침. 같은 날·같은 range가 여러 트랙에 쌓일 때 바 안 이름이 반복됨.
+- 원인: 막대가 셀 전체 높이(28) 아래에서부터 쌓여 상단 여백이 없음. 요약/진행률은 타임라인과 독립 렌더. 라벨은 트랙마다 개별 계산.
+- 해결: `BASE_CELL_HEIGHT` 34로 상향. `GANTT_RESERVED_TOP`(13.5) 이상으로 막대 스택 꼭대기가 올라가지 않게 `barH`/`barGap` 자동 축소. Z2–Z4 기본 막대·폰트·간격을 다소 촘촘히. 같은 `startKey===endKey`+`rangeId` 그룹은 **track 번호가 가장 작은 막대(아래쪽)만** 라벨 유지. `dateKeysUnderGanttBars`로 막대가 지나가는 날은 `DayCell`에서 요약·진행률·hidden `+N` 숨김, 상태 점은 `cy=10`으로 이동.
+- 재발 방지: 타임라인 막대 레이아웃을 바꿀 때 `GANTT_RESERVED_TOP`·셀 높이·`suppressListUnderGantt` 정책을 함께 점검. 반복 일정으로 같은 날 동일 range가 여러 막대가 되면 라벨 중복은 `dedupeStackedSingleDayRangeLabels`에 맡길 것.
+- 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
+- 관련 파일: `src/utils/zoom.ts`, `src/utils/monthGantt.ts`, `src/components/board/DayCell.tsx`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 17:10] 간트 — 같은 좌표 막대 다중 오버레이 시 겹침 개수 표시
+
+- 증상: 트랙이 부족해 같은 줄(같은 rect)에 막대가 여러 개 그려지면 색만 진해지고 라벨이 겹쳐 읽을 수 없음.
+- 원인: `!placed`일 때 모두 마지막 트랙에 `push`만 하고 기하가 동일한 `rect`가 N번 중첩됨.
+- 해결: 레이아웃 후 `mergeCoincidentBarRects`로 동일 `(track,x,y,width,height)`(1/8 단위 반올림) 그룹을 **한 개의 막대**로 합치고, 라벨은 **겹친 개수(숫자)**만 중앙 표시. `MonthGanttSegment.labelCentered`로 텍스트 `textAnchor=middle`.
+- 재발 방지: 오버플로 트랙에 쌓이는 경우를 시각적으로 합칠 때 기하 키 반올림과 합친 뒤 `rangeId`(React key) 유일성을 함께 확인할 것.
+- 검증: `npx tsc --noEmit`, eslint, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 18:05] 간트 겹침 — 최상단 라벨·+n·색 블렌드
+
+- 증상: 겹침을 숫자만으로 표시해 직관이 부족하고, 기간 막대와 단일일 막대가 같은 셀에서 섞일 때 의미가 불명확함.
+- 원인: 동일 rect 병합 시 단일 불투명 막대+숫자만 사용.
+- 해결: 겹침 그룹을 `timelinePriority` 오름차순(낮은 값이 아래)·동률이면 `createdAt` 오름차순(먼저 만든 것이 아래)으로 쌓고, **맨 위 range**의 `labelForRange` 텍스트에 **` +n`**(아래에 깔린 개수)을 붙임. 같은 rect에는 **여러 `rect`를 kind별 반투명(opacity ~0.42–0.52)**으로 겹쳐 색이 섞이게 렌더. `MonthGanttSegment.stackLayers`+`MonthRow`에서 다층 그리기.
+- 재발 방지: “위에 온 것” 정의를 바꾸면 `compareRangeStackBottomOrder`와 UI 문구를 함께 맞출 것. 겹침 라벨 폭은 `barWidth`에 맞춰 말줄임 유지.
+- 검증: `npx tsc --noEmit`, eslint, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 19:00] 간트 — 여러 날 막대 라벨을 막대 중앙(옆 칸 쪽)으로
+
+- 증상: 긴 기간 막대도 라벨이 항상 시작일 칸 왼쪽에만 붙어, 같은 날 다른 막대 라벨과 시각적으로 몰림.
+- 원인: 텍스트를 세그먼트 `x` 기준 시작 정렬만 사용.
+- 해결: `dayStart !== dayEnd`이고 막대 너비가 한 칸보다 크면 `labelTextAnchor: 'middle'`, `MonthRow`에서 `x = x + width/2`·`textAnchor=middle`. 겹침 병합(`stackLayers`)은 시작 정렬 유지.
+- 재발 방지: 라벨 위치 정책을 바꿀 때 단일일/다일·병합 세 경우를 함께 테스트할 것.
+- 검증: `npx tsc --noEmit`, eslint, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 20:15] 간트 — 다일 막대 라벨 충돌 회피(날짜 칸 중심 후보)
+
+- 증상: 단순 중앙 정렬만으로는 시작일 칸에 몰린 다른 라벨과의 겹침이 남음.
+- 원인: 라벨 x를 막대 전체 중앙 하나로 고정.
+- 해결: `resolveMultiDayLabelAnchors`로 막대가 덮는 **각 날짜 칸의 중심**(막대 구간으로 클램프)을 후보로 두고, 같은 `y`의 다른 세그먼트 라벨 구간(추정 폭)과 수평 겹침 수가 최소인 후보를 선택·동률이면 더 오른쪽 후보. **넓은 막대부터** 배정. `labelAnchorX`+`textAnchor=middle`로 렌더.
+- 재발 방지: 라벨 폭 추정(`estimateLabelWidth`)·후보 집합을 바꾸면 단일일/스택/다일 조합을 함께 확인할 것. 전역 최적·세로 인접 트랙까지의 충돌은 범위 밖.
+- 검증: `npx tsc --noEmit`, eslint, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 21:00] 간트 라벨 — 충돌 회피 제거, 다일만 막대 중앙
+
+- 증상: (요구) 날짜 칸별 라벨 후보·겹침 최소화 로직은 보류하고 단순화.
+- 원인: (해당 없음 — 의도적 되돌림)
+- 해결: `resolveMultiDayLabelAnchors`·`estimateLabelWidth`·`labelAnchorX` 제거. 다일 막대는 기존처럼 `labelTextAnchor: 'middle'` + `x + width/2`만 사용.
+- 재발 방지: 라벨 배치를 다시 설계할 때 이 항목과 `[2026-03-24 20:15]` 참고.
+- 검증: `npx tsc --noEmit`, eslint, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/board/MonthRow.tsx`
+
+## [2026-03-24 22:00] DayCell — 상태 점 위치 피리오드 바 ON 기준으로 고정
+
+- 증상: 타임라인(피리오드) 바 표시 ON/OFF에 따라 우상단 상태 원 `cy`가 `10` vs `h-4`로 달라짐.
+- 원인: `suppressListUnderGantt`일 때만 `cy=10`으로 올려 막대와 겹침을 피하도록 분기.
+- 해결: 상태 원은 항상 `cy={10}` (`cx=w-4` 유지)으로 통일.
+- 재발 방지: 셀 높이·줌 정책 바꿀 때 날짜 숫자(y≈9)와 원(10) 간격을 한 번 확인할 것.
+- 검증: `npx tsc --noEmit`, eslint `DayCell.tsx`.
+- 관련 파일: `src/components/board/DayCell.tsx`
+
+## [2026-03-24 23:00] 필터·간트 — 보이는 아이템에만 기간 막대 + 토글 의미 통일
+
+- 증상: Hide done ON인데 완료만 연결된 기간 막대는 남음. 필터에서 Hide done은 “켜면 숨김”인데 Period bars는 “켜면 보임”이라 토글 의미가 반대로 느껴짐.
+- 원인: `layoutMonthGanttSegments`가 `ranges` 전체를 돌며 `items`는 필터된 것만 넘어와도 막대는 링크 여부를 보지 않음.
+- 해결: `rangeHasLinkedItemInBoardItems`로 필터 통과 아이템이 `rangeId`를 가질 때만 본문 막대 raw에 넣음. `FilterPanel`: Hide done 행에 `Hidden`/`Visible` 힌트 추가, Period는 라벨을 **Hide period bars**로 바꾸고 토글 **active**·`aria-checked`를 `!showTimelineBars`로 맞춰 “켜면 숨김”과 일치.
+- 재발 방지: 보드에 넘기는 `items`와 간트 레이아웃 입력이 항상 동일 필터를 쓰는지 확인. 스토어 필드명 `showTimelineBars`는 유지(의미는 그대로).
+- 검증: `npx tsc --noEmit`, eslint 변경 파일.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/components/panels/FilterPanel.tsx`

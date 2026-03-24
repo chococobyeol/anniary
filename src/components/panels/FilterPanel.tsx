@@ -79,6 +79,7 @@ export function FilterPanel() {
         <label className="settings-row">
           <span className="settings-label">Hide done</span>
           <div className="settings-toggle-wrap">
+            <span className="settings-hint">{filter.hideDoneItems ? 'Hidden' : 'Visible'}</span>
             <button
               type="button"
               className={`settings-toggle ${filter.hideDoneItems ? 'active' : ''}`}
@@ -95,15 +96,15 @@ export function FilterPanel() {
       <div className="settings-section">
         <div className="settings-section-title">Timeline</div>
         <label className="settings-row">
-          <span className="settings-label">Period bars</span>
+          <span className="settings-label">Hide period bars</span>
           <div className="settings-toggle-wrap">
             <span className="settings-hint">{filter.showTimelineBars ? 'Visible' : 'Hidden'}</span>
             <button
               type="button"
-              className={`settings-toggle ${filter.showTimelineBars ? 'active' : ''}`}
+              className={`settings-toggle ${!filter.showTimelineBars ? 'active' : ''}`}
               onClick={() => updateBoardViewFilter({ showTimelineBars: !filter.showTimelineBars })}
               role="switch"
-              aria-checked={filter.showTimelineBars}
+              aria-checked={!filter.showTimelineBars}
             >
               <span className="settings-toggle-thumb" />
             </button>
