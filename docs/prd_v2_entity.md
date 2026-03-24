@@ -90,23 +90,15 @@
 
 이 엔티티 하나로 처리하는 것
 
-* task
-* note
-* event 성격 항목
-* backlog item
-* no-date task
-* no-date note
+* 날짜 있는/없는 작업·메모 성격 항목 (한 엔티티)
+* backlog item (날짜·range 미할당 item 집합)
 * day summary source
 
-즉 초기에는 task / note / event 성격 항목을 별도 엔티티로 쪼개지 않는다.
+즉 task / note / event 를 **별도 엔티티로 쪼개지 않는다.**
 
-대신 `item.kind` 로 구분한다.
+**사용자 구분·백로그 그룹·(예정) 필터·검색의 1차 축은 `item.tags: string[]`** 이다. 미지정 시 UI에서는 "일반" 등 기본 태그로 표시 ([PRD_CHANGELOG.md](PRD_CHANGELOG.md) v3.2).
 
-예:
-
-* `task`
-* `note`
-* `event`
+**`item.kind`(task | note | event)** 는 스키마에 남긴다. 신규 생성은 기본 `task` 로 통일하고, **UI에서 종류를 고르게 하지 않는다.** 필터 설계에서 kind 기반 “task만 / note만” 같은 구분은 하지 않는다.
 
 그리고 backlog/no-date는
 별도 타입이 아니라 **날짜/범위 연결이 없는 item** 으로 처리한다.
@@ -187,7 +179,7 @@ asset은 UI 엔티티라기보다 저장/참조 엔티티다.
 
 ## 6. task / note / event 를 분리하지 않는 이유
 
-초기에는 분리 안 한다.
+초기에는 **별도 엔티티로 분리하지 않는다.** 한 `item` 타입으로 둔다.
 
 이유:
 
@@ -196,16 +188,11 @@ asset은 UI 엔티티라기보다 저장/참조 엔티티다.
 * status / progress / title / body 같은 공통 필드가 큼
 * command 구조를 단순하게 만들 수 있음
 
-즉 초기에는
+스키마에는 여전히 `item.kind = task | note | event` 필드가 있으나,
 
-```txt
-item.kind = task | note | event
-```
-
-이렇게만 둔다.
-
-다만 여기서 `event`는 별도 강한 도메인 분리가 아니라
-**표시/분류용 kind** 정도로 취급한다.
+* **사용자가 고르는 분류는 `tags`**
+* 신규 항목은 기본 `kind: task`
+* **필터·검색 UX는 kind 축을 쓰지 않는다** (view filter 예시는 태그·상태·메모 등 — `prd_v2_ux.md` §9, `prd_v2.md` §14.2)
 
 ---
 
@@ -230,24 +217,15 @@ item.status != done
 
 ---
 
-## 8. no-date task / no-date note 처리
+## 8. no-date item (백로그) 처리
 
-이것도 별도 엔티티 없다.
+별도 엔티티 없다. 그냥 **date·rangeId 가 없는 item** 이다.
 
-둘 다 그냥 item이다.
+구분:
 
-차이는
-
-* kind
-* date 연결 유무
-* range 연결 유무
-
-로만 구분한다.
-
-예:
-
-* 날짜 없음 + range 없음 + kind=task → no-date task
-* 날짜 없음 + range 없음 + kind=note → no-date note
+* **날짜 연결 유무 / range 연결 유무** 로 backlog 여부를 판단한다.
+* **태그** 로 사용자 의미상 묶음을 준다 (예: "일반", 프로젝트명).
+* `kind` 로 task vs note 를 UI에서 나누지 않는다. (과거 문서의 no-date task / no-date note 표현은 **같은 item** 에 태그만 다른 경우로 보면 된다.)
 
 ---
 
@@ -530,9 +508,9 @@ type AssetEntity = {
 
 렌더링 계산으로 처리
 
-### 2. task / note / event 통합
+### 2. task / note / event 통합 (한 item 타입)
 
-`item.kind` 로 구분
+스키마에 `item.kind` 는 있으나, **사용자 분류·필터 축은 `item.tags`**
 
 ### 3. backlog 별도 엔티티 없음
 

@@ -252,16 +252,20 @@ search
 
 보드 표시 축소 / 강조
 
-필터 예
+분류 기준 (v3.2 이후)
+
+- 사용자가 나누는 **구분은 `item.tags`(문자열 배열)** 이다. 백로그·디테일 UI도 태그 중심이다.
+- `item.kind`(task / note / event)는 스키마에 남아 있으나 **신규 생성은 기본 `task`** 로 통일하고, **필터·검색·그룹의 1차 축으로 쓰지 않는다.**
+
+필터 예 (view filter)
 
 - in-progress only
 - hide done
-- task only
-- note only
-- event only
+- **특정 태그만** (또는 태그 다중 선택)
+- 태그 없음 / 기본 "일반"만
 - overlay only
 - range only
-- memo only
+- memo only (body 있는 item이 있는 날만 등)
 
 필터는 state 변경이 아니라
 

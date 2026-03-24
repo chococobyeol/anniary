@@ -192,7 +192,7 @@
 - [x] Detail 패널 — range 상세 편집 (label, body, kind, status, color)
 - [ ] Detail 패널 — overlay 속성 편집
 - [ ] Search 패널 — 전체 검색
-- [ ] Filter 패널 — view filter
+- [ ] Filter 패널 — view filter (태그·상태·메모 등; **Item.kind 기반 필터 아님**)
 - [ ] Ranges 패널 — range 목록 관리
 - [ ] Overlays 패널 — overlay 목록 관리
 - [ ] Layers 패널 — 레이어 show/hide
