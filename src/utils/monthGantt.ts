@@ -388,6 +388,31 @@ function cellTimeFractionsForClip(
   return { startCellFrac, endCellFrac }
 }
 
+const FRAC_EPS = 1e-9
+
+/** barStart/barEnd로 첫·끝 칸이 종일(0~1)보다 좁게 그려지는지 */
+function segmentUsesTimeOfDayClip(fracs: { startCellFrac: number; endCellFrac: number }): boolean {
+  return fracs.startCellFrac > FRAC_EPS || fracs.endCellFrac < 1 - FRAC_EPS
+}
+
+/**
+ * Hide time-of-day: **하루짜리 기간 + 이 달 한 칸**일 때만, 칸 안 시간 클립 막대를 숨김(null).
+ * 여러 날짜 기간이거나 이 달 클립이 여러 칸이면 분수 그대로(시간 막대 유지, 종일로 펼치지 않음).
+ */
+function resolveFracsForTimeOfDayToggle(
+  fracs: { startCellFrac: number; endCellFrac: number },
+  rangeSpansMultipleCalendarDays: boolean,
+  spanMultiDayInMonth: boolean,
+  showTimeOfDay: boolean
+): { startCellFrac: number; endCellFrac: number } | null {
+  if (showTimeOfDay) return fracs
+  const singleDayStrip =
+    !rangeSpansMultipleCalendarDays && !spanMultiDayInMonth
+  if (!singleDayStrip) return fracs
+  if (segmentUsesTimeOfDayClip(fracs)) return null
+  return fracs
+}
+
 function segmentLeftWidth(
   seg: { dayStart: number; dayEnd: number; startCellFrac: number; endCellFrac: number },
   dayLayout: DayLayout,
@@ -409,6 +434,19 @@ function rangeHasLinkedItemInBoardItems(rangeId: string, items: Record<string, I
   return false
 }
 
+export type TimelineBarSpanVisibility = {
+  multiDay: boolean
+  singleDay: boolean
+  /** false면 하루·한 칸+시간 클립만 숨김; 다일 막대는 분수 유지(펼치지 않음) */
+  showTimeOfDay: boolean
+}
+
+const DEFAULT_TIMELINE_SPAN_VISIBILITY: TimelineBarSpanVisibility = {
+  multiDay: true,
+  singleDay: true,
+  showTimeOfDay: true,
+}
+
 export function layoutMonthGanttSegments(
   ranges: Record<string, RangeEntity>,
   items: Record<string, ItemEntity>,
@@ -418,7 +456,8 @@ export function layoutMonthGanttSegments(
   firstDow: number,
   cellHeight: number,
   zoomLevel: ZoomLevel,
-  rangeEditPreview: RangeEditPreview | null = null
+  rangeEditPreview: RangeEditPreview | null = null,
+  spanVisibility: TimelineBarSpanVisibility = DEFAULT_TIMELINE_SPAN_VISIBILITY
 ): MonthGanttSegment[] {
   type Raw = {
     rangeId: string
@@ -441,8 +480,22 @@ export function layoutMonthGanttSegments(
     if (effectiveTimelineBarHidden(range, rangeEditPreview)) continue
     const clip = rangeClipToMonth(range, year, month)
     if (!clip) continue
+    const spanMultiDayInMonth = clip.dayStart !== clip.dayEnd
+    if (spanMultiDayInMonth && !spanVisibility.multiDay) continue
+    const fracs0 = cellTimeFractionsForClip(range, clip, rangeEditPreview)
+    if (!spanMultiDayInMonth && !spanVisibility.singleDay && !segmentUsesTimeOfDayClip(fracs0)) {
+      continue
+    }
     const vis = resolveRangeVisual(range, rangeEditPreview)
-    const { startCellFrac, endCellFrac } = cellTimeFractionsForClip(range, clip, rangeEditPreview)
+    const rangeSpansMultipleCalendarDays = range.startDate !== range.endDate
+    const fracs = resolveFracsForTimeOfDayToggle(
+      fracs0,
+      rangeSpansMultipleCalendarDays,
+      spanMultiDayInMonth,
+      spanVisibility.showTimeOfDay
+    )
+    if (fracs === null) continue
+    const { startCellFrac, endCellFrac } = fracs
     raw.push({
       rangeId: range.id,
       startKey: clip.startKey,
@@ -472,7 +525,18 @@ export function layoutMonthGanttSegments(
       const synth: RangeEntity = { ...range, startDate: occKey, endDate: occKey }
       const clip = rangeClipToMonth(synth, year, month)
       if (!clip) continue
-      const { startCellFrac, endCellFrac } = cellTimeFractionsForClip(synth, clip, rangeEditPreview)
+      const spanMultiDayInMonth = clip.dayStart !== clip.dayEnd
+      const rangeSpansMultipleCalendarDays = synth.startDate !== synth.endDate
+      const fracs0 = cellTimeFractionsForClip(synth, clip, rangeEditPreview)
+      if (!spanVisibility.singleDay && !segmentUsesTimeOfDayClip(fracs0)) continue
+      const fracs = resolveFracsForTimeOfDayToggle(
+        fracs0,
+        rangeSpansMultipleCalendarDays,
+        spanMultiDayInMonth,
+        spanVisibility.showTimeOfDay
+      )
+      if (fracs === null) continue
+      const { startCellFrac, endCellFrac } = fracs
       raw.push({
         rangeId: range.id,
         startKey: clip.startKey,

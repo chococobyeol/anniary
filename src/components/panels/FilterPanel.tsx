@@ -46,7 +46,9 @@ export function FilterPanel() {
   const isDefaultState =
     filter.includeTags.length === 0
     && !filter.hideDoneItems
-    && filter.showTimelineBars
+    && filter.showTimelineBarsMultiDay
+    && filter.showTimelineBarsSingleDay
+    && filter.showTimelineBarsTimeOfDay
 
   return (
     <div className="settings-panel filter-panel">
@@ -96,15 +98,51 @@ export function FilterPanel() {
       <div className="settings-section">
         <div className="settings-section-title">Timeline</div>
         <label className="settings-row">
-          <span className="settings-label">Hide period bars</span>
+          <span className="settings-label">Hide multi-day period bars</span>
           <div className="settings-toggle-wrap">
-            <span className="settings-hint">{filter.showTimelineBars ? 'Visible' : 'Hidden'}</span>
+            <span className="settings-hint">{filter.showTimelineBarsMultiDay ? 'Visible' : 'Hidden'}</span>
             <button
               type="button"
-              className={`settings-toggle ${!filter.showTimelineBars ? 'active' : ''}`}
-              onClick={() => updateBoardViewFilter({ showTimelineBars: !filter.showTimelineBars })}
+              className={`settings-toggle ${!filter.showTimelineBarsMultiDay ? 'active' : ''}`}
+              onClick={() =>
+                updateBoardViewFilter({ showTimelineBarsMultiDay: !filter.showTimelineBarsMultiDay })
+              }
               role="switch"
-              aria-checked={!filter.showTimelineBars}
+              aria-checked={!filter.showTimelineBarsMultiDay}
+            >
+              <span className="settings-toggle-thumb" />
+            </button>
+          </div>
+        </label>
+        <label className="settings-row">
+          <span className="settings-label">Hide all-day single-day bars</span>
+          <div className="settings-toggle-wrap">
+            <span className="settings-hint">{filter.showTimelineBarsSingleDay ? 'Visible' : 'Hidden'}</span>
+            <button
+              type="button"
+              className={`settings-toggle ${!filter.showTimelineBarsSingleDay ? 'active' : ''}`}
+              onClick={() =>
+                updateBoardViewFilter({ showTimelineBarsSingleDay: !filter.showTimelineBarsSingleDay })
+              }
+              role="switch"
+              aria-checked={!filter.showTimelineBarsSingleDay}
+            >
+              <span className="settings-toggle-thumb" />
+            </button>
+          </div>
+        </label>
+        <label className="settings-row">
+          <span className="settings-label">Hide same-day time bars</span>
+          <div className="settings-toggle-wrap">
+            <span className="settings-hint">{filter.showTimelineBarsTimeOfDay ? 'Visible' : 'Hidden'}</span>
+            <button
+              type="button"
+              className={`settings-toggle ${!filter.showTimelineBarsTimeOfDay ? 'active' : ''}`}
+              onClick={() =>
+                updateBoardViewFilter({ showTimelineBarsTimeOfDay: !filter.showTimelineBarsTimeOfDay })
+              }
+              role="switch"
+              aria-checked={!filter.showTimelineBarsTimeOfDay}
             >
               <span className="settings-toggle-thumb" />
             </button>

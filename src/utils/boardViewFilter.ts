@@ -52,11 +52,39 @@ export function collectTagsFromItems(items: Record<string, ItemEntity>): string[
   return list
 }
 
-export function normalizeBoardViewFilter(raw: Partial<BoardViewFilter> | undefined): BoardViewFilter {
+/** 저장본에 남을 수 있는 레거시 키 */
+type BoardViewFilterPersisted = Partial<BoardViewFilter> & {
+  showTimelineBars?: boolean
+}
+
+function inferTimelineSpanVisibility(raw: BoardViewFilterPersisted): {
+  multiDay: boolean
+  singleDay: boolean
+} {
+  const hasNew =
+    raw.showTimelineBarsMultiDay !== undefined || raw.showTimelineBarsSingleDay !== undefined
+  if (hasNew) {
+    return {
+      multiDay: raw.showTimelineBarsMultiDay ?? DEFAULT_BOARD_VIEW_FILTER.showTimelineBarsMultiDay,
+      singleDay: raw.showTimelineBarsSingleDay ?? DEFAULT_BOARD_VIEW_FILTER.showTimelineBarsSingleDay,
+    }
+  }
+  if (raw.showTimelineBars === false) return { multiDay: false, singleDay: false }
+  if (raw.showTimelineBars === true) return { multiDay: true, singleDay: true }
+  return {
+    multiDay: DEFAULT_BOARD_VIEW_FILTER.showTimelineBarsMultiDay,
+    singleDay: DEFAULT_BOARD_VIEW_FILTER.showTimelineBarsSingleDay,
+  }
+}
+
+export function normalizeBoardViewFilter(raw: BoardViewFilterPersisted | undefined): BoardViewFilter {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_BOARD_VIEW_FILTER }
+  const span = inferTimelineSpanVisibility(raw)
   return {
     includeTags: Array.isArray(raw.includeTags) ? [...raw.includeTags] : DEFAULT_BOARD_VIEW_FILTER.includeTags,
     hideDoneItems: raw.hideDoneItems ?? DEFAULT_BOARD_VIEW_FILTER.hideDoneItems,
-    showTimelineBars: raw.showTimelineBars ?? DEFAULT_BOARD_VIEW_FILTER.showTimelineBars,
+    showTimelineBarsMultiDay: span.multiDay,
+    showTimelineBarsSingleDay: span.singleDay,
+    showTimelineBarsTimeOfDay: raw.showTimelineBarsTimeOfDay ?? DEFAULT_BOARD_VIEW_FILTER.showTimelineBarsTimeOfDay,
   }
 }

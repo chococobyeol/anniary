@@ -5,15 +5,15 @@ import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH } from '../../uti
 import type { ZoomLevel, DayLayout, InteractionMode, RangeEditPreview } from '../../types/state'
 import type { DayCellViewModel } from '../../types/view-models'
 import type { ItemEntity, RangeEntity } from '../../types/entities'
+import type { DateIndex } from '../../utils/indexing'
+import { dateKeysUnderGanttBars, layoutMonthGanttSegments } from '../../utils/monthGantt'
+import { linkedRangeTimelinePriority } from '../../utils/itemTimelinePriority'
 
 function stackLayerFillOpacity(kind: RangeEntity['kind']): number {
   if (kind === 'note') return 0.42
   if (kind === 'highlight') return 0.52
   return 0.46
 }
-import type { DateIndex } from '../../utils/indexing'
-import { dateKeysUnderGanttBars, layoutMonthGanttSegments } from '../../utils/monthGantt'
-import { linkedRangeTimelinePriority } from '../../utils/itemTimelinePriority'
 
 type Props = {
   year: number
@@ -26,7 +26,9 @@ type Props = {
   items: Record<string, ItemEntity>
   ranges: Record<string, RangeEntity>
   rangeEditPreview: RangeEditPreview | null
-  showTimelineBars: boolean
+  showTimelineBarsMultiDay: boolean
+  showTimelineBarsSingleDay: boolean
+  showTimelineBarsTimeOfDay: boolean
   highlightDateKeys: Set<string>
   dragSelecting: boolean
   onPanCellClick: (dateKey: string) => void
@@ -37,7 +39,7 @@ type Props = {
 
 export const MonthRow = memo(function MonthRow({
   year, month, y, zoomLevel, dayLayout, interactionMode, itemIndex, items, ranges, rangeEditPreview,
-  showTimelineBars, highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
+  showTimelineBarsMultiDay, showTimelineBarsSingleDay, showTimelineBarsTimeOfDay, highlightDateKeys, dragSelecting, onPanCellClick, onSelectPointerDown, onModifierCellClick, onCellDoubleClick,
 }: Props) {
   const days = getDaysInMonth(year, month)
   const todayKey = getTodayKey()
@@ -102,9 +104,14 @@ export const MonthRow = memo(function MonthRow({
         firstDow,
         BASE_CELL_HEIGHT,
         zoomLevel,
-        rangeEditPreview
+        rangeEditPreview,
+        {
+          multiDay: showTimelineBarsMultiDay,
+          singleDay: showTimelineBarsSingleDay,
+          showTimeOfDay: showTimelineBarsTimeOfDay,
+        }
       ),
-    [ranges, items, year, month, dayLayout, firstDow, zoomLevel, rangeEditPreview]
+    [ranges, items, year, month, dayLayout, firstDow, zoomLevel, rangeEditPreview, showTimelineBarsMultiDay, showTimelineBarsSingleDay, showTimelineBarsTimeOfDay]
   )
 
   const ganttDateKeys = useMemo(() => dateKeysUnderGanttBars(ganttSegments), [ganttSegments])
@@ -137,7 +144,7 @@ export const MonthRow = memo(function MonthRow({
             isHighlighted={highlightDateKeys.has(vm.dateKey)}
             highlightPreview={dragSelecting && highlightDateKeys.has(vm.dateKey)}
             showDow={showDow}
-            suppressListUnderGantt={showTimelineBars && ganttDateKeys.has(vm.dateKey)}
+            suppressListUnderGantt={ganttDateKeys.has(vm.dateKey)}
             interactionMode={interactionMode}
             onPanCellClick={onPanCellClick}
             onSelectPointerDown={onSelectPointerDown}
@@ -147,7 +154,7 @@ export const MonthRow = memo(function MonthRow({
         )
       })}
 
-      {showTimelineBars && (
+      {ganttSegments.length > 0 && (
         <g className="month-row-gantt" pointerEvents="none">
           {ganttSegments.map(s => {
             const clipId = `${ganttClipPrefix}-gc-${year}-${month}-${s.rangeId.replace(/[^a-zA-Z0-9_-]/g, '_')}-${s.startKey.replace(/-/g, '')}-t${s.track}`

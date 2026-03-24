@@ -287,3 +287,66 @@
 - 재발 방지: 보드에 넘기는 `items`와 간트 레이아웃 입력이 항상 동일 필터를 쓰는지 확인. 스토어 필드명 `showTimelineBars`는 유지(의미는 그대로).
 - 검증: `npx tsc --noEmit`, eslint 변경 파일.
 - 관련 파일: `src/utils/monthGantt.ts`, `src/components/panels/FilterPanel.tsx`
+
+## [2026-03-24 23:45] 타임라인 — 멀티데이·싱글데이 기간 막대 표시 분리
+
+- 증상: (요구) 하루짜리 막대만 가끔 보이게 하거나, 여러 날 막대만 숨기고 싶은데 기존 `showTimelineBars` 하나로는 개별 제어 불가.
+- 원인: 필터가 기간 막대 on/off를 단일 불리언으로만 저장·렌더.
+- 해결: `BoardViewFilter`에 `showTimelineBarsMultiDay`·`showTimelineBarsSingleDay` 추가(기본 둘 다 true). `normalizeBoardViewFilter`에서 레거시 `showTimelineBars`를 읽어 둘 다 끔/켬으로 마이그레이션. `layoutMonthGanttSegments`에 `spanVisibility`로 클립이 이 달에서 하루인지 여부(`dayStart !== dayEnd`)·반복 synth(항상 싱글데이)에 따라 raw 스킵. `FilterPanel`에 토글 두 줄. `MonthRow`는 둘 중 하나라도 켜면 간트 레이어·`suppressListUnderGantt` 유지.
+- 재발 방지: 간트에 새 가시성 차원을 넣을 때 `YearBoard`→`MonthRow`→`layoutMonthGanttSegments`와 저장 스키마·정규화를 함께 갱신할 것.
+- 검증: `npx tsc --noEmit`, eslint(변경 파일), `npm run build` 성공.
+- 관련 파일: `src/types/state.ts`, `src/utils/boardViewFilter.ts`, `src/utils/monthGantt.ts`, `src/components/panels/FilterPanel.tsx`, `src/components/board/MonthRow.tsx`, `src/components/board/YearBoard.tsx`
+
+## [2026-03-25 00:10] 타임라인 — 칸 안 시간(하루 미만) 막대 폭 온오프
+
+- 증상: (요구) `barStartTime`/`barEndTime`으로 칸 안에서 잘리는 막대(시간 단위)만 따로 끄고 싶음.
+- 원인: 멀티/싱글데이 토글만 있고 시각 폭 제어는 없음.
+- 해결: `BoardViewFilter.showTimelineBarsTimeOfDay`(기본 true) + `FilterPanel` **Hide time-of-day on period bars**. 동작은 아래 `[00:25]`에서 **미표시**로 확정(초안은 종일 폭이었음).
+- 재발 방지: “숨김” 문구와 실제 동작(스킵 vs 종일 폭)을 함께 검토할 것.
+- 검증: `npx tsc --noEmit`, eslint(변경 파일), `npm run build` 성공.
+- 관련 파일: `src/types/state.ts`, `src/utils/boardViewFilter.ts`, `src/utils/monthGantt.ts`, `src/components/panels/FilterPanel.tsx`, `src/components/board/MonthRow.tsx`, `src/components/board/YearBoard.tsx`
+
+## [2026-03-25 00:25] 타임라인 — “시간 막대 끄기”를 종일 폭이 아니라 미표시로 수정
+
+- 증상: `showTimelineBarsTimeOfDay` off 시 막대를 종일 폭으로 그려 달력은 복잡해지고, 사용자는 **아예 안 그리기**를 기대함.
+- 원인: 첫 구현이 “시각 무시·셀 전체 너비”로 해석됨.
+- 해결: `segmentUsesTimeOfDayClip`로 `startCellFrac`/`endCellFrac`가 종일(0~1)이 아닌 세그먼트를 판별. `showTimeOfDay`가 false면 해당 raw는 **continue**로 제외. 본문 range·반복 synth 동일.
+- 재발 방지: 필터 문구(“Hide time-of-day…”)와 실제 동작(숨김 vs 단순화)을 바꿀 때 PR/설명 한 줄로 맞출 것.
+- 검증: `npx tsc --noEmit`, eslint `src/utils/monthGantt.ts`, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`
+
+## [2026-03-25 00:40] 타임라인 — Hide time-of-day 시 다일(시간 지정) 막대 복구
+
+- 증상: 시간 토글 off 시 `startDate !== endDate`인 기간도 통째로 숨겨짐. 사용자는 **하루 칸 안 짧은 막대만** 숨기길 원함.
+- 원인: 클립이 칸 안 시간만 보면 다일·월경계(한 달에 한 칸만 보임)를 구분하지 못함.
+- 해결: `resolveFracsForTimeOfDayToggle`에서 `range.startDate !== range.endDate` **또는** 이 달 클립이 여러 칸이면 `0~1`로 단순화해 막대 유지. 위 둘 다 아니고 단일일+시간 클립일 때만 `null` 스킵.
+- 재발 방지: 월별 클립과 엔티티 달력 구간을 섞어 판단할 때 두 축을 모두 적을 것.
+- 검증: `npx tsc --noEmit`, eslint `monthGantt.ts`·`state.ts`, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`
+
+## [2026-03-25 00:50] 타임라인 — 다일 막대 0~1 확장 제거(시간 폭 유지)
+
+- 증상: Hide time-of-day on 시 다일+시간 지정 막대가 끝 칸이 **종일 폭으로 펼쳐짐**. 사용자는 숨김만 원했지 폭 왜곡을 원하지 않음.
+- 원인: `[00:40]`에서 다일을 막 살리려 `startCellFrac`/`endCellFrac`를 강제 `0~1`로 둠.
+- 해결: 토글 off일 때 **단일일·이 달 한 칸 스트립**에서만 시간 클립이면 `null` 스킵. 그 외(다일 또는 달 안 여러 칸)는 **계산된 분수 그대로** 반환. UI 라벨 **Hide same-day time bars**로 의미 정렬.
+- 재발 방지: “막대 보이게”와 “시간 숨김”을 **0~1 확장**으로 퉁치지 말고, 스킵 vs 그대로 두 명세를 분리할 것.
+- 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`, `src/components/panels/FilterPanel.tsx`
+
+## [2026-03-25 01:05] 타임라인 — Hide single-day = 종일 하루만 숨김, 시간 막대 유지
+
+- 증상: (요구) Hide single-day period bars 시 **시간 미지정(종일)** 하루 막대만 없애고, bar 시간이 있는 하루 막대는 남기고 싶음.
+- 원인: `showTimelineBarsSingleDay` false면 이 달 한 칸 클립·반복 일칸을 전부 스킵.
+- 해결: 한 칸 클립에서 `cellTimeFractionsForClip` 후 `segmentUsesTimeOfDayClip`이 false(종일)일 때만 스킵. 반복 루프는 `singleDay` off여도 동일 규칙으로 돌림. `multiDay`·`singleDay` 둘 다 off여도 timed 단일이 나올 수 있어 상단 `return []` 제거. `MonthRow`는 `ganttSegments.length > 0`일 때만 간트 `<g>` 렌더. 라벨 **Hide all-day single-day bars**.
+- 재발 방지: 싱글데이 토글이 “전부 끔”이 아니라 “종일만 끔”이면 레이아웃·빈 간트 early return·UI 문구를 함께 맞출 것.
+- 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`, `src/components/board/MonthRow.tsx`, `src/components/panels/FilterPanel.tsx`
+
+## [2026-03-25 01:05] 타임라인 — Hide single-day = 종일 하루만 숨김, 시간 막대 유지
+
+- 증상: (요구) Hide single-day period bars 시 **시간 미지정(종일)** 하루 막대만 없애고, bar 시간이 있는 하루 막대는 남기고 싶음.
+- 원인: `showTimelineBarsSingleDay` false면 이 달 한 칸 클립·반복 일칸을 전부 스킵.
+- 해결: 한 칸 클립에서 `cellTimeFractionsForClip` 후 `segmentUsesTimeOfDayClip`이 false(종일)일 때만 스킵. 반복 루프는 `singleDay` off여도 동일 규칙으로 돌림. `multiDay`·`singleDay` 둘 다 off여도 timed 단일이 나올 수 있어 상단 `return []` 제거. `MonthRow`는 `ganttSegments.length > 0`일 때만 간트 `<g>` 렌더. 라벨 **Hide all-day single-day bars**.
+- 재발 방지: 싱글데이 토글이 “전부 끔”이 아니라 “종일만 끔”이면 레이아웃·빈 간트 early return·UI 문구를 함께 맞출 것.
+- 검증: `npx tsc --noEmit`, eslint 변경 파일, `npm run build` 성공.
+- 관련 파일: `src/utils/monthGantt.ts`, `src/types/state.ts`, `src/components/board/MonthRow.tsx`, `src/components/panels/FilterPanel.tsx`

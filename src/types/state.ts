@@ -66,13 +66,25 @@ export type BoardViewFilter = {
   /** 비어 있지 않으면, item의 tags 중 하나라도 일치하면 표시 (OR) */
   includeTags: string[]
   hideDoneItems: boolean
-  showTimelineBars: boolean
+  /** 이 달 클립에서 여러 날에 걸친 기간 막대 */
+  showTimelineBarsMultiDay: boolean
+  /**
+   * false면 **종일(시간 미지정)** 하루 막대·해당 반복 일칸만 숨김. bar 시간으로 칸이 잘리는 하루 막대는 유지.
+   */
+  showTimelineBarsSingleDay: boolean
+  /**
+   * false면 **같은 날·이 달에서 한 칸**인 막대만, bar 시간으로 칸이 잘리는 경우 숨김.
+   * 여러 날짜 기간은 막대·시간 폭 그대로(종일로 펼치지 않음).
+   */
+  showTimelineBarsTimeOfDay: boolean
 }
 
 export const DEFAULT_BOARD_VIEW_FILTER: BoardViewFilter = {
   includeTags: [],
   hideDoneItems: false,
-  showTimelineBars: true,
+  showTimelineBarsMultiDay: true,
+  showTimelineBarsSingleDay: true,
+  showTimelineBarsTimeOfDay: true,
 }
 
 export type AppSettings = {

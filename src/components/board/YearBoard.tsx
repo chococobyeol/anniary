@@ -236,7 +236,9 @@ export function YearBoard() {
                 items={filteredBoardItems}
                 ranges={boardState.ranges}
                 rangeEditPreview={rangeEditPreview}
-                showTimelineBars={boardViewFilter.showTimelineBars}
+                showTimelineBarsMultiDay={boardViewFilter.showTimelineBarsMultiDay}
+                showTimelineBarsSingleDay={boardViewFilter.showTimelineBarsSingleDay}
+                showTimelineBarsTimeOfDay={boardViewFilter.showTimelineBarsTimeOfDay}
                 highlightDateKeys={highlightDateKeys}
                 dragSelecting={dragSelecting}
                 onPanCellClick={handlePanCellClick}
