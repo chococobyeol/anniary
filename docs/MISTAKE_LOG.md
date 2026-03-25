@@ -413,3 +413,21 @@
 - 재발 방지: 타임라인에서 구간 분할 시 “바깥” 모서리만 라운드할지 분기할 것.
 - 검증: `npx tsc --noEmit`, `npm run build` 성공.
 - 관련 파일: `src/components/board/ExpandedCell.tsx`
+
+## [2026-03-25] 문서 정합성 — PRD·체크리스트·수정 로그
+
+- 증상: 구현 체크리스트의 `select → range` 미체크·v2.0 문구가 “기간 미구현”“셀 클릭→디테일”로 오해됨. PRD는 우측=상세 초안과 실제(좌측 detail·백로그 자동 포커스)가 불일치.
+- 원인: draw 모드 range 제거 후 체크리스트·PRD가 부분만 갱신됨. Filter 패널 구현 후에도 `[ ]`로 남아 있음.
+- 해결: `IMPLEMENTATION_CHECKLIST.md`에서 기간 생성 경로·Phase 2/3·v3.0~3.1·파일 목록 정리. `prd_v2.md` §6.4·§6.5, `prd_v2_ux.md` §7·§13·§14에 현재 셸·백로그 자동 포커스·`days` placeholder 명시. `PRD_CHANGELOG.md`에 [2026-03-25] 항목 추가.
+- 재발 방지: 제스처/패널 동작을 바꾸면 체크리스트·PRD_CHANGELOG·본문 PRD를 한 묶음으로 갱신할 것. “미구현” 줄은 **무엇이 아직 없는지** 한 문장으로 적을 것.
+- 검증: 문서만 변경; 코드 빌드는 생략. 앵커 링크는 뷰어에 따라 한글 제목 slug가 다를 수 있음.
+- 관련 파일: `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/PRD_CHANGELOG.md`, `docs/prd_v2.md`, `docs/prd_v2_ux.md`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] 문서 — `days` 전용 Detail 인스펙터 항목 제거
+
+- 증상: 체크리스트·PRD에 `days`만 선택했을 때 Detail 전용 폼을 미구현으로 적어 두어, 실제 제품 방향(range는 기존 RangeDetail에서 편집)과 어긋남.
+- 원인: 앞서 오해 방지용으로 placeholder를 문서화했으나, 사용자 결정은 “전용 인스펙터 없음”.
+- 해결: Phase 2 해당 `[ ]` 삭제, v3.0 주석·`prd_v2` §6.4·`prd_v2_ux` §13·`PRD_CHANGELOG` 후속 항목으로 **의도적으로 두지 않음** 명시.
+- 재발 방지: “나중에 만들 수도”와 “미구현 TODO”를 구분할 것. 안 만들 것은 체크리스트에 넣지 않는다.
+- 검증: 문서만 수정.
+- 관련 파일: `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/PRD_CHANGELOG.md`, `docs/prd_v2.md`, `docs/prd_v2_ux.md`, `docs/MISTAKE_LOG.md`

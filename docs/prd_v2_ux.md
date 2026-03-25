@@ -204,6 +204,11 @@ mode는 icon 선택으로 변경된다.
 - open detail
 - drag to board (예정)
 
+**보드 연동 (현재 구현)**
+
+- **select** 모드에서 날짜를 **드래그**해 다중 선택이 끝나면 `selection.type === 'days'`가 되고, 좌측 패널이 **backlog 모드로 자동 열림**(`YearBoard`의 `openBacklogIfNeeded`). 사용자가 백로그 입력란에 제목을 넣고 추가하면, 선택 날짜가 **연속 구간**이면 `createRange` + item으로 기간 막대가 생긴다. 비연속이면 날짜별 item만 생성. 날짜 선택이 없으면 날짜 없는 item만 생성.
+- **pan** 모드에서 **단일 날짜 클릭** 시에도 날짜 선택과 함께 **backlog**가 자동 포커스된다. (detail 패널로는 자동 전환하지 않음.)
+
 ---
 
 ## 8. search 모드
@@ -353,6 +358,8 @@ overlay 클릭
 - overlay
 - day
 
+**`days`(다중 날짜만 선택):** 인스펙터 대상으로 두지 않는다. 입력·기간 생성은 **backlog**에서 하고, 생성된 **range / item**을 선택하면 위 항목처럼 Detail에서 편집한다.
+
 detail 모드는 selection 기반
 
 selection 없으면 empty
@@ -378,6 +385,10 @@ panel 자동 전환 없음
 옵션
 
 auto open 가능
+
+**구현 메모 (2026-03-25)**
+
+- 위의 「panel 자동 전환 없음」은 **detail 모드로 끌고 가지 않는다**는 규칙에 가깝다. **backlog** 슬롯은 보드에서 날짜를 고른 뒤 입력을 이어가기 위해 **자동으로 열리거나 포커스**될 수 있다(다중 선택 완료·pan 단일 클릭). 이 동작은 detail 자동 오픈과 별개다.
 
 ---
 

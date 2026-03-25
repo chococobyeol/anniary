@@ -128,7 +128,7 @@
 
 ### v2.0 — 편집 흐름 구축 (2026-03-17)
 - [x] **날짜 인덱싱 최적화** — `Object.values().filter()` 제거. `buildItemDateIndex(items, boardYear)` / `buildRangeDateIndex`로 사전 인덱싱 후 O(1) 조회. 반복 일정은 `src/utils/repeat.ts`에서 연도 내 발생일 확장. `src/utils/indexing.ts`.
-- [x] **셀 선택 → DetailPanel 자동 오픈** — pan/select 모드에서 셀 클릭 시 해당 날짜 선택 + detail 패널 자동 오픈.
+- [x] **셀 클릭 → 백로그 패널 자동 포커스** — pan 모드에서 단일 날짜 클릭 시 해당 날짜 선택 + 좌측 패널을 **backlog** 모드로 연다 (`YearBoard`). (detail은 아이콘 선택 또는 백로그에서 항목 클릭 등으로 연다.)
 - [x] ~~**더블클릭 quick add**~~ → **더블클릭 셀 확장**으로 변경 (v2.1). 빈 task 자동 생성 제거, 더블클릭 시 해당 셀이 확장되어 항목 목록 표시.
 - [x] **DetailPanel 편집기 승격** — 읽기 전용 → 실제 편집기로 변환:
   - 날짜별 item 추가 (kind 선택 + 제목 입력)
@@ -136,11 +136,11 @@
   - 상태 토글 (none ↔ done)
   - 백로그로 이동 (날짜 해제)
   - 삭제
-- [x] **Interaction mode 규칙 확정**:
-  - `pan`: 드래그=이동, 클릭=셀 선택+편집
-  - `select`: 클릭=셀 선택+편집, 드래그=날짜 범위 선택 (예정)
-  - `draw`: 드래그=range 생성 (예정)
-  - `place`: 클릭=overlay 배치 (예정)
+- [x] **Interaction mode 규칙 (현재)**:
+  - `pan`: 드래그=이동, 클릭=단일 날짜 선택 + 백로그 자동 포커스
+  - `select`: Cmd/Ctrl+클릭=토글, 포인터 드래그=앵커~끝 날짜 사이 `days` 선택 + 백로그 자동 포커스
+  - `draw`: 그림/필기용 예정 (예전 draw 드래그 range 생성은 **제거됨**)
+  - `place`: 클릭=overlay·스티커 배치 예정
 
 ### v2.1 — 셀 UX 개선 (2026-03-17)
 - [x] **셀 높이 증가** — `BASE_CELL_HEIGHT` 22→28. 세로 여유 확보, 내부 요소 y좌표 재배치.
@@ -148,20 +148,20 @@
 - [x] **더블클릭 셀 확장** — 더블클릭 시 해당 셀 위치에 확장 카드(ExpandedCell) 오버레이 표시. 날짜/요일/아이템 목록 표시. 같은 셀 재더블클릭, ✕ 버튼, Escape, 다른 셀 클릭으로 닫힘.
 - [x] **ExpandedCell 컴포넌트 신규** — `src/components/board/ExpandedCell.tsx`. SVG 오버레이 방식, 폭 4배 확장, 높이는 아이템 수에 따라 자동 조절.
 
-### v3.0 — Range 드래그 생성 + 편집 (2026-03-17)
+### v3.0 — Range 편집 + select 경로로 기간 생성 (2026-03-17, 문서 정리 2026-03-25)
 - [x] **date 유틸 확장** — `getDateKeysBetween`, `normalizeDateRange`, `compareDateKeys` 추가. range 날짜 열거 및 정규화 지원.
 - [x] **screenToDateKey 유틸** — 화면 좌표 → SVG 보드 좌표 → dateKey 변환. linear/weekday-aligned 모드 모두 지원.
-- [x] **draw 모드 드래그 range 생성** — draw 모드에서 셀 위 드래그 시작 → 끝 날짜 계산 → pointerUp 시 range 자동 생성. Escape로 드래그 취소 가능.
-- [x] **RangePreview 컴포넌트** — `src/components/board/RangePreview.tsx`. 드래그 중 선택 범위를 반투명 오버레이로 실시간 표시.
-- [x] **range 생성 → 자동 선택 → DetailPanel 오픈** — range 생성 후 즉시 selection.type='range'로 전환, DetailPanel에서 편집 가능.
+- [x] ~~**draw 모드 드래그 range 생성**~~ → **제거됨** (히스토리 항목). 기간 생성은 아래 select+백로그·디테일 경로로 통일.
+- [x] **RangePreview 컴포넌트** — `src/components/board/RangePreview.tsx`에 구현되어 있으나 **현재 `YearBoard` 등에 미연결**(draw 제거 이후 미사용). 향후 select 드래그 프리뷰 등에 재사용 가능.
+- [x] **range 생성 후 편집** — `createRange` 호출 후 `selection.type === 'range'`로 두면 좌측 Detail(`RangeDetail`)에서 편집 가능.
 - [x] **DetailPanel range 편집** — 기간 표시, 이름/메모 인라인 편집, 종류(period/note/highlight) 선택, 상태(none/active/done/delayed) 선택, 색상 팔레트(8색) 선택, 삭제.
 - [x] **draw 모드 커서** — draw 모드 시 crosshair 커서 적용.
 - [x] **draw 모드 더블클릭 무시** — draw 모드에서 더블클릭 시 셀 확장 방지.
-- [x] ~~draw 모드 range 생성~~ → **제거됨**. draw = 그림 그리기용, range 생성은 select 모드 다중 선택 후 생성으로 변경 예정.
+- [x] **select 드래그 → `days` 선택 + 백로그 포커스** — 연속 날짜 구간에서 백로그 추가 시 `createRange` + item → 기간 막대. 이후 **range 선택 시 `RangeDetail`에서 전부 편집**. (`days`만 고른 상태용 Detail 전용 폼은 두지 않음.)
 
 ### v3.1 — 일정 날짜/시간/기간 설정 (PRD 반영)
 - [x] **ItemEntity 시간 필드** — `startTime`, `endTime` (HH:mm 형식) 추가. store createItem/updateItem 지원.
-- [x] **BacklogPanel 날짜/시간/기간** — "+ 날짜/시간" 펼침 → "날짜 없음 / 특정 날짜 / 기간" 선택. 특정 날짜 시 date + time 범위, 기간 시 start~end + 라벨 + 색상. 기간 선택 시 range 생성 후 item에 rangeId 연결.
+- [x] **~~BacklogPanel~~ 날짜/시간/기간 입력** — v3.1 시점 백로그 폼에 두었으나 **v3.2에서 백로그 입력은 textarea+태그만 유지**. 날짜·시간·기간 확장은 **Detail·보드 날짜 선택 + 백로그 추가** 및 **DayDetail / ItemDetail**에서 처리.
 - [x] **DetailPanel 항목 추가 시 시간/기간** — "+ 시간/기간 설정" 펼침 → 시작/종료 시간, 종료일(기간 일정 시). 종료일 있으면 range 생성 후 item에 date+rangeId+시간 설정, 생성 후 selection을 range로 전환.
 - [x] **DetailPanel item 편집 시 시간** — 인라인 편집 폼에 시작/종료 시간 입력. 목록에 시간 표시 (예: 09:00 ~ 18:00).
 - [x] **DetailPanel range 편집 — 소속 항목** — 해당 range에 연결된 item 목록 표시, 연결 해제 버튼. Range 삭제 시 소속 item의 rangeId 해제 후 range 삭제.
@@ -179,9 +179,10 @@
 ## 미구현 항목 (다음 작업 순서)
 
 ### Phase 2 — 핵심 인터랙션
-- [x] 셀 클릭 → 좌측 DetailPanel 자동 오픈 (pan/select 모드)
+- [x] 셀 클릭(pan) → 단일 날짜 선택 + 좌측 **백로그** 패널 자동 포커스
 - [x] 셀 더블클릭 → 셀 확장 (항목 목록 인라인 표시)
-- [ ] select 모드 드래그 → 다중 셀 선택 → range 생성
+- [x] select 모드 드래그 → 다중 날짜(`days`) 선택 + 백로그 자동 포커스; **연속 구간**에서 백로그 추가 시 `createRange` + item (**기간 막대용 range 생성 완료**)
+- [ ] 보드에서 **입력 없이** 제스처만으로 range 확정 (선택 사항; 현재는 백로그·range Detail 입력 경로)
 - [ ] Context menu (우클릭 / long press)
 - [x] Range 선택 및 DetailPanel 편집
 - [ ] Overlay 선택/이동/리사이즈
@@ -192,7 +193,7 @@
 - [x] Detail 패널 — range 상세 편집 (label, body, kind, status, color)
 - [ ] Detail 패널 — overlay 속성 편집
 - [ ] Search 패널 — 전체 검색
-- [ ] Filter 패널 — view filter (태그·상태·메모 등; **Item.kind 기반 필터 아님**)
+- [x] Filter 패널 — view filter (`FilterPanel.tsx`: 태그 OR, hide done, 기간 막대 표시 토글; **Item.kind 기반 필터 아님**)
 - [x] Tags 패널 — 태그 목록·개수, 이름 변경(일괄), 제거 시 다른 태그로 이동 (좌측 `ranges` 슬롯을 `tags`로 교체)
 - [ ] Ranges 패널 — range 목록 관리 (별도 메뉴 없음; 보드·디테일에서 관리)
 - [ ] Overlays 패널 — overlay 목록 관리
@@ -290,9 +291,9 @@ src/
     │   ├── YearBoard.css
     │   ├── MonthRow.tsx         # 월별 행 (linear/aligned 레이아웃 지원)
     │   ├── DayCell.tsx          # 날짜 셀 (요일 표시 포함)
-    │   ├── ExpandedCell.tsx    # 더블클릭 확장 셀 오버레이
-    │   ├── RangePreview.tsx   # 드래그 중 range 프리뷰 오버레이
-    │   └── WeekdayHeader.tsx    # weekday-aligned 모드 상단 요일 헤더
+│   ├── ExpandedCell.tsx    # 더블클릭 확장 셀 오버레이
+│   ├── RangePreview.tsx   # (구현만 있음, 보드에 미연결 — 향후 드래그 프리뷰 등)
+│   └── WeekdayHeader.tsx    # weekday-aligned 모드 상단 요일 헤더
     ├── icons/
     │   └── Icons.tsx            # SVG 벡터 아이콘 모음
     ├── toolbar/
@@ -305,8 +306,10 @@ src/
         ├── LeftPanel.css
         ├── BacklogPanel.tsx     # 백로그 패널
         ├── BacklogPanel.css
-        ├── DetailPanel.tsx      # 상세 편집 패널
+        ├── DetailPanel.tsx      # 상세 편집 패널 (좌측)
         ├── DetailPanel.css
+        ├── FilterPanel.tsx      # 보드 뷰 필터
+        ├── TagsPanel.tsx        # 태그 일괄 이름 변경·제거
         ├── RightPanel.tsx       # 우측 시스템 패널
         ├── RightPanel.css
         ├── SettingsPanel.tsx    # 설정 패널 (레이아웃/줌 설정)
@@ -322,7 +325,7 @@ src/
 | Canvas first | ✅ | SVG 기반 보드 중심 |
 | Year first | ✅ | 12개월 전체 한 화면 |
 | Zoom driven | ✅ | Z0~Z4 5단계 정보 밀도 |
-| Range based | ✅ | 드래그 생성 + 상세 편집 완성 |
+| Range based | ✅ | 기간은 백로그·디테일·`createRange`; 보드 draw 제스처는 제거됨 |
 | Overlay based | ✅ 기초 | 타입/저장 구현, 배치/편집 미완 |
 | Local first | 🔲 | Dexie 설치됨, 연동 미완 |
 | Command based | ✅ | Zustand actions = commands |
