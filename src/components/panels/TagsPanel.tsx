@@ -9,7 +9,7 @@ import {
   tagsAfterRemove,
   itemIdsHavingTag,
 } from '../../utils/tagManagement'
-import { IconPencil, IconTrash } from '../icons/Icons'
+import { IconPencil, IconTrash, IconPlus } from '../icons/Icons'
 import './TagsPanel.css'
 
 const EMPTY_ITEMS: Record<string, ItemEntity> = {}
@@ -17,6 +17,7 @@ const EMPTY_ITEMS: Record<string, ItemEntity> = {}
 type RemoveMode = 'reassign' | 'deleteItems'
 
 export function TagsPanel() {
+  const activeBoardId = useBoardStore(s => s.activeBoardId)
   const items = useBoardStore(s => {
     const id = s.activeBoardId
     if (!id) return EMPTY_ITEMS
@@ -24,6 +25,7 @@ export function TagsPanel() {
   })
   const updateItem = useBoardStore(s => s.updateItem)
   const deleteItem = useBoardStore(s => s.deleteItem)
+  const createItem = useBoardStore(s => s.createItem)
 
   const rows = useMemo(() => {
     const counts = countItemsPerTag(items)
@@ -37,6 +39,9 @@ export function TagsPanel() {
   const [removeMode, setRemoveMode] = useState<RemoveMode>('reassign')
   const [replaceWith, setReplaceWith] = useState('')
   const [replaceCustom, setReplaceCustom] = useState('')
+
+  const [newTagName, setNewTagName] = useState('')
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const replacementOptions = useMemo(() => {
     if (!removeFor) return [] as string[]
@@ -142,14 +147,64 @@ export function TagsPanel() {
     setRemoveFor(tag)
   }
 
+  const tagAlreadyExists = (raw: string) =>
+    rows.some(r => normalizeFilterTag(r.tag) === normalizeFilterTag(raw))
+
+  const handleCreateTag = () => {
+    setCreateError(null)
+    if (!activeBoardId) return
+    const name = newTagName.trim()
+    if (!name) {
+      setCreateError('Enter a tag name.')
+      return
+    }
+    if (tagAlreadyExists(name)) {
+      setCreateError('That tag already exists.')
+      return
+    }
+    createItem(activeBoardId, 'task', { tags: [name], title: '' })
+    setNewTagName('')
+  }
+
+  const handleCreateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleCreateTag()
+    }
+  }
+
   return (
     <div className="tags-panel">
       <p className="tags-panel-intro">
         Rename applies to all items with that tag. Remove: move to another tag, or delete those items entirely.
+        Add tag creates one backlog item with that tag (empty title) so it appears in backlog and filters.
       </p>
 
+      <div className="tags-panel-create">
+        <input
+          type="text"
+          className="tags-panel-input tags-panel-create-input"
+          placeholder="New tag name"
+          value={newTagName}
+          onChange={e => { setNewTagName(e.target.value); setCreateError(null) }}
+          onKeyDown={handleCreateKeyDown}
+          disabled={!activeBoardId}
+          aria-invalid={createError != null}
+        />
+        <button
+          type="button"
+          className="tags-panel-create-btn"
+          title="Add tag"
+          onClick={handleCreateTag}
+          disabled={!activeBoardId}
+        >
+          <IconPlus size={14} />
+        </button>
+      </div>
+      {createError && <p className="tags-panel-create-error">{createError}</p>}
+
       {rows.length === 0 && (
-        <div className="tags-panel-empty">No items on this board yet.</div>
+        <div className="tags-panel-empty">No tags on items yet. Add a tag above, or add items from Backlog.</div>
       )}
 
       <ul className="tags-panel-list">

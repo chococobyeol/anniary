@@ -194,7 +194,7 @@
 - [ ] Detail 패널 — overlay 속성 편집
 - [ ] Search 패널 — 전체 검색
 - [x] Filter 패널 — view filter (`FilterPanel.tsx`: 태그 OR, hide done, 기간 막대 표시 토글; **Item.kind 기반 필터 아님**)
-- [x] Tags 패널 — 태그 목록·개수, 이름 변경(일괄), 제거 시 다른 태그로 이동 (좌측 `ranges` 슬롯을 `tags`로 교체)
+- [x] Tags 패널 — 태그 목록·개수, **새 태그 추가**(빈 제목 백로그 item + 해당 태그), 이름 변경(일괄), 제거 시 다른 태그로 이동 (좌측 `ranges` 슬롯을 `tags`로 교체)
 - [ ] Ranges 패널 — range 목록 관리 (별도 메뉴 없음; 보드·디테일에서 관리)
 - [ ] Overlays 패널 — overlay 목록 관리
 - [ ] Layers 패널 — 레이어 show/hide

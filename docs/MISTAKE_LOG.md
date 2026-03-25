@@ -431,3 +431,12 @@
 - 재발 방지: “나중에 만들 수도”와 “미구현 TODO”를 구분할 것. 안 만들 것은 체크리스트에 넣지 않는다.
 - 검증: 문서만 수정.
 - 관련 파일: `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/PRD_CHANGELOG.md`, `docs/prd_v2.md`, `docs/prd_v2_ux.md`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] Tags 패널 — 새 태그 추가
+
+- 증상: Tags 메뉴에서 태그 이름 변경·삭제만 가능하고, 보드에 없는 태그를 미리 만들 수 없음.
+- 원인: 태그가 item.tags에만 존재하는 모델이라 UI에 생성 진입이 없었음.
+- 해결: 입력란 + 버튼으로 `createItem(..., { tags: [name], title: '' })` 호출. 중복·빈 이름 검사 및 안내 문구 추가.
+- 재발 방지: “태그만” 추가할 때는 스키마상 item 한 건이 필요함을 사용자에게 intro에 명시할 것.
+- 검증: `npx tsc --noEmit`, 대상 파일 린트 확인.
+- 관련 파일: `src/components/panels/TagsPanel.tsx`, `src/components/panels/TagsPanel.css`, `docs/MISTAKE_LOG.md`
