@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { MonthRow } from './MonthRow'
 import { WeekdayHeader } from './WeekdayHeader'
 import { ExpandedCell } from './ExpandedCell'
+import { BoardOverlays } from './BoardOverlays'
 import { useBoardStore } from '../../store/board-store'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT } from '../../utils/zoom'
@@ -10,7 +11,14 @@ import { getDateKeyFromPoint, toggleDateKeyInSelection } from '../../utils/dateS
 import { buildItemDateIndex } from '../../utils/indexing'
 import { filterItemsByBoardView, normalizeBoardViewFilter } from '../../utils/boardViewFilter'
 import { fitToScreenRef } from '../../utils/fitToScreen'
+import { clientToBoardPoint, pointsBBox, pointsToPathD } from '../../utils/boardCoords'
+import { highlighterStroke, penStroke, shapeStrokeFill } from '../../utils/overlayDraw'
+import { topOverlayIdAt } from '../../utils/overlayHit'
 import './YearBoard.css'
+
+type DrawSession =
+  | { kind: 'stroke'; points: [number, number][]; tool: 'pen' | 'highlighter' }
+  | { kind: 'shape'; start: [number, number]; tool: 'rect' | 'ellipse' }
 
 export function YearBoard() {
   const activeBoardId = useBoardStore(s => s.activeBoardId)
@@ -28,6 +36,9 @@ export function YearBoard() {
     [boardViewFilterRaw]
   )
   const rangeEditPreview = useBoardStore(s => s.rangeEditPreview)
+  const createOverlay = useBoardStore(s => s.createOverlay)
+  const settingsDrawTool = useBoardStore(s => s.settings.drawTool)
+  const drawUi = useBoardStore(s => s.settings)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const didInitRef = useRef(false)
@@ -38,6 +49,23 @@ export function YearBoard() {
     currentKey: string
     startX: number
     startY: number
+  } | null>(null)
+  const drawSessionRef = useRef<DrawSession | null>(null)
+  const latestPreviewShapeRef = useRef<{
+    x: number
+    y: number
+    w: number
+    h: number
+    tool: 'rect' | 'ellipse'
+  } | null>(null)
+  const [previewPoints, setPreviewPoints] = useState<[number, number][] | null>(null)
+  const [previewStrokeTool, setPreviewStrokeTool] = useState<'pen' | 'highlighter' | null>(null)
+  const [previewShape, setPreviewShape] = useState<{
+    x: number
+    y: number
+    w: number
+    h: number
+    tool: 'rect' | 'ellipse'
   } | null>(null)
 
   const {
@@ -203,7 +231,240 @@ export function YearBoard() {
 
   const headerH = isAligned ? DAY_HEADER_HEIGHT : 0
   const rowHeight = BASE_CELL_HEIGHT + MONTH_GAP
-  const cursorStyle = interactionMode === 'pan' ? 'grab' : 'default'
+  const boardW = MONTH_HEADER_WIDTH + totalColumns * (BASE_CELL_WIDTH + 1)
+  const boardH = headerH + 12 * rowHeight
+  /** 달력 격자 밖(여백)에서도 그리기·배치 */
+  const canvasPad = 140
+
+  const selectedOverlayId = selection?.type === 'overlay' ? selection.overlayId : null
+
+  const previewPolylineTool =
+    previewStrokeTool ?? (settingsDrawTool === 'highlighter' ? 'highlighter' : 'pen')
+  const previewLineStroke =
+    previewPolylineTool === 'highlighter'
+      ? highlighterStroke(drawUi.drawHighlighterColor, drawUi.drawHighlighterWidthWeight)
+      : penStroke(drawUi.drawPenColor, drawUi.drawPenWidthWeight)
+
+  const handleDrawSurfacePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return
+      const st = useBoardStore.getState()
+      const mode = st.interactionMode
+      const bid = st.activeBoardId
+      if (!bid || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const { x, y } = clientToBoardPoint(e.clientX, e.clientY, rect, st.view)
+      if (
+        x < -canvasPad
+        || y < -canvasPad
+        || x > boardW + canvasPad
+        || y > boardH + canvasPad
+      ) {
+        return
+      }
+
+      if (mode === 'place') {
+        e.stopPropagation()
+        const set = st.settings
+        if (set.placeKind === 'sticker') {
+          const ch = set.placeStickerChar?.trim() || '⭐'
+          createOverlay(bid, 'sticker', 'decorative', x - 5, y - 5, 11, 11, { text: ch })
+        } else {
+          const mw = Math.min(120, Math.max(12, set.placeMemoWidth))
+          const mh = Math.min(80, Math.max(8, set.placeMemoHeight))
+          const linkId = st.selection?.type === 'item' ? st.selection.itemId : undefined
+          createOverlay(bid, 'text', 'semantic', x - mw / 2, y - mh / 2, mw, mh, {
+            fillColor: set.placeMemoPaperColor,
+            linkedItemId: linkId,
+            strokeColor: 'rgba(0, 0, 0, 0.1)',
+          })
+        }
+        return
+      }
+
+      if (mode !== 'draw') return
+      e.stopPropagation()
+      const tool = st.settings.drawTool
+
+      if (tool === 'eraser') {
+        const { beginHistoryBatch } = useBoardStore.getState()
+        beginHistoryBatch()
+        const eraseAt = (bx: number, by: number) => {
+          const s2 = useBoardStore.getState()
+          const bid2 = s2.activeBoardId
+          if (!bid2) return
+          const ovs = s2.boards[bid2]?.overlays
+          if (!ovs) return
+          const oid = topOverlayIdAt(ovs, bx, by)
+          if (oid) s2.deleteOverlay(oid)
+        }
+        eraseAt(x, y)
+        const onMove = (ev: PointerEvent) => {
+          if (!containerRef.current) return
+          const r = containerRef.current.getBoundingClientRect()
+          const v = useBoardStore.getState().view
+          const p = clientToBoardPoint(ev.clientX, ev.clientY, r, v)
+          eraseAt(p.x, p.y)
+        }
+        const onUp = () => {
+          window.removeEventListener('pointermove', onMove)
+          window.removeEventListener('pointerup', onUp)
+          window.removeEventListener('pointercancel', onUp)
+          useBoardStore.getState().endHistoryBatch()
+        }
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+        window.addEventListener('pointercancel', onUp)
+        return
+      }
+
+      if (tool === 'pen' || tool === 'highlighter') {
+        drawSessionRef.current = { kind: 'stroke', points: [[x, y]], tool }
+        latestPreviewShapeRef.current = null
+        setPreviewStrokeTool(tool)
+        setPreviewPoints([[x, y]])
+        setPreviewShape(null)
+      } else if (tool === 'rect' || tool === 'ellipse') {
+        drawSessionRef.current = { kind: 'shape', start: [x, y], tool }
+        setPreviewStrokeTool(null)
+        const initial = { x, y, w: 0, h: 0, tool }
+        latestPreviewShapeRef.current = initial
+        setPreviewShape(initial)
+        setPreviewPoints(null)
+      } else {
+        return
+      }
+
+      const onMove = (ev: PointerEvent) => {
+        const sess = drawSessionRef.current
+        if (!sess || !containerRef.current) return
+        const r = containerRef.current.getBoundingClientRect()
+        const v = useBoardStore.getState().view
+        const p = clientToBoardPoint(ev.clientX, ev.clientY, r, v)
+        if (sess.kind === 'stroke') {
+          const last = sess.points[sess.points.length - 1]
+          const dx = p.x - last[0]
+          const dy = p.y - last[1]
+          if (dx * dx + dy * dy < 0.04) return
+          sess.points.push([p.x, p.y])
+          setPreviewPoints([...sess.points])
+        } else {
+          const x0 = Math.min(sess.start[0], p.x)
+          const y0 = Math.min(sess.start[1], p.y)
+          const w = Math.abs(p.x - sess.start[0])
+          const h = Math.abs(p.y - sess.start[1])
+          const next = { x: x0, y: y0, w, h, tool: sess.tool }
+          latestPreviewShapeRef.current = next
+          setPreviewShape(next)
+        }
+      }
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        window.removeEventListener('pointercancel', onUp)
+        const sess = drawSessionRef.current
+        drawSessionRef.current = null
+        setPreviewPoints(null)
+        setPreviewStrokeTool(null)
+        const sh = latestPreviewShapeRef.current
+        latestPreviewShapeRef.current = null
+        setPreviewShape(null)
+        if (!sess) return
+        const state = useBoardStore.getState()
+        const bId = state.activeBoardId
+        if (!bId) return
+
+        const sset = state.settings
+        if (sess.kind === 'stroke') {
+          if (sess.points.length < 2) return
+          const bbox = pointsBBox(sess.points, 0.7)
+          if (!bbox) return
+          const stroke =
+            sess.tool === 'highlighter'
+              ? highlighterStroke(sset.drawHighlighterColor, sset.drawHighlighterWidthWeight)
+              : penStroke(sset.drawPenColor, sset.drawPenWidthWeight)
+          const pathD = pointsToPathD(sess.points, bbox.x, bbox.y)
+          state.createOverlay(bId, 'shape', 'decorative', bbox.x, bbox.y, bbox.width, bbox.height, {
+            pathD,
+            drawTool: sess.tool,
+            strokeColor: stroke.color,
+            strokeWidthPx: stroke.width,
+            fillColor: stroke.fill,
+          })
+        } else {
+          if (!sh || sh.w < 0.8 || sh.h < 0.8) return
+          const stroke = shapeStrokeFill(
+            sset.drawShapeStrokeColor,
+            sset.drawShapeFillColor,
+            sset.drawShapeStrokeWeight
+          )
+          state.createOverlay(bId, 'shape', 'decorative', sh.x, sh.y, sh.w, sh.h, {
+            drawTool: sess.tool,
+            strokeColor: stroke.color,
+            fillColor: stroke.fill,
+            strokeWidthPx: stroke.width,
+          })
+        }
+      }
+
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+      window.addEventListener('pointercancel', onUp)
+    },
+    [boardH, boardW, canvasPad, createOverlay]
+  )
+
+  const cursorStyle =
+    interactionMode === 'pan'
+      ? 'grab'
+      : interactionMode === 'draw'
+        ? settingsDrawTool === 'eraser'
+          ? 'cell'
+          : 'crosshair'
+        : interactionMode === 'place'
+          ? 'copy'
+          : 'default'
+
+  const shapePreview = useMemo(() => {
+    if (!previewShape || previewShape.w <= 0 || previewShape.h <= 0) return null
+    const ps = shapeStrokeFill(
+      drawUi.drawShapeStrokeColor,
+      drawUi.drawShapeFillColor,
+      drawUi.drawShapeStrokeWeight
+    )
+    return (
+      <g pointerEvents="none">
+        {previewShape.tool === 'rect' ? (
+          <rect
+            x={previewShape.x}
+            y={previewShape.y}
+            width={previewShape.w}
+            height={previewShape.h}
+            fill={ps.fill}
+            stroke={ps.color}
+            strokeWidth={ps.width}
+            rx={0.5}
+          />
+        ) : (
+          <ellipse
+            cx={previewShape.x + previewShape.w / 2}
+            cy={previewShape.y + previewShape.h / 2}
+            rx={previewShape.w / 2}
+            ry={previewShape.h / 2}
+            fill={ps.fill}
+            stroke={ps.color}
+            strokeWidth={ps.width}
+          />
+        )}
+      </g>
+    )
+  }, [
+    previewShape,
+    drawUi.drawShapeStrokeColor,
+    drawUi.drawShapeFillColor,
+    drawUi.drawShapeStrokeWeight,
+  ])
 
   return (
     <div
@@ -247,6 +508,34 @@ export function YearBoard() {
                 onCellDoubleClick={handleCellDoubleClick}
               />
             ))}
+            {(interactionMode === 'draw' || interactionMode === 'place') && (
+              <rect
+                x={-canvasPad}
+                y={-canvasPad}
+                width={boardW + 2 * canvasPad}
+                height={boardH + 2 * canvasPad}
+                fill="transparent"
+                style={{ pointerEvents: 'all' }}
+                onPointerDown={handleDrawSurfacePointerDown}
+              />
+            )}
+            <BoardOverlays
+              overlays={boardState.overlays}
+              interactionMode={interactionMode}
+              selectedOverlayId={selectedOverlayId}
+            />
+            {previewPoints && previewPoints.length > 1 && (
+              <polyline
+                fill="none"
+                stroke={previewLineStroke.color}
+                strokeWidth={previewLineStroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={previewPoints.map(p => `${p[0]},${p[1]}`).join(' ')}
+                pointerEvents="none"
+              />
+            )}
+            {shapePreview}
             {expandedDateKey && expandedPosition && (
               <ExpandedCell
                 dateKey={expandedDateKey}

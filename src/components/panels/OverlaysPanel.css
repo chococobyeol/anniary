@@ -1,0 +1,138 @@
+.overlays-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 2px 8px;
+}
+
+.overlays-panel-intro {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.overlays-panel-empty {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.overlays-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(55vh, 400px);
+  overflow-y: auto;
+}
+
+.overlays-panel-row {
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.overlays-panel-row.selected {
+  border-color: var(--border-selected);
+}
+
+.overlays-panel-select {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0;
+  color: var(--text-primary);
+}
+
+.overlays-panel-type {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.overlays-panel-label {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.overlays-panel-eye {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-cell);
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--status-in-progress);
+}
+
+.overlays-panel-eye.off {
+  color: var(--text-muted);
+}
+
+.overlays-panel-mini {
+  padding: 2px 6px;
+  font-size: 9px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-cell);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.overlays-panel-mini.primary {
+  border-color: var(--status-in-progress);
+  color: var(--status-in-progress);
+}
+
+.overlays-panel-trash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.overlays-panel-trash:hover {
+  color: var(--status-delayed);
+  background: var(--bg-cell-hover);
+}
+
+.overlays-panel-edit {
+  width: 100%;
+  flex-basis: 100%;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.overlays-panel-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-cell);
+  color: var(--text-primary);
+}

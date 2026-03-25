@@ -219,3 +219,79 @@ export function IconInfo({ size = 18, className }: P) {
     </svg>
   )
 }
+
+/** 펜촉 (단순 벡터) */
+export function IconPenNib({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M12 19l7-7 2 2-7 7-4 1 1-4z" />
+      <path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+      <path d="m2 2 7.586 7.586" />
+      <circle cx="11" cy="11" r="2" />
+    </svg>
+  )
+}
+
+export function IconHighlighter({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="m9 11-6 6v3h3l6-6" />
+      <path d="m22 7-8.5 8.5-3-3L19 4l3 3z" />
+      <path d="M15 5l4 4" />
+    </svg>
+  )
+}
+
+export function IconSquare({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="4" y="4" width="16" height="16" rx="1" />
+    </svg>
+  )
+}
+
+export function IconCircle({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  )
+}
+
+export function IconEraser({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.2 5.2c1 1 1 2.5 0 3.4L13 21" />
+      <path d="M22 21H7" />
+      <path d="m5 11 9 9" />
+    </svg>
+  )
+}
+
+export function IconUndo({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+    </svg>
+  )
+}
+
+export function IconRedo({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+    </svg>
+  )
+}
+
+/** 포스트잇 실루엣 */
+export function IconStickyNote({ size = 18, className }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <path d="M16 4v4h4" />
+    </svg>
+  )
+}

@@ -1,0 +1,42 @@
+/* 포스트잇 메모 (보드 SVG 내부 좌표계) */
+/* fill/stroke는 엔티티 fillColor·strokeColor로 지정 */
+.board-overlay-postit-bg {
+  stroke-width: 0.25;
+  filter: drop-shadow(0.15px 0.35px 0.4px rgba(0, 0, 0, 0.12));
+}
+
+.board-overlay-postit-fold {
+  fill: rgba(0, 0, 0, 0.07);
+  stroke: none;
+}
+
+.board-overlay-resize-handle {
+  fill: var(--status-in-progress);
+  stroke: #fff;
+  stroke-width: 0.15;
+  cursor: se-resize;
+}
+
+.board-overlay-resize-handle:hover {
+  fill: color-mix(in srgb, var(--status-in-progress) 85%, #000);
+}
+
+.board-overlay-postit-text {
+  fill: #713f12;
+  font-size: 2.85px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.board-overlay-postit-link {
+  fill: #a16207;
+  font-size: 2.1px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.board-overlay-sticker-emoji {
+  fill: var(--text-primary);
+  font-size: 7.5px;
+  user-select: none;
+}

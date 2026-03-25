@@ -27,6 +27,8 @@ export type RangeStatus = 'none' | 'active' | 'done' | 'delayed'
 export type OverlayType = 'sticker' | 'text' | 'shape' | 'image'
 export type OverlayRole = 'semantic' | 'decorative'
 export type OverlayAnchorType = 'none' | 'month' | 'day' | 'range'
+/** 펜·형광펜(자유곡선 pathD), 도형(rect/ellipse), 지우개(오버레이 삭제) */
+export type DrawToolKind = 'pen' | 'highlighter' | 'rect' | 'ellipse' | 'eraser'
 export type AssetType = 'image'
 export type AssetSourceType = 'builtin' | 'user' | 'external'
 
@@ -107,6 +109,16 @@ export type OverlayEntity = {
   anchorId?: string
   text?: string
   assetId?: string
+  /** `(x,y)` 기준 상대 좌표의 SVG path `d` — 펜/형광펜 */
+  pathD?: string
+  drawTool?: DrawToolKind
+  strokeColor?: string
+  fillColor?: string
+  strokeWidthPx?: number
+  /** false면 보드에서 숨김(목록에는 유지) */
+  visible?: boolean
+  /** 메모 등이 연결된 일정(item) — 보드에 있는 항목 id */
+  linkedItemId?: string
   createdAt: string
   updatedAt: string
 }

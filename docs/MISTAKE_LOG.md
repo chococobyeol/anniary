@@ -440,3 +440,48 @@
 - 재발 방지: “태그만” 추가할 때는 스키마상 item 한 건이 필요함을 사용자에게 intro에 명시할 것.
 - 검증: `npx tsc --noEmit`, 대상 파일 린트 확인.
 - 관련 파일: `src/components/panels/TagsPanel.tsx`, `src/components/panels/TagsPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] 전역 단축키·JSON 가져오기·undo 히스토리 스냅샷
+
+- 증상: (1) 오버레이 선택 후 Delete/Backspace·⌘Z가 없음. (2) 설정에서 JSON 가져오기 시 보드만 교체·설정은 별도 `updateSettings`라 undo 한 번으로 되돌리기 어렵고, `replaceBoardsState`가 히스토리를 비워 undo 스택이 사라짐. (3) 히스토리에 설정을 항상 넣으면 “항목 추가 후 필터 변경 → undo” 시 필터까지 과거로 돌아가는 회귀.
+- 원인: 앱 레벨 키보드 핸들러 미구현. 가져오기가 두 액션으로 쪼개짐. 초기 `replaceBoardsState` 설계가 `historyPast` 전체 삭제를 동반. undo 스냅샷을 설정까지 항상 포함하면 일반 편집과 설정 UI가 같은 스택에서 섞임.
+- 해결: `App.tsx`에 ⌘/Ctrl+Z·Shift+Z(되돌리기/다시 실행), 입력·contentEditable 제외 시 오버레이 선택 + Delete/Backspace로 `deleteOverlay`. 설정 패널은 `importBoardsAndSettings`로 보드+설정을 한 번에 적용. `HistorySnap`에 선택적 `settings` 필드: 일반 `maybePushHistory`는 보드만 스냅, 가져오기만 `snapshotBoardsAndSettings`로 이전 설정 포함·undo 시 복원. `replaceBoardsState`는 히스토리 전체 삭제 제거(한 스텝 undo 가능). persist `migrate` 미사용 `version` 인자는 `_version`으로 TS 경고 제거.
+- 재발 방지: “설정까지 undo”가 필요한 연산(전체 가져오기)과 “보드만 undo”가 필요한 연산을 스냅샷 형태로 구분할 것. 전역 단축키는 입력 포커스·contentEditable을 반드시 제외할 것.
+- 검증: `npx tsc -b`·`npm run lint` 성공. `YearBoard`/`OverlayDetail`은 렌더 중 ref·effect setState ESLint 규칙에 맞게 정리.
+- 관련 파일: `src/App.tsx`, `src/components/panels/SettingsPanel.tsx`, `src/store/board-store.ts`, `src/components/board/YearBoard.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] zustand persist 콜백 닫는 괄호·쉼표
+
+- 증상: `board-store`에서 `persist((set,get)=>{ return {…} }, { … })`로 바꾼 뒤 `TS1128 Declaration or statement expected`.
+- 원인: 첫 인자 화살표 함수 본문을 `}` 두 번(리턴 객체·함수 본문)으로 닫은 뒤 `persist` 두 번째 인자 객체 앞에 **쉼표만** 있어야 하는데 `),`로 첫 인자를 잘못 종료하거나 `}` 하나가 빠짐.
+- 해결: `importBoardsAndSettings` 다음에 `},` → `}`(return 객체) → `}`(화살표 본문) → `,` → `{ name, migrate, … }` → `)` `)` 순으로 정리.
+- 재발 방지: `persist`를 객체 리터럴 반환 형태로 바꿀 때 닫는 중괄호·괄호·쉼표를 한 줄씩 주석으로 검증할 것.
+- 검증: `npx tsc -b`, `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/store/board-store.ts`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] Draw 플라이아웃·오버레이 리사이즈·YearBoard 스트로크 미리보기
+
+- 증상: `YearBoard`에 존재하지 않는 `strokeForPenLikeTool`·`settingsDrawPenColor` 참조로 타입/런타임 오류 위험. Draw 모드에서 형광펜 색·굵기·도형 테두리/채움/굵기 조절 UI 부재. JSON 가져오기 시 `drawPenWidthWeight` 등 신규 설정이 기본값으로 덮이지 않고 누락될 수 있음.
+- 원인: 오버레이 그리기 헬퍼 교체 후 일부 파일만 갱신됨. 툴바는 펜 색만 노출·형광펜 고정 문구 잔존. Import 병합 객체에 v6 필드 미포함.
+- 해결: 미리보기를 `penStroke`/`highlighterStroke`와 `drawUi`로 통일. `TopToolbar`에 펜·형광펜·사각/타원 전용 스와치·굵기 버튼. 오버레이 리사이즈 종료 시 `updateOverlay`로 크기 확정. `SettingsPanel`에 draw 관련 필드 정규화 병합. `OverlayDetail`에서 도형 선색·굵기·채우기 편집.
+- 재발 방지: `AppSettings` 필드 추가 시 persist migrate·JSON import·툴바를 함께 갱신하고, 제거된 심볼이 남았는지 저장 전 ripgrep으로 확인.
+- 검증: `npx tsc -b`, `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/YearBoard.tsx`, `src/components/board/BoardOverlays.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/components/toolbar/TopToolbar.css`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/DetailPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] OverlayDetail — zustand 선택자 스냅샷 무한 루프 (React 19)
+
+- 증상: 오버레이 선택 시 콘솔에 `getSnapshot should be cached`, `Maximum update depth exceeded`. `<OverlayDetail>`에서 크래시.
+- 원인: `useBoardStore` 선택자가 `Object.values().map().sort()`로 **매 호출마다 새 배열**을 반환. React `useSyncExternalStore`는 참조가 바뀌면 스냅샷 변경으로 간주해 재렌더를 반복. `activeBoardId` 없을 때 매번 새 `[]`를 반환한 것도 동일.
+- 해결: 스토어에서는 `boards[id]?.items` **객체 참조**만 구독하고, 정렬·맵은 `useMemo([boardItems])`로 계산. 빈 목록은 모듈 상수 `EMPTY_ITEM_LIST` 재사용.
+- 재발 방지: zustand `useStore` 선택자는 “스토어에 저장된 참조 그대로” 또는 원시값만 반환하고, 파생 배열/객체는 `useMemo`·`useShallow`(얕은 동일 시)로 안정화할 것.
+- 검증: `npx tsc -b`, `npm run lint` 성공.
+- 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-25] OverlayDetail — React 19 스냅샷 루프 재발 (선택자 클로저·useShallow)
+
+- 증상: `itemList` useMemo 이후에도 `getSnapshot should be cached`, `Maximum update depth`가 메모 디테일 진입 시 재현.
+- 원인: (1) `overlay` 선택자가 렌더마다 새 함수로 외부 `overlayId`를 클로저해 `useSyncExternalStore` 스냅샷이 흔들릴 수 있음. (2) `useShallow`가 매 렌더 새 선택자 함수를 반환해 zustand `useStore`의 `useCallback(..., [selector])`가 계속 무효화됨(React 19와 부정적 상호작용 가능). (3) `items`가 없을 때 `?? {}` 류가 있으면 매 스냅샷 새 객체가 될 수 있음.
+- 해결: `useShallow` 제거. `overlay`는 `s.selection`·`s.activeBoardId`만으로 `getState()` 경로에서 계산. `boardItems`는 `s.boards[id]?.items ?? EMPTY_ITEMS`로 빈 경우 고정 참조. `itemList`는 기존처럼 `useMemo([boardItems])`.
+- 재발 방지: zustand 선택자는 **스토어 인자 `s`만** 사용해 파생하고, 객체 리터럴·매번 새 `[]`/`{}`를 선택자 반환값으로 쓰지 말 것. `useShallow`는 선택자 참조 안정성을 확인한 뒤만 사용.
+- 검증: `npx tsc -b`, `npm run lint` 성공.
+- 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`

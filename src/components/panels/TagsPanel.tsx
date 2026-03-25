@@ -25,6 +25,8 @@ export function TagsPanel() {
   })
   const updateItem = useBoardStore(s => s.updateItem)
   const deleteItem = useBoardStore(s => s.deleteItem)
+  const beginHistoryBatch = useBoardStore(s => s.beginHistoryBatch)
+  const endHistoryBatch = useBoardStore(s => s.endHistoryBatch)
   const createItem = useBoardStore(s => s.createItem)
 
   const rows = useMemo(() => {
@@ -85,9 +87,14 @@ export function TagsPanel() {
       cancelRename()
       return
     }
-    for (const [id, item] of Object.entries(items)) {
-      const next = tagsAfterRename(item, renameFor, to)
-      if (next) updateItem(id, { tags: next })
+    beginHistoryBatch()
+    try {
+      for (const [id, item] of Object.entries(items)) {
+        const next = tagsAfterRename(item, renameFor, to)
+        if (next) updateItem(id, { tags: next })
+      }
+    } finally {
+      endHistoryBatch()
     }
     cancelRename()
   }
@@ -107,9 +114,14 @@ export function TagsPanel() {
     if (!rep) return
     if (normalizeFilterTag(rep) === normalizeFilterTag(removeFor)) return
 
-    for (const [id, item] of Object.entries(items)) {
-      const next = tagsAfterRemove(item, removeFor, rep)
-      if (next) updateItem(id, { tags: next })
+    beginHistoryBatch()
+    try {
+      for (const [id, item] of Object.entries(items)) {
+        const next = tagsAfterRemove(item, removeFor, rep)
+        if (next) updateItem(id, { tags: next })
+      }
+    } finally {
+      endHistoryBatch()
     }
     cancelRemove()
   }
@@ -126,7 +138,12 @@ export function TagsPanel() {
         ? `Delete ${ids.length} item(s) with no tag / "${FILTER_DEFAULT_TAG}"? This cannot be undone.`
         : `Delete ${ids.length} item(s) that use "${removeFor}" (including items with multiple tags)? Cannot be undone.`
     if (!window.confirm(msg)) return
-    for (const id of ids) deleteItem(id)
+    beginHistoryBatch()
+    try {
+      for (const id of ids) deleteItem(id)
+    } finally {
+      endHistoryBatch()
+    }
     cancelRemove()
   }
 

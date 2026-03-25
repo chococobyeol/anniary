@@ -3,6 +3,8 @@ import { BacklogPanel } from './BacklogPanel'
 import { DetailPanel } from './DetailPanel'
 import { FilterPanel } from './FilterPanel'
 import { TagsPanel } from './TagsPanel'
+import { SearchPanel } from './SearchPanel'
+import { OverlaysPanel } from './OverlaysPanel'
 import './LeftPanel.css'
 
 export function LeftPanel() {
@@ -21,10 +23,10 @@ export function LeftPanel() {
       <div className="left-panel-content">
         {leftMode === 'backlog' && <BacklogPanel />}
         {leftMode === 'detail' && <DetailPanel />}
-        {leftMode === 'search' && <div className="panel-placeholder">Search</div>}
+        {leftMode === 'search' && <SearchPanel />}
         {leftMode === 'filter' && <FilterPanel />}
         {leftMode === 'tags' && <TagsPanel />}
-        {leftMode === 'overlays' && <div className="panel-placeholder">Overlays</div>}
+        {leftMode === 'overlays' && <OverlaysPanel />}
       </div>
     </div>
   )
