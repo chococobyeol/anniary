@@ -485,3 +485,12 @@
 - 재발 방지: zustand 선택자는 **스토어 인자 `s`만** 사용해 파생하고, 객체 리터럴·매번 새 `[]`/`{}`를 선택자 반환값으로 쓰지 말 것. `useShallow`는 선택자 참조 안정성을 확인한 뒤만 사용.
 - 검증: `npx tsc -b`, `npm run lint` 성공.
 - 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 포스트잇 Place 직후 글쓰기·왼쪽 디테일
+
+- 증상: Place로 포스트잇을 찍은 뒤 Select로 바꿔 메모를 눌러야 디테일에서 본문 입력 가능.
+- 원인: Place 모드에서 오버레이 `pointer-events` 없음 + 생성 후 `setSelection`/패널/모드 전환이 없음. `toggleLeftPanel('detail')`는 이미 디테일이면 패널을 닫아 버림.
+- 해결: 메모만 `createOverlay` id로 `setSelection`·`setInteractionMode('select')`·`ensureLeftPanelOpen('detail')`. 스토어에 `ensureLeftPanelOpen` 추가. 보드에서 오버레이 선택·리사이즈 핸들에도 동일 적용. 빈 본문일 때 `OverlayTextField`에 `autoFocus`.
+- 재발 방지: “디테일로 보내기”는 토글이 아니라 연 전용 액션으로 처리할 것.
+- 검증: `npx tsc -b`, `npm run lint` 성공.
+- 관련 파일: `src/store/board-store.ts`, `src/components/board/YearBoard.tsx`, `src/components/board/BoardOverlays.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`

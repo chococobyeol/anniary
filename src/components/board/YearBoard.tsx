@@ -273,11 +273,15 @@ export function YearBoard() {
           const mw = Math.min(120, Math.max(12, set.placeMemoWidth))
           const mh = Math.min(80, Math.max(8, set.placeMemoHeight))
           const linkId = st.selection?.type === 'item' ? st.selection.itemId : undefined
-          createOverlay(bid, 'text', 'semantic', x - mw / 2, y - mh / 2, mw, mh, {
+          const memoId = createOverlay(bid, 'text', 'semantic', x - mw / 2, y - mh / 2, mw, mh, {
             fillColor: set.placeMemoPaperColor,
             linkedItemId: linkId,
             strokeColor: 'rgba(0, 0, 0, 0.1)',
           })
+          const after = useBoardStore.getState()
+          after.setSelection({ type: 'overlay', overlayId: memoId })
+          after.setInteractionMode('select')
+          after.ensureLeftPanelOpen('detail')
         }
         return
       }

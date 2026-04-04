@@ -27,6 +27,7 @@ export const BoardOverlays = memo(function BoardOverlays({
 }: Props) {
   const updateOverlay = useBoardStore(s => s.updateOverlay)
   const setSelection = useBoardStore(s => s.setSelection)
+  const ensureLeftPanelOpen = useBoardStore(s => s.ensureLeftPanelOpen)
   const beginHistoryBatch = useBoardStore(s => s.beginHistoryBatch)
   const endHistoryBatch = useBoardStore(s => s.endHistoryBatch)
   const boardItems = useBoardStore(s =>
@@ -62,6 +63,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       e.preventDefault()
       const view = useBoardStore.getState().view
       setSelection({ type: 'overlay', overlayId: o.id })
+      ensureLeftPanelOpen('detail')
       dragRef.current = {
         id: o.id,
         startClientX: e.clientX,
@@ -73,7 +75,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       setDragDelta({ id: o.id, dx: 0, dy: 0 })
       ;(e.target as Element).setPointerCapture?.(e.pointerId)
     },
-    [interactionMode, setSelection]
+    [ensureLeftPanelOpen, interactionMode, setSelection]
   )
 
   const onOverlayPointerMove = useCallback((e: React.PointerEvent, o: OverlayEntity) => {
@@ -111,6 +113,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       e.preventDefault()
       const view = useBoardStore.getState().view
       setSelection({ type: 'overlay', overlayId: o.id })
+      ensureLeftPanelOpen('detail')
       beginHistoryBatch()
       resizeRef.current = {
         id: o.id,
@@ -162,7 +165,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       window.addEventListener('pointerup', onUp)
       window.addEventListener('pointercancel', onUp)
     },
-    [beginHistoryBatch, endHistoryBatch, interactionMode, setSelection, updateOverlay]
+    [beginHistoryBatch, endHistoryBatch, ensureLeftPanelOpen, interactionMode, setSelection, updateOverlay]
   )
 
   const list = Object.values(overlays).filter(o => o.visible !== false)

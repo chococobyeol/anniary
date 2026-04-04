@@ -43,6 +43,8 @@ type Actions = {
   resetView: (containerWidth: number, containerHeight: number) => void
 
   toggleLeftPanel: (mode?: LeftPanelMode) => void
+  /** 같은 모드여도 닫지 않고 연다(디테일 유지·오버레이 선택 등). */
+  ensureLeftPanelOpen: (mode: LeftPanelMode) => void
   toggleRightPanel: (mode?: RightPanelMode) => void
   closeAllPanels: () => void
 
@@ -260,6 +262,10 @@ export const useBoardStore = create<AppState & Actions>()(
     }
     return { panel: { ...s.panel, leftOpen: true, leftMode: mode || s.panel.leftMode } }
   }),
+
+  ensureLeftPanelOpen: mode => set(s => ({
+    panel: { ...s.panel, leftOpen: true, leftMode: mode },
+  })),
 
   toggleRightPanel: (mode) => set(s => {
     if (mode && s.panel.rightOpen && s.panel.rightMode === mode) {

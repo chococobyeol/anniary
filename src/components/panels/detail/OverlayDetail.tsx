@@ -17,11 +17,13 @@ const EMPTY_ITEMS: Record<string, never> = {}
 function OverlayTextField({ overlay }: { overlay: OverlayEntity }) {
   const [text, setText] = useState(overlay.text ?? '')
   const updateOverlay = useBoardStore(s => s.updateOverlay)
+  const emptyBody = !(overlay.text ?? '').trim()
   return (
     <textarea
       className="detail-add-input"
       style={{ minHeight: '4rem', resize: 'vertical' }}
       rows={3}
+      autoFocus={emptyBody}
       value={text}
       onChange={e => setText(e.target.value)}
       onBlur={() => updateOverlay(overlay.id, { text })}
