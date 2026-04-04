@@ -128,9 +128,9 @@ export function OverlayDetail() {
             ))}
           </div>
           <span className="detail-add-label" style={{ marginTop: 12 }}>크기 (보드 단위)</span>
-          <div className="detail-add-row" style={{ alignItems: 'center', gap: 8 }}>
-            <label className="detail-time-row" style={{ flex: 1, margin: 0 }}>
-              <span className="detail-time-label">너비</span>
+          <div className="detail-add-row overlay-memo-size-row">
+            <label className="overlay-memo-size-pair">
+              <span>너비</span>
               <input
                 key={`mw-${overlay.id}-${overlay.width}`}
                 type="number"
@@ -145,8 +145,8 @@ export function OverlayDetail() {
                 }}
               />
             </label>
-            <label className="detail-time-row" style={{ flex: 1, margin: 0 }}>
-              <span className="detail-time-label">높이</span>
+            <label className="overlay-memo-size-pair">
+              <span>높이</span>
               <input
                 key={`mh-${overlay.id}-${overlay.height}`}
                 type="number"

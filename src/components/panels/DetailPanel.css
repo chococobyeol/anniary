@@ -223,6 +223,35 @@
   border-color: var(--border-selected);
 }
 
+/* 포스트잇 너비·높이: 한 줄 2열, 짧은 라벨 + 숫자 칸 최소 너비 (detail-time-row 7.5rem 라벨 사용 안 함) */
+.overlay-memo-size-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.overlay-memo-size-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.overlay-memo-size-pair > span {
+  flex: 0 0 auto;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.overlay-memo-size-pair .detail-add-input {
+  flex: 1;
+  min-width: 4.25rem;
+  width: 0;
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+
 .detail-add-btn {
   width: 28px;
   height: 28px;
