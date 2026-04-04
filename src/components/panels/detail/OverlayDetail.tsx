@@ -7,6 +7,7 @@ import {
   MEMO_PAPER_COLOR_PRESETS,
 } from '../../../constants/overlayUi'
 import { hexToRgba, weightToHighlighterWidth, weightToPenWidth, weightToShapeStrokeWidth } from '../../../utils/overlayDraw'
+import { MarkdownView } from '../../common/MarkdownView'
 import '../DetailPanel.css'
 
 const EMPTY_ITEM_LIST: { id: string; title: string }[] = []
@@ -14,19 +15,47 @@ const EMPTY_ITEM_LIST: { id: string; title: string }[] = []
 /** `items`가 일시적으로 비어 있을 때 스냅샷이 매번 새 `{}`로 바뀌는 것을 막기 위한 고정 참조 */
 const EMPTY_ITEMS: Record<string, never> = {}
 
-function OverlayTextField({ overlay }: { overlay: OverlayEntity }) {
-  const [text, setText] = useState(overlay.text ?? '')
+type OverlayTextFieldInnerProps = {
+  overlayId: string
+  initialText: string
+  emptyBody: boolean
+}
+
+function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTextFieldInnerProps) {
+  const [text, setText] = useState(initialText)
   const updateOverlay = useBoardStore(s => s.updateOverlay)
-  const emptyBody = !(overlay.text ?? '').trim()
   return (
-    <textarea
-      className="detail-add-input"
-      style={{ minHeight: '4rem', resize: 'vertical' }}
-      rows={3}
-      autoFocus={emptyBody}
-      value={text}
-      onChange={e => setText(e.target.value)}
-      onBlur={() => updateOverlay(overlay.id, { text })}
+    <>
+      <span className="detail-add-label">본문 (마크다운)</span>
+      <textarea
+        className="detail-add-input overlay-memo-md-textarea"
+        style={{ minHeight: '4rem', resize: 'vertical' }}
+        rows={5}
+        autoFocus={emptyBody}
+        value={text}
+        placeholder="Shift+Enter 로 줄바꿈 · **굵게** `코드` 등"
+        onChange={e => setText(e.target.value)}
+        onBlur={() => updateOverlay(overlayId, { text })}
+      />
+      {text.trim() ? (
+        <div className="detail-markdown-preview-wrap">
+          <span className="detail-add-label">미리보기</span>
+          <MarkdownView source={text} />
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function OverlayTextField({ overlay }: { overlay: OverlayEntity }) {
+  const emptyBody = !(overlay.text ?? '').trim()
+  const t = overlay.text ?? ''
+  return (
+    <OverlayTextFieldInner
+      key={`${overlay.id}:${t}`}
+      overlayId={overlay.id}
+      initialText={t}
+      emptyBody={emptyBody}
     />
   )
 }
@@ -112,6 +141,7 @@ export function OverlayDetail() {
           )}
           <p className="detail-hint" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
             <strong>연결:</strong> 백로그 일정을 포스트잇 위로 드래그하거나, Select 모드에서 포스트잇을 우클릭·길게 눌러(터치) 일정을 고릅니다.
+            연결되면 보드 포스트잇에 일정 <strong>제목·본문 전체</strong>가 마크다운으로 표시됩니다(위 메모와 구분선 아래).
             일정 선택 뒤 Place로 찍어도 묶입니다.
           </p>
           <span className="detail-add-label" style={{ marginTop: 12 }}>메모 종이 색</span>

@@ -36,6 +36,95 @@
   user-select: none;
 }
 
+/* foreignObject 안 HTML — 백로그 일정 연결 시 전체 본문·마크다운 (드롭존이 위에 올라가 pointer는 그쪽) */
+.board-overlay-postit-fobject {
+  overflow: hidden;
+}
+
+.board-overlay-postit-fobj-root {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 1.35px 2.3px 1.2px 1.55px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35px;
+  color: #422006;
+  line-height: 1.35;
+  font-family: var(--font-family, system-ui, sans-serif);
+}
+
+.board-overlay-postit-fobj-root .markdown-view {
+  font-size: 2.35px;
+  line-height: 1.38;
+  word-break: break-word;
+}
+
+.board-overlay-postit-fobj-root .markdown-view.board-postit-md-linked {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.board-overlay-postit-fobj-root .markdown-view p {
+  margin: 0.2em 0;
+}
+
+.board-overlay-postit-fobj-root .markdown-view p:first-child {
+  margin-top: 0;
+}
+
+.board-overlay-postit-fobj-root .markdown-view h1,
+.board-overlay-postit-fobj-root .markdown-view h2,
+.board-overlay-postit-fobj-root .markdown-view h3 {
+  font-size: 1.05em;
+  margin: 0.25em 0 0.12em;
+  font-weight: 600;
+}
+
+.board-overlay-postit-fobj-root .markdown-view ul,
+.board-overlay-postit-fobj-root .markdown-view ol {
+  margin: 0.15em 0;
+  padding-left: 1.15em;
+}
+
+.board-overlay-postit-fobj-root .markdown-view pre {
+  margin: 0.2em 0;
+  padding: 0.35px 0.5px;
+  font-size: 0.92em;
+  max-height: 4.5em;
+  overflow: hidden;
+}
+
+.board-postit-linked-sep {
+  flex-shrink: 0;
+  margin: 0.3px 0;
+  border-top: 0.2px solid rgba(113, 63, 18, 0.22);
+}
+
+.board-postit-linked-block {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25px;
+}
+
+.board-postit-linked-title {
+  flex-shrink: 0;
+  font-size: 2.55px;
+  font-weight: 700;
+  color: #713f12;
+  word-break: break-word;
+}
+
+.board-postit-linked-empty {
+  font-size: 2.1px;
+  color: rgba(113, 63, 18, 0.55);
+}
+
 .board-overlay-sticker-emoji {
   fill: var(--text-primary);
   font-size: 7.5px;

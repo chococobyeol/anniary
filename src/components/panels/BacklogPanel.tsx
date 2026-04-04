@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME } from '../../constants/dnd'
+import { markdownToPlainText } from '../../utils/markdown'
+import { MarkdownView } from '../common/MarkdownView'
 import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
 import { formatRepeatSummary, getEffectiveItemRepeat, itemOccursOnDate } from '../../utils/repeat'
 import type { ItemStatus } from '../../types/entities'
@@ -8,6 +10,21 @@ import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck } from '
 import './BacklogPanel.css'
 
 const DEFAULT_TAG = 'General'
+
+function backlogListTitle(item: { title?: string; body?: string }): string {
+  const t = item.title?.trim()
+  if (t) return t
+  if (!item.body?.trim()) return '(제목 없음)'
+  const line = markdownToPlainText(item.body)
+    .split('\n')
+    .map(l => l.trim())
+    .find(Boolean)
+  return line ? (line.length > 100 ? `${line.slice(0, 100)}…` : line) : '(제목 없음)'
+}
+
+function backlogBodyPreviewPlain(body: string): string {
+  return markdownToPlainText(body).replace(/\s+/g, ' ').trim()
+}
 
 function toggleDone(current: ItemStatus): ItemStatus {
   return current === 'done' ? 'none' : 'done'
@@ -126,17 +143,27 @@ export function BacklogPanel() {
 
 
   const handleAdd = () => {
-    if (!activeBoardId || !text.trim()) return
+    if (!activeBoardId) return
+    const raw = text.replace(/\r\n/g, '\n').trimEnd()
+    if (!raw.trim()) return
+    const lines = raw.split('\n')
+    const title = (lines[0] ?? '').trim()
+    const bodyRest = lines.length > 1 ? lines.slice(1).join('\n') : ''
+    const body = bodyRest.trim() ? bodyRest : undefined
+    if (!title && !body?.trim()) return
+
     const tagToUse = customTag.trim() || selectedTag
     const tag = tagToUse || DEFAULT_TAG
-    const title = text.trim()
+    const titleStored = title || undefined
+    const rangeLabel =
+      title || body?.trim().split('\n').find(l => l.trim())?.slice(0, 80) || '(untitled)'
+    const itemFields = { title: titleStored, body, tags: [tag] }
 
     if (selection?.type === 'day') {
       const dk = selection.dateKey
-      const rangeId = createRange(activeBoardId, 'period', dk, dk, { label: title })
+      const rangeId = createRange(activeBoardId, 'period', dk, dk, { label: rangeLabel })
       createItem(activeBoardId, 'task', {
-        title,
-        tags: [tag],
+        ...itemFields,
         date: dk,
         endDate: dk,
         rangeId,
@@ -146,21 +173,20 @@ export function BacklogPanel() {
       if (isContiguousDateSpan(keys)) {
         const start = keys[0]
         const end = keys[keys.length - 1]
-        const rangeId = createRange(activeBoardId, 'period', start, end, { label: title })
+        const rangeId = createRange(activeBoardId, 'period', start, end, { label: rangeLabel })
         createItem(activeBoardId, 'task', {
-          title,
-          tags: [tag],
+          ...itemFields,
           date: start,
           endDate: end,
           rangeId,
         })
       } else {
         for (const dk of keys) {
-          createItem(activeBoardId, 'task', { title, tags: [tag], date: dk })
+          createItem(activeBoardId, 'task', { ...itemFields, date: dk })
         }
       }
     } else {
-      createItem(activeBoardId, 'task', { title, tags: [tag] })
+      createItem(activeBoardId, 'task', itemFields)
     }
     setText('')
     setCustomTag('')
@@ -213,12 +239,14 @@ export function BacklogPanel() {
             onClick={() => openItemDetail(item.id)}
           >
             <span className={`backlog-item-title ${item.status === 'done' ? 'line-through' : ''}`}>
-              {item.title || '(untitled)'}
+              {backlogListTitle(item)}
             </span>
             {!isExpanded && item.body && (
               <span className="backlog-item-body-preview">
-                {item.body.slice(0, 60)}
-                {item.body.length > 60 ? '…' : ''}
+                {(() => {
+                  const one = backlogBodyPreviewPlain(item.body)
+                  return one.length > 72 ? `${one.slice(0, 72)}…` : one
+                })()}
               </span>
             )}
             {(item.date || item.endDate || item.startTime || item.endTime || getEffectiveItemRepeat(item)) && (
@@ -250,7 +278,7 @@ export function BacklogPanel() {
         </div>
         {isExpanded && item.body && (
           <div className="backlog-item-body-full">
-            <pre className="backlog-item-body-text">{item.body}</pre>
+            <MarkdownView source={item.body} />
           </div>
         )}
       </div>
@@ -263,7 +291,7 @@ export function BacklogPanel() {
         <div className="backlog-input-row backlog-textarea-row">
           <textarea
             className="backlog-textarea"
-            placeholder="Add a new item... (Enter: add, Shift+Enter: newline)"
+            placeholder="첫 줄: 제목 · 이후: 본문(마크다운) · Enter=추가 · Shift+Enter=줄바꿈"
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}

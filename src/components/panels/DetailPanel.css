@@ -223,6 +223,32 @@
   border-color: var(--border-selected);
 }
 
+.overlay-memo-md-textarea {
+  width: 100%;
+  display: block;
+  white-space: pre-wrap;
+}
+
+.detail-markdown-preview-wrap {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--bg-cell);
+}
+
+.detail-markdown-preview-wrap .detail-add-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.detail-markdown-preview-wrap .markdown-view {
+  max-height: 240px;
+  overflow: auto;
+}
+
 /* 포스트잇 너비·높이: 한 줄 2열, 짧은 라벨 + 숫자 칸 최소 너비 (detail-time-row 7.5rem 라벨 사용 안 함) */
 .overlay-memo-size-row {
   display: grid;
@@ -415,6 +441,7 @@
   outline: none;
   resize: vertical;
   min-height: 48px;
+  white-space: pre-wrap;
 }
 
 .detail-edit-body:focus {

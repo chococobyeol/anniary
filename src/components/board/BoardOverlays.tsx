@@ -4,6 +4,7 @@ import type { OverlayEntity } from '../../types/entities'
 import type { InteractionMode } from '../../types/state'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME, dataTransferHasBacklogItem } from '../../constants/dnd'
+import { MarkdownView } from '../common/MarkdownView'
 import './BoardOverlays.css'
 
 const EMPTY_ITEMS: Record<string, never> = {}
@@ -417,11 +418,9 @@ export const BoardOverlays = memo(function BoardOverlays({
 
           const isPostitMemo = o.type === 'text' && o.role === 'semantic'
           const linked = o.linkedItemId && boardItemsRecord ? boardItemsRecord[o.linkedItemId] : undefined
-          const linkRaw = linked ? (linked.title || '(제목 없음)') : ''
-          const linkLabel = linked
-            ? `→ ${linkRaw.length > 26 ? `${linkRaw.slice(0, 26)}…` : linkRaw}`
-            : ''
           const bodyText = (o.text ?? '').trim()
+          const showPostitHtml =
+            isPostitMemo && (Boolean(bodyText) || Boolean(linked))
 
           return (
             <g
@@ -488,32 +487,38 @@ export const BoardOverlays = memo(function BoardOverlays({
                   strokeWidth={sw}
                 />
               ) : null}
-              {o.type === 'text' && o.role === 'semantic' && bodyText ? (
-                <>
-                  <text x={1.6} y={3.4} className="board-overlay-postit-text" pointerEvents="none">
-                    {bodyText.slice(0, 200)}
-                  </text>
-                  {linkLabel ? (
-                    <text
-                      x={1.6}
-                      y={Math.max(5, Math.min(rh - 1.2, rh * 0.72))}
-                      className="board-overlay-postit-link"
-                      pointerEvents="none"
-                    >
-                      {linkLabel}
-                    </text>
-                  ) : null}
-                </>
-              ) : null}
-              {o.type === 'text' && o.role === 'semantic' && !bodyText && linkLabel ? (
-                <text
-                  x={1.6}
-                  y={Math.min(rh * 0.45, 6)}
-                  className="board-overlay-postit-link"
+              {showPostitHtml ? (
+                <foreignObject
+                  x={0}
+                  y={0}
+                  width={rw}
+                  height={rh}
+                  className="board-overlay-postit-fobject"
                   pointerEvents="none"
                 >
-                  {linkLabel}
-                </text>
+                  {/* XHTML 루트 — SVG foreignObject 유효 마크업 */}
+                  <div
+                    className="board-overlay-postit-fobj-root"
+                    {...{ xmlns: 'http://www.w3.org/1999/xhtml' } as { xmlns: string }}
+                  >
+                    {bodyText ? (
+                      <MarkdownView source={o.text ?? ''} className="board-postit-md-memo" />
+                    ) : null}
+                    {bodyText && linked ? <div className="board-postit-linked-sep" /> : null}
+                    {linked ? (
+                      <div className="board-postit-linked-block">
+                        {linked.title?.trim() ? (
+                          <div className="board-postit-linked-title">{linked.title}</div>
+                        ) : null}
+                        {linked.body?.trim() ? (
+                          <MarkdownView source={linked.body} className="board-postit-md-linked" />
+                        ) : !linked.title?.trim() ? (
+                          <div className="board-postit-linked-empty">연결된 일정에 제목·본문이 없습니다.</div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </foreignObject>
               ) : null}
               {o.type === 'text' && o.role !== 'semantic' && (
                 <text

@@ -13,6 +13,7 @@ import {
   COPY_FIRST_PERIOD_SAVE_HINT,
 } from './constants'
 import { HelpTip } from './HelpTip'
+import { MarkdownView } from '../../common/MarkdownView'
 import type { ItemEntity, ItemRepeatRule, ItemStoredRepeat, Weekday1to7 } from '../../../types/entities'
 import { parseDateKey } from '../../../utils/date'
 import {
@@ -341,7 +342,19 @@ export function ItemDetail() {
           ))}
         </select>
         <label className="detail-time-label">Content</label>
-        <textarea className="detail-edit-body detail-edit-content-single" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="Content" rows={4} />
+        <textarea
+          className="detail-edit-body detail-edit-content-single"
+          value={editContent}
+          onChange={e => setEditContent(e.target.value)}
+          placeholder="첫 줄: 제목 · 이후 줄: 본문 (마크다운)"
+          rows={6}
+        />
+        {editContent.includes('\n') && editContent.split('\n').slice(1).join('\n').trim() ? (
+          <div className="detail-markdown-preview-wrap">
+            <span className="detail-add-label">본문 미리보기</span>
+            <MarkdownView source={editContent.split('\n').slice(1).join('\n')} />
+          </div>
+        ) : null}
         <label className="detail-time-label">Start date</label>
         <input type="date" className="detail-date-input" value={editDate} onChange={e => setEditDate(e.target.value)} />
         <div className="detail-time-row">

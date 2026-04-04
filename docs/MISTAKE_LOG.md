@@ -512,3 +512,21 @@
 - 재발 방지: SVG 위 HTML5 DnD는 **실제 히트되는 맨 위 요소**에 `dragOver`/`drop`을 두거나, 투명 히트 레이어로 통일. `effectAllowed`와 `dropEffect`를 항상 짝지어 확인.
 - 검증: `npm run build` 성공, 변경 파일 린트 이슈 없음.
 - 관련 파일: `src/constants/dnd.ts`, `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 백로그·메모 줄바꿈 및 마크다운 표시
+
+- 증상: 메모 입력 시 줄바꿈이 보이지 않거나(보드 한 줄 렌더), 백로그 빠른 입력이 전체를 제목으로만 저장. 일정·메모 본문에 마크다운이 렌더되지 않음.
+- 원인: 백로그 `handleAdd`가 `text.trim()`만 제목으로 쓰고 `body`를 넘기지 않음. 보드 포스트잇이 SVG 단일 `<text>`로만 그림. 본문 표시가 `<pre>` 원문 또는 문자열 슬라이스뿐이라 MD 미적용.
+- 해결: 백로그는 첫 줄→`title`, 이후→`body` 분리 저장·createRange 라벨 보강. `marked`+`DOMPurify`로 `markdownToHtml`/`MarkdownView` 도입, 백로그 펼침·오버레이 디테일·일정 디테일(2줄 이상 시 본문) 미리보기. 보드는 `markdownToPlainText`+`<tspan>` 다줄. 텍스트 영역에 `white-space: pre-wrap`. 오버레이 편집 동기화는 `key=\`${id}:${storeText}\``로 리마운트(React 19 `set-state-in-effect` 린트 회피).
+- 재발 방지: 여러 줄 UX는 **저장 스킴(title/body)** 과 **표시 위치(SVG vs HTML)** 를 함께 바꿀 것. 스토어 문자열이 바뀌면 로컬 draft는 `key` 또는 명시 동기화로 맞출 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `package.json`, `src/utils/markdown.ts`, `src/components/common/MarkdownView.tsx`, `src/components/common/markdown-view.css`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/BacklogPanel.css`, `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `src/components/panels/DetailPanel.css`, `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 포스트잇·백로그 연결 시 본문·마크다운 전체 표시
+
+- 증상: 백로그 일정을 포스트잇에 연결해도 `→` 에 잘린 제목만 보이고 본문·마크다운이 거의 반영되지 않음.
+- 원인: 연결 정보를 SVG `<text>` 한 줄로만 표시. 포스트잇 본문은 오버레이 `text`와 분리된 일정 `body`를 그리지 않음.
+- 해결: 포스트잇에 `foreignObject` + `MarkdownView`로 (1) 포스트잇 자체 메모 (2) 구분선 (3) 연결 일정 제목·본문 전체를 렌더. 투명 드롭존은 DOM 상 위에 유지해 DnD 유지. `xmlns`는 TS와 맞추기 위해 spread 캐스트.
+- 재발 방지: **연결 엔티티의 필드(`ItemEntity.body` 등)** 를 UI에 노출할 때는 저장소 전체 문자열·마크다운 파이프라인을 같은 컴포넌트로 묶을 것. SVG만 쓰면 HTML 마크다운은 `foreignObject` 등 추가 레이어 필요.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
