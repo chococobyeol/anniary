@@ -26,6 +26,7 @@ export function YearBoard() {
   const view = useBoardStore(s => s.view)
   const selection = useBoardStore(s => s.selection)
   const setSelection = useBoardStore(s => s.setSelection)
+  const ensureLeftPanelOpen = useBoardStore(s => s.ensureLeftPanelOpen)
   const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
   const interactionMode = useBoardStore(s => s.interactionMode)
   const resetView = useBoardStore(s => s.resetView)
@@ -185,6 +186,14 @@ export function YearBoard() {
   const closeExpanded = useCallback(() => {
     setExpandedDateKey(null)
   }, [])
+
+  const onSelectItemFromExpanded = useCallback(
+    (itemId: string) => {
+      setSelection({ type: 'item', itemId })
+      ensureLeftPanelOpen('detail')
+    },
+    [setSelection, ensureLeftPanelOpen]
+  )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -548,6 +557,7 @@ export function YearBoard() {
                 x={expandedPosition.x}
                 y={expandedPosition.y}
                 onClose={closeExpanded}
+                onSelectItem={onSelectItemFromExpanded}
               />
             )}
           </g>

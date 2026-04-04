@@ -20,6 +20,7 @@ type Props = {
   x: number
   y: number
   onClose: () => void
+  onSelectItem?: (itemId: string) => void
 }
 
 const EXPANDED_WIDTH = BASE_CELL_WIDTH * 4
@@ -130,7 +131,15 @@ function segmentNeedsContinuationHint(
   return compareDateKeys(endKey, addDaysToDateKey(dateKey, 1)) > 0
 }
 
-export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges, x, y, onClose }: Props) {
+export const ExpandedCell = memo(function ExpandedCell({
+  dateKey,
+  items,
+  ranges,
+  x,
+  y,
+  onClose,
+  onSelectItem,
+}: Props) {
   const continuationGradPrefix = useId().replace(/:/g, '')
   const { month, day } = parseDateKey(dateKey)
   const dow = getDayOfWeek(
@@ -329,7 +338,19 @@ export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges,
                 const fullW = Math.max(2, laneW - 1)
                 const x0 = bx + 0.5
                 return (
-                  <g key={seg.item.id}>
+                  <g
+                    key={seg.item.id}
+                    style={{ cursor: onSelectItem ? 'pointer' : undefined }}
+                    onPointerDown={onSelectItem ? e => e.stopPropagation() : undefined}
+                    onClick={
+                      onSelectItem
+                        ? e => {
+                            e.stopPropagation()
+                            onSelectItem(seg.item.id)
+                          }
+                        : undefined
+                    }
+                  >
                     {parts.map((p, idx) => {
                       const { fill, fillOpacity } = barFill(seg.item, ranges, done, p.nextZone)
                       const partCount = parts.length
@@ -441,7 +462,19 @@ export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges,
                 ? ranges[item.rangeId].color!
                 : STATUS_DOT[item.status] || STATUS_DOT['none']
             return (
-              <g key={item.id}>
+              <g
+                key={item.id}
+                style={{ cursor: onSelectItem ? 'pointer' : undefined }}
+                onPointerDown={onSelectItem ? e => e.stopPropagation() : undefined}
+                onClick={
+                  onSelectItem
+                    ? e => {
+                        e.stopPropagation()
+                        onSelectItem(item.id)
+                      }
+                    : undefined
+                }
+              >
                 <circle cx={PADDING + 2} cy={iy + 2} r={1.5} fill={dotFill} />
                 <text
                   x={PADDING + 6}
@@ -468,7 +501,19 @@ export const ExpandedCell = memo(function ExpandedCell({ dateKey, items, ranges,
                 ? ranges[item.rangeId].color!
                 : STATUS_DOT[item.status] || STATUS_DOT['none']
             return (
-              <g key={item.id}>
+              <g
+                key={item.id}
+                style={{ cursor: onSelectItem ? 'pointer' : undefined }}
+                onPointerDown={onSelectItem ? e => e.stopPropagation() : undefined}
+                onClick={
+                  onSelectItem
+                    ? e => {
+                        e.stopPropagation()
+                        onSelectItem(item.id)
+                      }
+                    : undefined
+                }
+              >
                 <circle cx={PADDING + 2} cy={iy + 2} r={1.5} fill={dotFill} />
                 <text
                   x={PADDING + 6}

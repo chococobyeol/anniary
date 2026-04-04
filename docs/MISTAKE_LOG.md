@@ -574,3 +574,12 @@
 - 재발 방지: 패널·드롭다운 밖으로 나가야 하는 오버레이는 **portal + fixed + 클램프**를 기본으로 검토.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/panels/detail/HelpTip.tsx`, `src/components/panels/DetailPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 날짜 선택만으로는 디테일 비표시 — 타임라인은 더블클릭
+
+- 증상: 날짜만 눌러도 왼쪽 디테일에 하루 UI가 떠 백로그 등과 중복됨.
+- 원인: `DetailPanel`이 `selection.type === 'day'`일 때 `DayDetail`을 렌더.
+- 해결: `DayDetail.tsx` 제거. `day`·`days` 선택 시 디테일 패널에는 안내문만. 타임라인은 보드 `ExpandedCell`(셀 더블클릭)만. `ExpandedCell`에 `onSelectItem`으로 행·막대 클릭 → `setSelection({ type: 'item', itemId })` + `ensureLeftPanelOpen('detail')` (`YearBoard`에서 연결, `stopPropagation`로 보드 제스처와 분리).
+- 재발 방지: 날짜 하이라이트와 **디테일 패널 콘텐츠** 진입을 혼동하지 말 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/DetailPanel.tsx`, `src/components/board/ExpandedCell.tsx`, `src/components/board/YearBoard.tsx`, `docs/MISTAKE_LOG.md`
