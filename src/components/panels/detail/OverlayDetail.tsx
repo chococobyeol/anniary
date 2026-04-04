@@ -111,8 +111,8 @@ export function OverlayDetail() {
             </button>
           )}
           <p className="detail-hint" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-            <strong>자동 연결:</strong> 백로그 등에서 일정(item)을 선택한 뒤 Place로 메모를 찍으면 처음부터 그 일정에 묶입니다.
-            보드에서 한 줄(제목)로 같이 보입니다.
+            <strong>연결:</strong> 백로그 일정을 포스트잇 위로 드래그하거나, Select 모드에서 포스트잇을 우클릭·길게 눌러(터치) 일정을 고릅니다.
+            일정 선택 뒤 Place로 찍어도 묶입니다.
           </p>
           <span className="detail-add-label" style={{ marginTop: 12 }}>메모 종이 색</span>
           <div className="overlay-memo-swatches">

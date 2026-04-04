@@ -494,3 +494,21 @@
 - 재발 방지: “디테일로 보내기”는 토글이 아니라 연 전용 액션으로 처리할 것.
 - 검증: `npx tsc -b`, `npm run lint` 성공.
 - 관련 파일: `src/store/board-store.ts`, `src/components/board/YearBoard.tsx`, `src/components/board/BoardOverlays.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 포스트잇 — 백로그 DnD·컨텍스트 메뉴(롱프레스)
+
+- 증상: 일정을 포스트잇에 묶는 경로가 디테일·Place 위주로만 보임.
+- 원인: 보드상 직관적 제스처(DnD, 우클릭/롱프레스) 없음.
+- 해결: `application/x-anniary-item-id`로 백로그 행 `draggable`, 포스트잇 `<g>`에 `dragOver`/`drop`으로 `linkedItemId` 설정. 우클릭·~520ms 롱프레스로 고정 메뉴(`createPortal`), 연결·해제·일정 목록. 포스트잇만 포인터 다운 시 드래그를 임계 이동 후 시작해 롱프레스와 충돌 완화. `boardItems` 구독은 `EMPTY_ITEMS` 고정 참조로 안정화.
+- 재발 방지: SVG 하위에서 HTML 메뉴는 반드시 portal. 드롭은 Select 모드에서만 `preventDefault`.
+- 검증: `npx tsc -b`, `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/constants/dnd.ts`, `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 포스트잇 백로그 DnD — 드롭 미동작 수정
+
+- 증상: 우클릭·롱프레스 메뉴는 되는데 백로그에서 포스트잇으로 드래그앤드롭이 붙지 않음. 선택되지 않은 포스트잇에도 드롭으로 연결되어야 함.
+- 원인: SVG에서 `<g>`에만 `dragOver`/`drop`을 두면 위에 그린 `<text>`·접기 `<polygon>`·`path`/도형이 히트 테스트를 가져감. 또한 `effectAllowed`가 `copy`인데 `dropEffect`를 `link`로 두면 드롭이 거절될 수 있음. `dragenter`에서 `preventDefault` 누락 시 환경에 따라 드롭이 불안정함. `dataTransfer.types`의 MIME 대소문자 차이.
+- 해결: 포스트잇 전면 투명 `rect` 드롭존을 모든 비주얼 요소 위·선택 테두리( pointer-events: none ) 아래에 두고 `dragenter`+`dragOver`+`drop` 처리. 본문·링크 텍스트와 접기 삼각형은 `pointer-events: none`. `dataTransferHasBacklogItem`으로 타입 검사 대/소문자 무시. `dropEffect`를 `copy`로 맞춤. 드롭 로직은 `isSel`과 무관(기존과 동일).
+- 재발 방지: SVG 위 HTML5 DnD는 **실제 히트되는 맨 위 요소**에 `dragOver`/`drop`을 두거나, 투명 히트 레이어로 통일. `effectAllowed`와 `dropEffect`를 항상 짝지어 확인.
+- 검증: `npm run build` 성공, 변경 파일 린트 이슈 없음.
+- 관련 파일: `src/constants/dnd.ts`, `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`

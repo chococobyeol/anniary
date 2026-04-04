@@ -1,8 +1,12 @@
-import { memo, useRef, useCallback, useState } from 'react'
+import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import type { OverlayEntity } from '../../types/entities'
 import type { InteractionMode } from '../../types/state'
 import { useBoardStore } from '../../store/board-store'
+import { ANNIARY_BACKLOG_ITEM_MIME, dataTransferHasBacklogItem } from '../../constants/dnd'
 import './BoardOverlays.css'
+
+const EMPTY_ITEMS: Record<string, never> = {}
 
 type Props = {
   overlays: Record<string, OverlayEntity>
@@ -20,6 +24,9 @@ function minOverlaySize(o: OverlayEntity): { minW: number; minH: number } {
   return { minW: 0.45, minH: 0.45 }
 }
 
+const LONG_PRESS_MS = 520
+const DRAG_THRESHOLD_PX = 8
+
 export const BoardOverlays = memo(function BoardOverlays({
   overlays,
   interactionMode,
@@ -30,9 +37,19 @@ export const BoardOverlays = memo(function BoardOverlays({
   const ensureLeftPanelOpen = useBoardStore(s => s.ensureLeftPanelOpen)
   const beginHistoryBatch = useBoardStore(s => s.beginHistoryBatch)
   const endHistoryBatch = useBoardStore(s => s.endHistoryBatch)
-  const boardItems = useBoardStore(s =>
-    s.activeBoardId ? s.boards[s.activeBoardId]?.items ?? {} : {}
-  )
+
+  const boardItemsRecord = useBoardStore(s => {
+    const id = s.activeBoardId
+    if (!id) return undefined
+    return s.boards[id]?.items ?? EMPTY_ITEMS
+  })
+
+  const itemMenuOptions = useMemo(() => {
+    if (!boardItemsRecord) return [] as { id: string; title: string }[]
+    return Object.values(boardItemsRecord)
+      .map(it => ({ id: it.id, title: it.title || '(제목 없음)' }))
+      .sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+  }, [boardItemsRecord])
 
   const dragRef = useRef<{
     id: string
@@ -43,6 +60,22 @@ export const BoardOverlays = memo(function BoardOverlays({
     scale: number
   } | null>(null)
   const [dragDelta, setDragDelta] = useState<{ id: string; dx: number; dy: number } | null>(null)
+
+  const pendingMemoDragRef = useRef<{
+    id: string
+    startCX: number
+    startCY: number
+    origX: number
+    origY: number
+    scale: number
+  } | null>(null)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [overlayMenu, setOverlayMenu] = useState<{
+    clientX: number
+    clientY: number
+    overlayId: string
+  } | null>(null)
 
   const resizeRef = useRef<{
     id: string
@@ -56,6 +89,55 @@ export const BoardOverlays = memo(function BoardOverlays({
   } | null>(null)
   const [resizeDelta, setResizeDelta] = useState<{ id: string; dw: number; dh: number } | null>(null)
 
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!overlayMenu) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverlayMenu(null)
+    }
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node
+      const menu = document.querySelector('.board-overlay-ctx-menu')
+      if (menu && !menu.contains(t)) setOverlayMenu(null)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [overlayMenu])
+
+  const openOverlayMenuAt = useCallback((clientX: number, clientY: number, overlayId: string) => {
+    clearLongPressTimer()
+    pendingMemoDragRef.current = null
+    dragRef.current = null
+    setDragDelta(null)
+    setOverlayMenu({
+      clientX: Math.min(clientX, window.innerWidth - 16),
+      clientY: Math.min(clientY, window.innerHeight - 16),
+      overlayId,
+    })
+  }, [clearLongPressTimer])
+
+  const startMemoLongPress = useCallback(
+    (clientX: number, clientY: number, overlayId: string) => {
+      clearLongPressTimer()
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTimerRef.current = null
+        pendingMemoDragRef.current = null
+        openOverlayMenuAt(clientX, clientY, overlayId)
+      }, LONG_PRESS_MS)
+    },
+    [clearLongPressTimer, openOverlayMenuAt]
+  )
+
   const onOverlayPointerDown = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
       if (interactionMode !== 'select' || o.locked) return
@@ -64,6 +146,22 @@ export const BoardOverlays = memo(function BoardOverlays({
       const view = useBoardStore.getState().view
       setSelection({ type: 'overlay', overlayId: o.id })
       ensureLeftPanelOpen('detail')
+
+      const isPostit = o.type === 'text' && o.role === 'semantic'
+      if (isPostit) {
+        pendingMemoDragRef.current = {
+          id: o.id,
+          startCX: e.clientX,
+          startCY: e.clientY,
+          origX: o.x,
+          origY: o.y,
+          scale: view.scale,
+        }
+        startMemoLongPress(e.clientX, e.clientY, o.id)
+        ;(e.target as Element).setPointerCapture?.(e.pointerId)
+        return
+      }
+
       dragRef.current = {
         id: o.id,
         startClientX: e.clientX,
@@ -75,21 +173,57 @@ export const BoardOverlays = memo(function BoardOverlays({
       setDragDelta({ id: o.id, dx: 0, dy: 0 })
       ;(e.target as Element).setPointerCapture?.(e.pointerId)
     },
-    [ensureLeftPanelOpen, interactionMode, setSelection]
+    [ensureLeftPanelOpen, interactionMode, setSelection, startMemoLongPress]
   )
 
-  const onOverlayPointerMove = useCallback((e: React.PointerEvent, o: OverlayEntity) => {
-    const d = dragRef.current
-    if (!d || d.id !== o.id) return
-    const dx = (e.clientX - d.startClientX) / d.scale
-    const dy = (e.clientY - d.startClientY) / d.scale
-    setDragDelta({ id: o.id, dx, dy })
-  }, [])
+  const onOverlayPointerMove = useCallback(
+    (e: React.PointerEvent, o: OverlayEntity) => {
+      const pending = pendingMemoDragRef.current
+      if (pending && pending.id === o.id && interactionMode === 'select') {
+        const dxPx = e.clientX - pending.startCX
+        const dyPx = e.clientY - pending.startCY
+        if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
+          clearLongPressTimer()
+          dragRef.current = {
+            id: pending.id,
+            startClientX: pending.startCX,
+            startClientY: pending.startCY,
+            origX: pending.origX,
+            origY: pending.origY,
+            scale: pending.scale,
+          }
+          pendingMemoDragRef.current = null
+          setDragDelta({ id: o.id, dx: dxPx / pending.scale, dy: dyPx / pending.scale })
+        }
+        return
+      }
+
+      const d = dragRef.current
+      if (!d || d.id !== o.id) return
+      const dx = (e.clientX - d.startClientX) / d.scale
+      const dy = (e.clientY - d.startClientY) / d.scale
+      setDragDelta({ id: o.id, dx, dy })
+    },
+    [clearLongPressTimer, interactionMode]
+  )
 
   const onOverlayPointerUp = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
+      clearLongPressTimer()
+      const pending = pendingMemoDragRef.current
+      if (pending && pending.id === o.id) {
+        pendingMemoDragRef.current = null
+      }
+
       const d = dragRef.current
-      if (!d || d.id !== o.id) return
+      if (!d || d.id !== o.id) {
+        try {
+          ;(e.target as Element).releasePointerCapture?.(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+        return
+      }
       dragRef.current = null
       const dx = (e.clientX - d.startClientX) / d.scale
       const dy = (e.clientY - d.startClientY) / d.scale
@@ -103,7 +237,49 @@ export const BoardOverlays = memo(function BoardOverlays({
         /* ignore */
       }
     },
-    [updateOverlay]
+    [clearLongPressTimer, updateOverlay]
+  )
+
+  const onMemoContextMenu = useCallback(
+    (e: React.MouseEvent, o: OverlayEntity) => {
+      if (interactionMode !== 'select' || o.locked) return
+      e.preventDefault()
+      e.stopPropagation()
+      clearLongPressTimer()
+      pendingMemoDragRef.current = null
+      openOverlayMenuAt(e.clientX, e.clientY, o.id)
+    },
+    [clearLongPressTimer, interactionMode, openOverlayMenuAt]
+  )
+
+  /** dragenter + dragover 모두 preventDefault 해야 drop 이 일관되게 허용됨 */
+  const onMemoDragHover = useCallback(
+    (e: React.DragEvent) => {
+      if (interactionMode !== 'select') return
+      if (!dataTransferHasBacklogItem(e.dataTransfer)) return
+      e.preventDefault()
+      e.stopPropagation()
+      // effectAllowed 가 copy 이면 dropEffect 도 copy 여야 함(링크는 거절될 수 있음)
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    [interactionMode]
+  )
+
+  const onMemoDrop = useCallback(
+    (e: React.DragEvent, o: OverlayEntity) => {
+      if (interactionMode !== 'select' || o.locked) return
+      if (!dataTransferHasBacklogItem(e.dataTransfer)) return
+      const raw =
+        e.dataTransfer.getData(ANNIARY_BACKLOG_ITEM_MIME)
+        || e.dataTransfer.getData('text/plain')
+      const itemId = raw?.trim()
+      if (!itemId || !boardItemsRecord || !(itemId in boardItemsRecord)) return
+      e.preventDefault()
+      e.stopPropagation()
+      updateOverlay(o.id, { linkedItemId: itemId })
+      setOverlayMenu(null)
+    },
+    [boardItemsRecord, interactionMode, updateOverlay]
   )
 
   const onResizePointerDown = useCallback(
@@ -168,160 +344,241 @@ export const BoardOverlays = memo(function BoardOverlays({
     [beginHistoryBatch, endHistoryBatch, ensureLeftPanelOpen, interactionMode, setSelection, updateOverlay]
   )
 
+  const menuOverlay = overlayMenu ? overlays[overlayMenu.overlayId] : null
+  const menuLinkedId = menuOverlay?.linkedItemId
+
+  const ctxMenu =
+    overlayMenu && menuOverlay
+      ? createPortal(
+          <div
+            className="board-overlay-ctx-menu"
+            style={{
+              position: 'fixed',
+              left: overlayMenu.clientX,
+              top: overlayMenu.clientY,
+            }}
+            role="menu"
+          >
+            <div className="board-overlay-ctx-menu-title">포스트잇 · 일정 연결</div>
+            {menuLinkedId ? (
+              <button
+                type="button"
+                className="board-overlay-ctx-menu-item board-overlay-ctx-menu-item--danger"
+                onClick={() => {
+                  updateOverlay(overlayMenu.overlayId, { linkedItemId: undefined })
+                  setOverlayMenu(null)
+                }}
+              >
+                연결 해제
+              </button>
+            ) : null}
+            <div className="board-overlay-ctx-sub">일정 선택</div>
+            <div className="board-overlay-ctx-scroll">
+              {itemMenuOptions.length === 0 ? (
+                <div className="board-overlay-ctx-empty">일정이 없습니다</div>
+              ) : (
+                itemMenuOptions.map(it => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    className="board-overlay-ctx-menu-item"
+                    onClick={() => {
+                      updateOverlay(overlayMenu.overlayId, { linkedItemId: it.id })
+                      setOverlayMenu(null)
+                    }}
+                  >
+                    {it.title}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null
+
   const list = Object.values(overlays).filter(o => o.visible !== false)
   list.sort(overlayZOrder)
 
   return (
-    <g className="board-overlays" style={{ pointerEvents: interactionMode === 'select' ? 'auto' : 'none' }}>
-      {list.map(o => {
-        const isSel = o.id === selectedOverlayId
-        const dd = dragDelta?.id === o.id ? dragDelta : null
-        const rd = resizeDelta?.id === o.id ? resizeDelta : null
-        const ox = o.x + (dd?.dx ?? 0)
-        const oy = o.y + (dd?.dy ?? 0)
-        const rw = o.width + (rd?.dw ?? 0)
-        const rh = o.height + (rd?.dh ?? 0)
-        const sw = o.strokeWidthPx ?? 0.8
-        const stroke = o.strokeColor || 'var(--status-in-progress)'
-        const fill = o.fillColor || 'none'
+    <>
+      <g className="board-overlays" style={{ pointerEvents: interactionMode === 'select' ? 'auto' : 'none' }}>
+        {list.map(o => {
+          const isSel = o.id === selectedOverlayId
+          const dd = dragDelta?.id === o.id ? dragDelta : null
+          const rd = resizeDelta?.id === o.id ? resizeDelta : null
+          const ox = o.x + (dd?.dx ?? 0)
+          const oy = o.y + (dd?.dy ?? 0)
+          const rw = o.width + (rd?.dw ?? 0)
+          const rh = o.height + (rd?.dh ?? 0)
+          const sw = o.strokeWidthPx ?? 0.8
+          const stroke = o.strokeColor || 'var(--status-in-progress)'
+          const fill = o.fillColor || 'none'
 
-        const isPostitMemo = o.type === 'text' && o.role === 'semantic'
-        const linked = o.linkedItemId ? boardItems[o.linkedItemId] : undefined
-        const linkRaw = linked ? (linked.title || '(제목 없음)') : ''
-        const linkLabel = linked
-          ? `→ ${linkRaw.length > 26 ? `${linkRaw.slice(0, 26)}…` : linkRaw}`
-          : ''
-        const bodyText = (o.text ?? '').trim()
+          const isPostitMemo = o.type === 'text' && o.role === 'semantic'
+          const linked = o.linkedItemId && boardItemsRecord ? boardItemsRecord[o.linkedItemId] : undefined
+          const linkRaw = linked ? (linked.title || '(제목 없음)') : ''
+          const linkLabel = linked
+            ? `→ ${linkRaw.length > 26 ? `${linkRaw.slice(0, 26)}…` : linkRaw}`
+            : ''
+          const bodyText = (o.text ?? '').trim()
 
-        return (
-          <g
-            key={o.id}
-            transform={`translate(${ox}, ${oy})`}
-            onPointerDown={e => onOverlayPointerDown(e, o)}
-            onPointerMove={e => onOverlayPointerMove(e, o)}
-            onPointerUp={e => onOverlayPointerUp(e, o)}
-            onPointerCancel={e => onOverlayPointerUp(e, o)}
-            style={{ cursor: interactionMode === 'select' && !o.locked ? 'grab' : undefined }}
-          >
-            {isPostitMemo ? (
-              <>
+          return (
+            <g
+              key={o.id}
+              transform={`translate(${ox}, ${oy})`}
+              onPointerDown={e => onOverlayPointerDown(e, o)}
+              onPointerMove={e => onOverlayPointerMove(e, o)}
+              onPointerUp={e => onOverlayPointerUp(e, o)}
+              onPointerCancel={e => onOverlayPointerUp(e, o)}
+              onContextMenu={isPostitMemo ? e => onMemoContextMenu(e, o) : undefined}
+              style={{
+                cursor: interactionMode === 'select' && !o.locked ? 'grab' : undefined,
+                touchAction: isPostitMemo ? 'none' : undefined,
+              }}
+            >
+              {isPostitMemo ? (
+                <>
+                  <rect
+                    className="board-overlay-postit-bg"
+                    width={rw}
+                    height={rh}
+                    rx={0.7}
+                    fill={o.fillColor || '#ffffff'}
+                    stroke={o.strokeColor || 'rgba(0, 0, 0, 0.1)'}
+                    pointerEvents="visiblePainted"
+                  />
+                  <polygon
+                    className="board-overlay-postit-fold"
+                    points={`${rw - 2.2},0 ${rw},0 ${rw},2.2`}
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <rect width={rw} height={rh} fill="transparent" />
+              )}
+              {o.pathD ? (
+                <path
+                  d={o.pathD}
+                  fill="none"
+                  stroke={stroke}
+                  strokeWidth={sw}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : null}
+              {o.type === 'shape' && o.drawTool === 'rect' && !o.pathD ? (
                 <rect
-                  className="board-overlay-postit-bg"
+                  width={rw}
+                  height={rh}
+                  rx={0.5}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={sw}
+                />
+              ) : null}
+              {o.type === 'shape' && o.drawTool === 'ellipse' && !o.pathD ? (
+                <ellipse
+                  cx={rw / 2}
+                  cy={rh / 2}
+                  rx={Math.max(rw / 2 - sw / 2, 0.2)}
+                  ry={Math.max(rh / 2 - sw / 2, 0.2)}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={sw}
+                />
+              ) : null}
+              {o.type === 'text' && o.role === 'semantic' && bodyText ? (
+                <>
+                  <text x={1.6} y={3.4} className="board-overlay-postit-text" pointerEvents="none">
+                    {bodyText.slice(0, 200)}
+                  </text>
+                  {linkLabel ? (
+                    <text
+                      x={1.6}
+                      y={Math.max(5, Math.min(rh - 1.2, rh * 0.72))}
+                      className="board-overlay-postit-link"
+                      pointerEvents="none"
+                    >
+                      {linkLabel}
+                    </text>
+                  ) : null}
+                </>
+              ) : null}
+              {o.type === 'text' && o.role === 'semantic' && !bodyText && linkLabel ? (
+                <text
+                  x={1.6}
+                  y={Math.min(rh * 0.45, 6)}
+                  className="board-overlay-postit-link"
+                  pointerEvents="none"
+                >
+                  {linkLabel}
+                </text>
+              ) : null}
+              {o.type === 'text' && o.role !== 'semantic' && (
+                <text
+                  x={2}
+                  y={Math.min(rh * 0.55, 8)}
+                  fontSize={3.2}
+                  fill="var(--text-primary)"
+                  style={{ userSelect: 'none' }}
+                >
+                  {o.text || 'Note'}
+                </text>
+              )}
+              {o.type === 'sticker' && (
+                <text
+                  x={rw / 2}
+                  y={rh / 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="board-overlay-sticker-emoji"
+                >
+                  {o.text?.trim() || '⭐'}
+                </text>
+              )}
+              {isPostitMemo && interactionMode === 'select' && !o.locked ? (
+                <rect
+                  className="board-overlay-postit-dropzone"
                   width={rw}
                   height={rh}
                   rx={0.7}
-                  fill={o.fillColor || '#ffffff'}
-                  stroke={o.strokeColor || 'rgba(0, 0, 0, 0.1)'}
+                  fill="transparent"
+                  pointerEvents="all"
+                  onDragEnter={onMemoDragHover}
+                  onDragOver={onMemoDragHover}
+                  onDrop={e => onMemoDrop(e, o)}
                 />
-                <polygon
-                  className="board-overlay-postit-fold"
-                  points={`${rw - 2.2},0 ${rw},0 ${rw},2.2`}
-                />
-              </>
-            ) : (
-              <rect width={rw} height={rh} fill="transparent" />
-            )}
-            {o.pathD ? (
-              <path
-                d={o.pathD}
-                fill="none"
-                stroke={stroke}
-                strokeWidth={sw}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : null}
-            {o.type === 'shape' && o.drawTool === 'rect' && !o.pathD ? (
-              <rect
-                width={rw}
-                height={rh}
-                rx={0.5}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={sw}
-              />
-            ) : null}
-            {o.type === 'shape' && o.drawTool === 'ellipse' && !o.pathD ? (
-              <ellipse
-                cx={rw / 2}
-                cy={rh / 2}
-                rx={Math.max(rw / 2 - sw / 2, 0.2)}
-                ry={Math.max(rh / 2 - sw / 2, 0.2)}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={sw}
-              />
-            ) : null}
-            {o.type === 'text' && o.role === 'semantic' && bodyText ? (
-              <>
-                <text x={1.6} y={3.4} className="board-overlay-postit-text">
-                  {bodyText.slice(0, 200)}
-                </text>
-                {linkLabel ? (
-                  <text
-                    x={1.6}
-                    y={Math.max(5, Math.min(rh - 1.2, rh * 0.72))}
-                    className="board-overlay-postit-link"
-                  >
-                    {linkLabel}
-                  </text>
-                ) : null}
-              </>
-            ) : null}
-            {o.type === 'text' && o.role === 'semantic' && !bodyText && linkLabel ? (
-              <text x={1.6} y={Math.min(rh * 0.45, 6)} className="board-overlay-postit-link">
-                {linkLabel}
-              </text>
-            ) : null}
-            {o.type === 'text' && o.role !== 'semantic' && (
-              <text
-                x={2}
-                y={Math.min(rh * 0.55, 8)}
-                fontSize={3.2}
-                fill="var(--text-primary)"
-                style={{ userSelect: 'none' }}
-              >
-                {o.text || 'Note'}
-              </text>
-            )}
-            {o.type === 'sticker' && (
-              <text
-                x={rw / 2}
-                y={rh / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                className="board-overlay-sticker-emoji"
-              >
-                {o.text?.trim() || '⭐'}
-              </text>
-            )}
-            {isSel && interactionMode === 'select' ? (
-              <>
-                <rect
-                  width={rw}
-                  height={rh}
-                  fill="none"
-                  stroke="var(--border-selected)"
-                  strokeWidth={0.35}
-                  strokeDasharray="1 1"
-                  pointerEvents="none"
-                />
-                {!o.locked && (
+              ) : null}
+              {isSel && interactionMode === 'select' ? (
+                <>
                   <rect
-                    className="board-overlay-resize-handle"
-                    x={rw - 2.8}
-                    y={rh - 2.8}
-                    width={4.2}
-                    height={4.2}
-                    rx={0.4}
-                    onPointerDown={e => onResizePointerDown(e, o)}
+                    width={rw}
+                    height={rh}
+                    fill="none"
+                    stroke="var(--border-selected)"
+                    strokeWidth={0.35}
+                    strokeDasharray="1 1"
+                    pointerEvents="none"
                   />
-                )}
-              </>
-            ) : null}
-          </g>
-        )
-      })}
-    </g>
+                  {!o.locked && (
+                    <rect
+                      className="board-overlay-resize-handle"
+                      x={rw - 2.8}
+                      y={rh - 2.8}
+                      width={4.2}
+                      height={4.2}
+                      rx={0.4}
+                      onPointerDown={e => onResizePointerDown(e, o)}
+                    />
+                  )}
+                </>
+              ) : null}
+            </g>
+          )
+        })}
+      </g>
+      {ctxMenu}
+    </>
   )
 })

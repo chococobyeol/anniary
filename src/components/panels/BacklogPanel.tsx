@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useBoardStore } from '../../store/board-store'
+import { ANNIARY_BACKLOG_ITEM_MIME } from '../../constants/dnd'
 import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
 import { formatRepeatSummary, getEffectiveItemRepeat, itemOccursOnDate } from '../../utils/repeat'
 import type { ItemStatus } from '../../types/entities'
@@ -201,7 +202,16 @@ export function BacklogPanel() {
           >
             {item.status === 'done' && <IconCheck size={8} />}
           </button>
-          <div className="backlog-item-content" onClick={() => openItemDetail(item.id)}>
+          <div
+            className="backlog-item-content"
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.setData(ANNIARY_BACKLOG_ITEM_MIME, item.id)
+              e.dataTransfer.setData('text/plain', item.id)
+              e.dataTransfer.effectAllowed = 'copy'
+            }}
+            onClick={() => openItemDetail(item.id)}
+          >
             <span className={`backlog-item-title ${item.status === 'done' ? 'line-through' : ''}`}>
               {item.title || '(untitled)'}
             </span>
