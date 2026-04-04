@@ -8,10 +8,10 @@ type Props = {
 }
 
 export function MarkdownView({ source, className }: Props) {
-  const html = useMemo(
-    () => (source.trim() ? markdownToHtml(source) : ''),
-    [source]
-  )
+  const html = useMemo(() => {
+    if (source === '') return ''
+    return markdownToHtml(source)
+  }, [source])
   if (!html) return null
   return (
     <div

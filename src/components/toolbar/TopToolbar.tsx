@@ -39,16 +39,16 @@ const DRAW_TOOLS: { tool: DrawToolKind; label: string; Icon: typeof IconPenNib }
 ]
 
 const PLACE_KINDS: { kind: PlaceKind; label: string; Icon: typeof IconStickyNote }[] = [
-  { kind: 'memo', label: '포스트잇', Icon: IconStickyNote },
-  { kind: 'sticker', label: '스티커', Icon: IconStar },
+  { kind: 'memo', label: 'Memo', Icon: IconStickyNote },
+  { kind: 'sticker', label: 'Sticker', Icon: IconStar },
 ]
 
 const STROKE_WEIGHTS: DrawStrokeWeight[] = ['thin', 'medium', 'thick']
 
 function strokeWeightLabel(w: DrawStrokeWeight): string {
-  if (w === 'thin') return '가늘게'
-  if (w === 'thick') return '굵게'
-  return '보통'
+  if (w === 'thin') return 'Thin'
+  if (w === 'thick') return 'Thick'
+  return 'Medium'
 }
 
 const MODES: { mode: InteractionMode; label: string; Icon: typeof IconMove }[] = [
@@ -156,7 +156,7 @@ export function TopToolbar() {
                 </div>
                 {settings.drawTool === 'pen' && (
                   <>
-                    <p className="toolbar-flyout-label">펜 색</p>
+                    <p className="toolbar-flyout-label">Pen color</p>
                     <div className="toolbar-flyout-swatches" role="group" aria-label="Pen color">
                       {DRAW_PEN_COLOR_PRESETS.map(c => (
                         <button
@@ -169,7 +169,7 @@ export function TopToolbar() {
                         />
                       ))}
                     </div>
-                    <p className="toolbar-flyout-label">펜 굵기</p>
+                    <p className="toolbar-flyout-label">Pen weight</p>
                     <div className="toolbar-weight-row" role="group" aria-label="Pen width">
                       {STROKE_WEIGHTS.map(w => (
                         <button
@@ -186,7 +186,7 @@ export function TopToolbar() {
                 )}
                 {settings.drawTool === 'highlighter' && (
                   <>
-                    <p className="toolbar-flyout-label">형광펜 색</p>
+                    <p className="toolbar-flyout-label">Highlighter color</p>
                     <div className="toolbar-flyout-swatches" role="group" aria-label="Highlighter color">
                       {DRAW_HIGHLIGHTER_COLOR_PRESETS.map(c => (
                         <button
@@ -199,7 +199,7 @@ export function TopToolbar() {
                         />
                       ))}
                     </div>
-                    <p className="toolbar-flyout-label">형광펜 굵기</p>
+                    <p className="toolbar-flyout-label">Highlighter weight</p>
                     <div className="toolbar-weight-row" role="group" aria-label="Highlighter width">
                       {STROKE_WEIGHTS.map(w => (
                         <button
@@ -216,7 +216,7 @@ export function TopToolbar() {
                 )}
                 {(settings.drawTool === 'rect' || settings.drawTool === 'ellipse') && (
                   <>
-                    <p className="toolbar-flyout-label">도형 테두리 색</p>
+                    <p className="toolbar-flyout-label">Shape stroke color</p>
                     <div className="toolbar-flyout-swatches" role="group" aria-label="Shape stroke color">
                       {DRAW_PEN_COLOR_PRESETS.map(c => (
                         <button
@@ -229,7 +229,7 @@ export function TopToolbar() {
                         />
                       ))}
                     </div>
-                    <p className="toolbar-flyout-label">도형 테두리 굵기</p>
+                    <p className="toolbar-flyout-label">Shape stroke weight</p>
                     <div className="toolbar-weight-row" role="group" aria-label="Shape stroke width">
                       {STROKE_WEIGHTS.map(w => (
                         <button
@@ -242,7 +242,7 @@ export function TopToolbar() {
                         </button>
                       ))}
                     </div>
-                    <p className="toolbar-flyout-label">도형 채우기</p>
+                    <p className="toolbar-flyout-label">Shape fill</p>
                     <div className="toolbar-flyout-swatches" role="group" aria-label="Shape fill">
                       {DRAW_SHAPE_FILL_PRESETS.map(c => (
                         <button
@@ -250,7 +250,7 @@ export function TopToolbar() {
                           type="button"
                           className={`toolbar-color-dot toolbar-color-dot--fill ${settings.drawShapeFillColor === c ? 'active' : ''} ${c === 'transparent' ? 'toolbar-color-dot--transparent' : ''}`}
                           style={c === 'transparent' ? undefined : { backgroundColor: c }}
-                          title={c === 'transparent' ? '채우기 없음' : c}
+                          title={c === 'transparent' ? 'No fill' : c}
                           onClick={() => updateSettings({ drawShapeFillColor: c })}
                         />
                       ))}
@@ -299,7 +299,7 @@ export function TopToolbar() {
                         type="button"
                         className={`toolbar-color-dot toolbar-color-dot--lg ${settings.placeMemoPaperColor === c ? 'active' : ''}`}
                         style={{ backgroundColor: c }}
-                        title={`새 메모: ${c}`}
+                        title={`New memo: ${c}`}
                         onClick={() => updateSettings({ placeMemoPaperColor: c })}
                       />
                     ))}

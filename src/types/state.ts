@@ -99,6 +99,8 @@ export type AppSettings = {
   zoomInverted: boolean
   /** null = show all, number = show last N (by updatedAt) */
   backlogDisplayLimit: number | null
+  /** Backlog & memo/detail markdown fields: show ↵ to insert a newline at caret */
+  showNewlineInsertButton: boolean
   boardViewFilter: BoardViewFilter
   /** Draw 모드 도구 */
   drawTool: DrawToolKind

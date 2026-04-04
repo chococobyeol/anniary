@@ -6,7 +6,14 @@ function normImportedDrawWeight(w: unknown, fallback: DrawStrokeWeight): DrawStr
   return w === 'thin' || w === 'medium' || w === 'thick' ? w : fallback
 }
 import { normalizeBoardViewFilter } from '../../utils/boardViewFilter'
+import { HelpTip } from './detail/HelpTip'
 import './SettingsPanel.css'
+
+const COPY_NEWLINE_BUTTON_HELP =
+  'Adds ↵ next to backlog and markdown fields to insert a line break—useful when Shift+Enter is hard on touch keyboards.'
+
+const COPY_PLACE_MEMO_SIZE_HELP =
+  'Default width/height for memos created with Place (board units). Memos already on the board: edit size in the left detail panel.'
 
 export function SettingsPanel() {
   const settings = useBoardStore(s => s.settings)
@@ -73,15 +80,38 @@ export function SettingsPanel() {
           </select>
         </label>
         <p className="settings-hint-block">Based on last updated (updatedAt).</p>
+
+        <label className="settings-row">
+          <span className="settings-label settings-label--with-help">
+            Newline insert button
+            <HelpTip text={COPY_NEWLINE_BUTTON_HELP} />
+          </span>
+          <div className="settings-toggle-wrap">
+            <span className="settings-hint">
+              {settings.showNewlineInsertButton ? '↵ next to fields' : 'Off'}
+            </span>
+            <button
+              type="button"
+              className={`settings-toggle ${settings.showNewlineInsertButton ? 'active' : ''}`}
+              onClick={() =>
+                updateSettings({ showNewlineInsertButton: !settings.showNewlineInsertButton })
+              }
+              role="switch"
+              aria-checked={settings.showNewlineInsertButton}
+            >
+              <span className="settings-toggle-thumb" />
+            </button>
+          </div>
+        </label>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-title">Place — 새 메모 기본 크기</div>
-        <p className="settings-hint-block">
-          Place로 찍는 메모의 기본 너비·높이(보드 좌표). 이미 올린 메모는 디테일에서 개별 조정.
-        </p>
+        <div className="settings-section-heading">
+          <div className="settings-section-title">Place — default memo size</div>
+          <HelpTip text={COPY_PLACE_MEMO_SIZE_HELP} />
+        </div>
         <label className="settings-row">
-          <span className="settings-label">너비</span>
+          <span className="settings-label">Width</span>
           <input
             type="number"
             className="settings-select"
@@ -97,7 +127,7 @@ export function SettingsPanel() {
           />
         </label>
         <label className="settings-row">
-          <span className="settings-label">높이</span>
+          <span className="settings-label">Height</span>
           <input
             type="number"
             className="settings-select"

@@ -48,8 +48,8 @@ export const BoardOverlays = memo(function BoardOverlays({
   const itemMenuOptions = useMemo(() => {
     if (!boardItemsRecord) return [] as { id: string; title: string }[]
     return Object.values(boardItemsRecord)
-      .map(it => ({ id: it.id, title: it.title || '(제목 없음)' }))
-      .sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+      .map(it => ({ id: it.id, title: it.title || '(no title)' }))
+      .sort((a, b) => a.title.localeCompare(b.title, 'en'))
   }, [boardItemsRecord])
 
   const dragRef = useRef<{
@@ -360,7 +360,7 @@ export const BoardOverlays = memo(function BoardOverlays({
             }}
             role="menu"
           >
-            <div className="board-overlay-ctx-menu-title">포스트잇 · 일정 연결</div>
+            <div className="board-overlay-ctx-menu-title">Memo · link item</div>
             {menuLinkedId ? (
               <button
                 type="button"
@@ -370,13 +370,13 @@ export const BoardOverlays = memo(function BoardOverlays({
                   setOverlayMenu(null)
                 }}
               >
-                연결 해제
+                Unlink
               </button>
             ) : null}
-            <div className="board-overlay-ctx-sub">일정 선택</div>
+            <div className="board-overlay-ctx-sub">Choose item</div>
             <div className="board-overlay-ctx-scroll">
               {itemMenuOptions.length === 0 ? (
-                <div className="board-overlay-ctx-empty">일정이 없습니다</div>
+                <div className="board-overlay-ctx-empty">No items on this board</div>
               ) : (
                 itemMenuOptions.map(it => (
                   <button
@@ -513,7 +513,7 @@ export const BoardOverlays = memo(function BoardOverlays({
                         {linked.body?.trim() ? (
                           <MarkdownView source={linked.body} className="board-postit-md-linked" />
                         ) : !linked.title?.trim() ? (
-                          <div className="board-postit-linked-empty">연결된 일정에 제목·본문이 없습니다.</div>
+                          <div className="board-postit-linked-empty">Linked item has no title or body.</div>
                         ) : null}
                       </div>
                     ) : null}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME } from '../../constants/dnd'
 import { markdownToPlainText } from '../../utils/markdown'
@@ -7,6 +7,7 @@ import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
 import { formatRepeatSummary, getEffectiveItemRepeat, itemOccursOnDate } from '../../utils/repeat'
 import type { ItemStatus } from '../../types/entities'
 import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck } from '../icons/Icons'
+import { insertNewlineAtCursor } from '../../utils/textareaNewline'
 import './BacklogPanel.css'
 
 const DEFAULT_TAG = 'General'
@@ -14,12 +15,12 @@ const DEFAULT_TAG = 'General'
 function backlogListTitle(item: { title?: string; body?: string }): string {
   const t = item.title?.trim()
   if (t) return t
-  if (!item.body?.trim()) return '(제목 없음)'
+  if (!item.body?.trim()) return '(no title)'
   const line = markdownToPlainText(item.body)
     .split('\n')
     .map(l => l.trim())
     .find(Boolean)
-  return line ? (line.length > 100 ? `${line.slice(0, 100)}…` : line) : '(제목 없음)'
+  return line ? (line.length > 100 ? `${line.slice(0, 100)}…` : line) : '(no title)'
 }
 
 function backlogBodyPreviewPlain(body: string): string {
@@ -47,6 +48,7 @@ export function BacklogPanel() {
   })
   const selection = useBoardStore(s => s.selection)
   const backlogDisplayLimit = useBoardStore(s => s.settings.backlogDisplayLimit)
+  const showNewlineInsertButton = useBoardStore(s => s.settings.showNewlineInsertButton)
   const createItem = useBoardStore(s => s.createItem)
   const createRange = useBoardStore(s => s.createRange)
   const updateItem = useBoardStore(s => s.updateItem)
@@ -58,6 +60,7 @@ export function BacklogPanel() {
   )
 
   const [text, setText] = useState('')
+  const backlogTextareaRef = useRef<HTMLTextAreaElement>(null)
   const [selectedTag, setSelectedTag] = useState(DEFAULT_TAG)
   const [customTag, setCustomTag] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -193,10 +196,12 @@ export function BacklogPanel() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault()
-      handleAdd()
-    }
+    const ne = e.nativeEvent
+    if (ne.key !== 'Enter' && ne.code !== 'NumpadEnter') return
+    if (ne.isComposing) return
+    if (ne.shiftKey || ne.getModifierState('Shift')) return
+    e.preventDefault()
+    handleAdd()
   }
 
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -290,13 +295,30 @@ export function BacklogPanel() {
       <div className="backlog-input-group">
         <div className="backlog-input-row backlog-textarea-row">
           <textarea
+            ref={backlogTextareaRef}
             className="backlog-textarea"
-            placeholder="첫 줄: 제목 · 이후: 본문(마크다운) · Enter=추가 · Shift+Enter=줄바꿈"
+            placeholder={
+              showNewlineInsertButton
+                ? 'First line: title · below: body (markdown) · Enter=add · ↵ or Shift+Enter=newline'
+                : 'First line: title · below: body (markdown) · Enter=add · Shift+Enter=newline'
+            }
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={2}
           />
+          {showNewlineInsertButton ? (
+            <button
+              type="button"
+              className="newline-insert-btn"
+              title="Insert newline"
+              aria-label="Insert newline"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => insertNewlineAtCursor(backlogTextareaRef.current, setText)}
+            >
+              ↵
+            </button>
+          ) : null}
           <button className="backlog-add-btn" onClick={handleAdd} title="Add">
             <IconPlus size={16} />
           </button>

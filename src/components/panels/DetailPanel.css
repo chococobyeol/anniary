@@ -777,14 +777,13 @@
   border-color: var(--status-in-progress);
 }
 
-.detail-help-tooltip {
-  position: absolute;
-  z-index: 200;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+/* Portaled to document.body — position set in JS (viewport clamp) */
+.detail-help-tooltip--portal {
+  position: fixed;
+  z-index: 20000;
+  box-sizing: border-box;
   min-width: 160px;
-  max-width: min(280px, 72vw);
+  max-width: min(280px, calc(100vw - 16px));
   padding: 8px 10px;
   font-size: var(--font-size-xs);
   font-weight: 400;

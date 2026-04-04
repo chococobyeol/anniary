@@ -113,6 +113,7 @@ const initialState: AppState = {
     dayLayout: 'linear',
     zoomInverted: false,
     backlogDisplayLimit: null,
+    showNewlineInsertButton: false,
     boardViewFilter: { ...DEFAULT_BOARD_VIEW_FILTER },
     drawTool: 'pen',
     placeKind: 'memo',
@@ -611,10 +612,11 @@ export const useBoardStore = create<AppState & Actions>()(
   ,
     {
       name: 'anniary-storage',
-      version: 6,
+      version: 8,
       migrate: (persisted, _version) => {
-        const p = persisted as { settings?: AppSettings }
+        const p = persisted as { settings?: AppSettings & { backlogShowNewlineButton?: boolean } }
         if (!p?.settings) return persisted
+        const legacyNewlineBtn = p.settings.backlogShowNewlineButton === true
         const rawTool = p.settings.drawTool
         const drawTool: DrawToolKind =
           rawTool && VALID_DRAW_TOOLS.includes(rawTool) ? rawTool : 'pen'
@@ -646,7 +648,10 @@ export const useBoardStore = create<AppState & Actions>()(
               ? (p.settings.drawShapeFillColor as string)
               : 'transparent',
           drawShapeStrokeWeight: normDrawWeight(p.settings.drawShapeStrokeWeight),
+          showNewlineInsertButton:
+            p.settings.showNewlineInsertButton === true || legacyNewlineBtn,
         }
+        delete (next as { backlogShowNewlineButton?: boolean }).backlogShowNewlineButton
         return { ...p, settings: next }
       },
       partialize: (state) => ({

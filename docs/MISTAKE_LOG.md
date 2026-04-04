@@ -530,3 +530,47 @@
 - 재발 방지: **연결 엔티티의 필드(`ItemEntity.body` 등)** 를 UI에 노출할 때는 저장소 전체 문자열·마크다운 파이프라인을 같은 컴포넌트로 묶을 것. SVG만 쓰면 HTML 마크다운은 `foreignObject` 등 추가 레이어 필요.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 백로그 Shift+Enter 연속 줄바꿈·줄바꿈 버튼 설정
+
+- 증상: Shift+Enter로 줄바꿈을 여러 번 넣을 때 한 번만 들어가거나, 터치에서 줄바꿈이 불편함.
+- 원인(추정): 일부 환경에서 `shiftKey`가 누락되어 두 번째 Enter가 “추가”로 처리됨. Shift+Enter만으로는 터치 UX 한계.
+- 해결: `Enter` 처리 시 `getModifierState('Shift')`로 보강. 설정 `backlogShowNewlineButton` + 입력란 옆 ↵ 버튼으로 커서 위치에 `\n` 삽입(`onMouseDown` preventDefault로 포커스 유지). persist v7 마이그레이션에 기본값 반영.
+- 재발 방지: 수정자 키 의존 단축키는 **nativeEvent.getModifierState**까지 확인. 입력·제출 이중 동작은 **설정 가능한 보조 UI**로 보완.
+- 검증: `npm run build`, `npm run lint` 성공.
+- 관련 파일: `src/types/state.ts`, `src/store/board-store.ts`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/BacklogPanel.css`, `src/components/panels/SettingsPanel.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 마크다운 연속 줄바꿈·showNewlineInsertButton 통일
+
+- 증상: 줄바꿈을 여러 번 넣어도 마크다운 렌더가 한 단계만 반영되는 듯함. 설정에 한글 혼입. 오버레이 메모에 ↵ 없음.
+- 원인: GFM이 연속 `\n`을 문단 하나로 접음. 설정 명이 backlog 전용처럼 보임.
+- 해결: `expandExtraBlankLines`로 3+연속 `\n`에 `<br>` 삽입 후 파싱. `MarkdownView`는 빈 문자열만 스킵. `showNewlineInsertButton`·persist v8·구 키 이관. Settings/ItemDetail placeholder 영어 정리. `textareaNewline`·`newline-insert-btn` 공유, Overlay·Item·Backlog 적용.
+- 검증: `npm run build`, `npm run lint` 성공.
+- 관련 파일: `src/utils/markdown.ts`, `src/utils/textareaNewline.ts`, `src/components/common/MarkdownView.tsx`, `src/theme/global.css`, `src/types/state.ts`, `src/store/board-store.ts`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/detail/ItemDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] UI 문자열 영어 통일(i18n 준비)
+
+- 증상: 오버레이 디테일·Place 설정·백로그 입력·툴바·포스트잇 컨텍스트 메뉴에 한글 라벨·안내가 섞여 있음.
+- 원인: 기능 추가 시 한글 카피로 먼저 추가됨; 일부 블록만 이전에 영어로 정리되어 불일치.
+- 해결: 사용자에게 보이는 문자열만 영어로 통일(Linked item, Width/Height, Body (markdown), Place default memo, backlog placeholder, BoardOverlays 링크 메뉴, TopToolbar flyout/Place 종류 등). 제목 없음 fallback은 `(no title)`, 정렬은 `localeCompare(..., 'en')`.
+- 재발 방지: 새 UI 문구는 기본 영어로 두고, 다국어는 이후 `t('key')` 등으로 치환할 것. 주석·코드 내부 문서는 팀 규칙과 별도.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/BacklogPanel.tsx`, `src/components/board/BoardOverlays.tsx`, `src/components/toolbar/TopToolbar.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 디테일·설정 장문 힌트 → HelpTip
+
+- 증상: 오버레이 링크 안내·Place/줄바꿈 설정에 장문이 패널에 그대로 노출되어 스캔하기 어려움.
+- 원인: 동작 설명을 한 블록으로 붙여 넣음; 일정 디테일의 `HelpTip` 패턴과 불일치.
+- 해결: `OverlayDetail` Linked item 라벨 옆 `HelpTip`(짧은 툴팁 카피). `SettingsPanel`은 Newline 토글 라벨·Place 섹션 제목 옆 `HelpTip`, 해당 `settings-hint-block` 제거. `settings-section-heading`·`settings-label--with-help` 스타일 추가.
+- 재발 방지: 긴 UX 설명은 **패널 본문이 아니라 HelpTip(또는 이후 i18n 키)** 로만 두고, 라벨 옆 한 줄 요약만 유지.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/SettingsPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] HelpTip 뷰포트·패널 클리핑
+
+- 증상: 설정 우측 패널 등 `overflow` 안에서 HelpTip을 띄우면 툴팁이 잘리거나 화면 밖으로 나감.
+- 원인: 툴팁을 앵커 기준 `position: absolute`로만 두어 스크롤 컨테이너에 클립됨; 가로는 중앙 정렬만 해 뷰포트 경계를 보지 않음.
+- 해결: `createPortal(..., document.body)` + `position: fixed` + `getBoundingClientRect`로 좌표 계산 후 가로·세로를 뷰포트에 클램프, 아래 공간 부족 시 위쪽 배치. `scroll`/`resize` 시 재배치. React 19 린트 회피를 위해 닫을 때 `setPos(null)`은 effect가 아니라 `close` 핸들러에서 처리.
+- 재발 방지: 패널·드롭다운 밖으로 나가야 하는 오버레이는 **portal + fixed + 클램프**를 기본으로 검토.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/HelpTip.tsx`, `src/components/panels/DetailPanel.css`, `docs/MISTAKE_LOG.md`

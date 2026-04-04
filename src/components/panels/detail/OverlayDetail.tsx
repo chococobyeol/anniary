@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useBoardStore } from '../../../store/board-store'
 import type { OverlayEntity } from '../../../types/entities'
 import {
@@ -8,7 +8,12 @@ import {
 } from '../../../constants/overlayUi'
 import { hexToRgba, weightToHighlighterWidth, weightToPenWidth, weightToShapeStrokeWidth } from '../../../utils/overlayDraw'
 import { MarkdownView } from '../../common/MarkdownView'
+import { insertNewlineAtCursor } from '../../../utils/textareaNewline'
+import { HelpTip } from './HelpTip'
 import '../DetailPanel.css'
+
+const COPY_LINKED_MEMO_HELP =
+  'Drag a backlog row onto the memo, or open the memo menu in Select (right-click / long-press). The item renders as markdown under your memo. Using Place after choosing an item links it too.'
 
 const EMPTY_ITEM_LIST: { id: string; title: string }[] = []
 
@@ -23,23 +28,40 @@ type OverlayTextFieldInnerProps = {
 
 function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTextFieldInnerProps) {
   const [text, setText] = useState(initialText)
+  const taRef = useRef<HTMLTextAreaElement>(null)
   const updateOverlay = useBoardStore(s => s.updateOverlay)
+  const showNewlineInsertButton = useBoardStore(s => s.settings.showNewlineInsertButton)
   return (
     <>
-      <span className="detail-add-label">본문 (마크다운)</span>
-      <textarea
-        className="detail-add-input overlay-memo-md-textarea"
-        style={{ minHeight: '4rem', resize: 'vertical' }}
-        rows={5}
-        autoFocus={emptyBody}
-        value={text}
-        placeholder="Shift+Enter 로 줄바꿈 · **굵게** `코드` 등"
-        onChange={e => setText(e.target.value)}
-        onBlur={() => updateOverlay(overlayId, { text })}
-      />
+      <span className="detail-add-label">Body (markdown)</span>
+      <div className="detail-md-input-row">
+        <textarea
+          ref={taRef}
+          className="detail-add-input overlay-memo-md-textarea"
+          style={{ minHeight: '4rem', resize: 'vertical' }}
+          rows={5}
+          autoFocus={emptyBody}
+          value={text}
+          placeholder="Enter for newline · **bold** `code`"
+          onChange={e => setText(e.target.value)}
+          onBlur={() => updateOverlay(overlayId, { text })}
+        />
+        {showNewlineInsertButton ? (
+          <button
+            type="button"
+            className="newline-insert-btn"
+            title="Insert newline"
+            aria-label="Insert newline"
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => insertNewlineAtCursor(taRef.current, setText)}
+          >
+            ↵
+          </button>
+        ) : null}
+      </div>
       {text.trim() ? (
         <div className="detail-markdown-preview-wrap">
-          <span className="detail-add-label">미리보기</span>
+          <span className="detail-add-label">Preview</span>
           <MarkdownView source={text} />
         </div>
       ) : null}
@@ -77,8 +99,8 @@ export function OverlayDetail() {
   const itemList = useMemo(() => {
     if (!boardItems) return EMPTY_ITEM_LIST
     return Object.values(boardItems)
-      .map(it => ({ id: it.id, title: it.title || '(제목 없음)' }))
-      .sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+      .map(it => ({ id: it.id, title: it.title || '(no title)' }))
+      .sort((a, b) => a.title.localeCompare(b.title, 'en'))
   }, [boardItems])
 
   const overlayId = selection?.type === 'overlay' ? selection.overlayId : null
@@ -109,7 +131,10 @@ export function OverlayDetail() {
       </div>
       {memoLink && (
         <div className="detail-add-section" style={{ marginBottom: 8 }}>
-          <span className="detail-add-label">연결된 일정</span>
+          <div className="detail-label-row">
+            <span className="detail-add-label" style={{ margin: 0 }}>Linked item</span>
+            <HelpTip text={COPY_LINKED_MEMO_HELP} />
+          </div>
           <select
             className="detail-add-input"
             style={{ width: '100%', marginTop: 4, padding: '6px 8px' }}
@@ -120,7 +145,7 @@ export function OverlayDetail() {
               })
             }
           >
-            <option value="">없음 (일반 메모)</option>
+            <option value="">None (memo only)</option>
             {itemList.map(it => (
               <option key={it.id} value={it.id}>
                 {it.title}
@@ -136,15 +161,10 @@ export function OverlayDetail() {
                 updateOverlay(overlay.id, { linkedItemId: lastTouchedItemId })
               }
             >
-              마지막으로 탭한 일정에 연결
+              Link last opened item
             </button>
           )}
-          <p className="detail-hint" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-            <strong>연결:</strong> 백로그 일정을 포스트잇 위로 드래그하거나, Select 모드에서 포스트잇을 우클릭·길게 눌러(터치) 일정을 고릅니다.
-            연결되면 보드 포스트잇에 일정 <strong>제목·본문 전체</strong>가 마크다운으로 표시됩니다(위 메모와 구분선 아래).
-            일정 선택 뒤 Place로 찍어도 묶입니다.
-          </p>
-          <span className="detail-add-label" style={{ marginTop: 12 }}>메모 종이 색</span>
+          <span className="detail-add-label" style={{ marginTop: 12 }}>Memo paper color</span>
           <div className="overlay-memo-swatches">
             {MEMO_PAPER_COLOR_PRESETS.map(c => (
               <button
@@ -157,10 +177,10 @@ export function OverlayDetail() {
               />
             ))}
           </div>
-          <span className="detail-add-label" style={{ marginTop: 12 }}>크기 (보드 단위)</span>
+          <span className="detail-add-label" style={{ marginTop: 12 }}>Size (board units)</span>
           <div className="detail-add-row overlay-memo-size-row">
             <label className="overlay-memo-size-pair">
-              <span>너비</span>
+              <span>Width</span>
               <input
                 key={`mw-${overlay.id}-${overlay.width}`}
                 type="number"
@@ -176,7 +196,7 @@ export function OverlayDetail() {
               />
             </label>
             <label className="overlay-memo-size-pair">
-              <span>높이</span>
+              <span>Height</span>
               <input
                 key={`mh-${overlay.id}-${overlay.height}`}
                 type="number"
@@ -196,7 +216,7 @@ export function OverlayDetail() {
       )}
       {overlay.type === 'shape' && (
         <div className="detail-add-section" style={{ marginBottom: 8 }}>
-          <span className="detail-add-label">선 색</span>
+          <span className="detail-add-label">Stroke color</span>
           <div className="overlay-memo-swatches">
             {DRAW_PEN_COLOR_PRESETS.map(c => {
               const isHi = overlay.drawTool === 'highlighter'
@@ -220,7 +240,7 @@ export function OverlayDetail() {
             })}
           </div>
           <span className="detail-add-label" style={{ marginTop: 12 }}>
-            선 굵기
+            Stroke weight
           </span>
           <div className="overlay-stroke-weight-row">
             {(() => {
@@ -250,7 +270,7 @@ export function OverlayDetail() {
                   className={`overlay-stroke-weight-btn ${closest === w ? 'active' : ''}`}
                   onClick={() => updateOverlay(overlay.id, { strokeWidthPx: px })}
                 >
-                  {w === 'thin' ? '가늘게' : w === 'thick' ? '굵게' : '보통'}
+                  {w === 'thin' ? 'Thin' : w === 'thick' ? 'Thick' : 'Medium'}
                 </button>
               ))
             })()}
@@ -258,7 +278,7 @@ export function OverlayDetail() {
           {!overlay.pathD && (overlay.drawTool === 'rect' || overlay.drawTool === 'ellipse') ? (
             <>
               <span className="detail-add-label" style={{ marginTop: 12 }}>
-                채우기
+                Fill
               </span>
               <div className="overlay-memo-swatches">
                 {DRAW_SHAPE_FILL_PRESETS.map(c => {
@@ -271,7 +291,7 @@ export function OverlayDetail() {
                     type="button"
                     className={`overlay-memo-swatch overlay-memo-swatch--fill ${fillActive ? 'active' : ''} ${c === 'transparent' ? 'overlay-memo-swatch--transparent' : ''}`}
                     style={c === 'transparent' ? undefined : { backgroundColor: c }}
-                    title={c === 'transparent' ? '없음' : c}
+                    title={c === 'transparent' ? 'None' : c}
                     onClick={() =>
                       updateOverlay(overlay.id, {
                         fillColor: c === 'transparent' ? 'none' : c,

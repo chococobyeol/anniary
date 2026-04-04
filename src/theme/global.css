@@ -32,6 +32,41 @@ input, textarea {
   color: inherit;
 }
 
+.newline-insert-btn {
+  width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-cell);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.newline-insert-btn:hover {
+  background: var(--bg-cell-hover);
+  color: var(--text-primary);
+}
+
+.detail-md-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.detail-md-input-row .detail-add-input,
+.detail-md-input-row .detail-edit-body {
+  flex: 1;
+  min-width: 0;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

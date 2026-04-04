@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useBoardStore } from '../../../store/board-store'
 import {
   DEFAULT_TAG,
@@ -14,6 +14,7 @@ import {
 } from './constants'
 import { HelpTip } from './HelpTip'
 import { MarkdownView } from '../../common/MarkdownView'
+import { insertNewlineAtCursor } from '../../../utils/textareaNewline'
 import type { ItemEntity, ItemRepeatRule, ItemStoredRepeat, Weekday1to7 } from '../../../types/entities'
 import { parseDateKey } from '../../../utils/date'
 import {
@@ -122,6 +123,8 @@ export function ItemDetail() {
   const setSelection = useBoardStore(s => s.setSelection)
   const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
   const setRangeEditPreview = useBoardStore(s => s.setRangeEditPreview)
+  const showNewlineInsertButton = useBoardStore(s => s.settings.showNewlineInsertButton)
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   const item = selection?.type === 'item' ? items[selection.itemId] : undefined
   const linkedRange = item?.rangeId ? ranges[item.rangeId] : undefined
@@ -342,16 +345,31 @@ export function ItemDetail() {
           ))}
         </select>
         <label className="detail-time-label">Content</label>
-        <textarea
-          className="detail-edit-body detail-edit-content-single"
-          value={editContent}
-          onChange={e => setEditContent(e.target.value)}
-          placeholder="첫 줄: 제목 · 이후 줄: 본문 (마크다운)"
-          rows={6}
-        />
-        {editContent.includes('\n') && editContent.split('\n').slice(1).join('\n').trim() ? (
+        <div className="detail-md-input-row">
+          <textarea
+            ref={contentTextareaRef}
+            className="detail-edit-body detail-edit-content-single"
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            placeholder="Line 1: title · following lines: body (markdown)"
+            rows={6}
+          />
+          {showNewlineInsertButton ? (
+            <button
+              type="button"
+              className="newline-insert-btn"
+              title="Insert newline"
+              aria-label="Insert newline"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => insertNewlineAtCursor(contentTextareaRef.current, setEditContent)}
+            >
+              ↵
+            </button>
+          ) : null}
+        </div>
+        {editContent.includes('\n') && editContent.split('\n').slice(1).join('\n').length > 0 ? (
           <div className="detail-markdown-preview-wrap">
-            <span className="detail-add-label">본문 미리보기</span>
+            <span className="detail-add-label">Body preview</span>
             <MarkdownView source={editContent.split('\n').slice(1).join('\n')} />
           </div>
         ) : null}
