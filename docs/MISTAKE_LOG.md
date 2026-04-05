@@ -1,5 +1,7 @@
 # Mistake Retrospective Log
 
+> **타임스탬프:** 새 항목의 날짜·시간은 Cursor 채팅의 "Today's date"만 쓰지 말고, 로컬 터미널 `date '+%Y-%m-%d %H:%M %Z'` 결과를 그대로 쓸 것.
+
 ## [2026-03-17 15:00] 초기 프로젝트 셋업 — Vite 버전 호환 이슈
 
 - 증상: Vite 8 (create-vite@9)이 Node.js 20.18.0에서 실행 불가. `rolldown` 네이티브 바인딩 로드 실패.
@@ -593,6 +595,43 @@
 - 검증: `npm run build` 성공.
 - 관련 파일: `src/utils/textBoxScale.ts`, `src/components/board/BoardOverlays.tsx`, `src/components/board/YearBoard.tsx`, `src/components/icons/Icons.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `src/types/entities.ts`, `src/store/board-store.ts`, `docs/MISTAKE_LOG.md`
 
+## [2026-03-31] 텍스트박스 root 패딩 → 우·하단이 div 타깃이라 드래그 move 끊김
+
+- 증상: 특히 아래·오른쪽 모서리에서 끌어도 이동이 안 되는 것처럼 보임(빌드 문제가 아니라 레이아웃·이벤트 타깃 이슈).
+- 원인: `.board-wb-textbox-root`에 `padding`이 있어 그 띠에서 `pointerdown` 타깃이 `textarea`가 아닌 부모 **div**. `closest('textarea')`가 실패하고 `setPointerCapture(div)` 뒤 SVG `g`의 `onPointerMove`와 연결이 끊김(foreignObject 경계).
+- 해결(1차): 패딩을 ta로 옮김 → 일부 환경에서 `height:100%`/FO로 **우·하단 레이아웃 퇴보** 유발.
+- 해결(최종): **CSS는 원래대로**(패딩은 root). `pointerdown`은 `closest('.board-wb-textbox-root')`로 패딩 띠 포함. `pointermove`/`up`/`cancel`은 **textarea가 아니라 root**에서 처리해 버블+캡처 모두 커버.
+- 재발 방지: 래퍼 패딩은 div 타깃이 됨 — **레이아웃을 억지로 바꾸기보다** 래퍼에 포인터 브리지·히트 조건을 맞출 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 선택 SE 핸들이 프레임 안과 겹쳐 모서리 이동 불가로 보임
+
+- 증상: 아래 모서리를 잡아도 끌고 이동이 안 되는 것 같음.
+- 원인: 리사이즈 핸들 rect가 `rw-2.8`·`rh-2.8` 기준으로 **프레임 내부에 큰 영역**을 덮어, 그 구간의 pointerdown이 항상 리사이즈로만 처리됨.
+- 해결: `RESIZE_HANDLE_GAP`·`RESIZE_HANDLE_SIZE`로 핸들을 **`(rw, rh)` 바깥** 우하단에 배치; 시각적 모서리는 본문/캐처·textarea 이동으로 사용.
+- 재발 방지: **이동 vs 리사이즈** 히트가 겹치지 않게—핸들은 바운딩 박스 **밖** 또는 명확한 별 영역으로 둘 것(레이블·모드 분리 포함).
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 텍스트박스 우·아래(본문보다 큰 프레임)에서 드래그 불가
+
+- 증상: 오른쪽/아래 모서리 쪽을 잡고 끌 때 이동이 안 되는 것처럼 보임.
+- 원인: `hitCap`(콘텐츠 높이+ 패딩)보다 `ly`가 크면 `pointerdown`에서 바로 return해 pending/본문 드래그가 시작되지 않음. 프레임이 텍스트보다 크면 하단·우측 하단이 전부 해당. (우하단 아주 작은 영역은 리사이즈 핸들이라 리사이즈만 됨.)
+- 해결: 텍스트박스 분기에서 `hitCap` 조기 return 제거. 프레임 전체에서 선택·이동과 textarea pending이 동작하도록 통일. `textBoxInteractiveHeight` import 제거.
+- 재발 방지: “빈 영역 포인터 통과”를 의도할 때는 **`pointer-events: none` 등**으로 실제로 통과시키고, **히트 판정만** 두면 잘림·무동작이 난다.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 텍스트박스 본문에서 드래그 이동(pending + foreignObject 포인터)
+
+- 증상: 선택된 텍스트박스에서 본문(textarea)을 잡고 끌면 거의 이동하지 않음(상단 얇은 레일만 잡기 어려움).
+- 원인: (1) textarea `pointerdown`에서 조기 return으로 오버레이 드래그가 시작되지 않음. (2) `setPointerCapture(textarea)` 이후 `pointermove`가 SVG `<g>`까지 안정적으로 전달되지 않는 경우가 있음(foreignObject·HTML 경계).
+- 해결: 포스트잇과 동일하게 `pendingWbTextDragRef` + 이동 임계 초과 시 `blur` 후 본문 드래그로 승격. `textarea`에 `onPointerMove` / `onPointerUp` / `onPointerCancel`을 연결해 `stopPropagation`과 함께 `onOverlayPointerMove`·`onOverlayPointerUp`을 직접 호출.
+- 재발 방지: **SVG 안 `foreignObject` 하위 HTML**에서 캡처한 포인터는 **부모 `<g>`만 믿지 말고**, 동일 제스처는 타깃 요소에도 핸들러를 붙여 검증할 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
 ## [2026-03-31] 텍스트박스 셀렉트 — 좌표계 오류 + 포인터 미수신
 
 - 증상: 셀렉트 모드에서 텍스트박스를 눌러도 선택이 안 됨.
@@ -600,4 +639,31 @@
 - 해결: `pointerInOverlayLocal`에서 `e.currentTarget`(오버레이 g)의 `getScreenCTM().inverse()`만 사용. 셀렉트 시 전면 `pointer-events: all` 투명 `rect`(catcher) 추가. 편집 시 `foreignObject`는 `pointer-events: all`.
 - 재발 방지: 오버레이 내부 히트는 **그룹 로컬 CTM**으로만 변환하고, 잡을 영역이 없으면 **명시적 투명 rect**로 받기.
 - 검증: `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-05 14:38 KST] 텍스트박스 하단 모서리 드래그 — 히트 갭·좌표 경계
+
+- 증상: 아래 모서리에서 끌어 이동이 여전히 안 됨. 로그 날짜가 실제와 어긋남(에이전트가 대화 힌트 날짜만 사용).
+- 원인: (1) `foreignObject` 높이가 이론상 `rh`에 맞아도 **부동소수/렌더**로 하단 한 줄이 **캐처 rect**만 맞고, `closest('.board-wb-textbox-root')`·루트 포인터 브리지가 안 탐. (2) `ly > rh`처럼 **경계 바깥으로 분류**되는 CTM 오차. (3) 회고 로그 타임스탬프를 시스템 시각이 아닌 고정 힌트로 기재.
+- 해결: 선택 시 `foH`에 `WB_FO_HEIGHT_EXTRA`. `pointerdown`에 `OVERLAY_HIT_EDGE_TOL`. 선택된 상태에서 **`board-wb-textbox-catcher`** 위에서도 pending·캡처 허용. `docs/MISTAKE_LOG.md`에 **실제 `date` 사용** 안내 추가, 본 항목은 `2026-04-05 14:38 KST` 기준.
+- 재발 방지: FO vs 캐처 **동일 박스 경계**에 두지 말고 살짝 겹치거나 허용 오차를 둘 것. 회고는 **항상 로컬 `date`**로 찍을 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-05 14:42 KST] 텍스트박스(특히 하단)·textarea 드래그 — 브라우저 기본 제스처가 move 끊음
+
+- 증상: 아래 모서리·본문에서 끌어 이동이 계속 안 됨. 히트/FO 보정만 반복해도 재현.
+- 원인(확인): **`textarea`에서 포인터를 잡고 움직일 때** 브라우저가 **텍스트 선택·스크롤** 등 **기본 동작**으로 포인터를 소비해, `pointermove`가 **React/SVG `g` 버블**이나 루트 `div` 브리지까지 **안정적으로 도달하지 않는** 경우가 있음. foreignObject만의 문제가 아님. (참고: foreignObject/React 포인터 관련 StackOverflow, WebKit foreignObject 클릭 이슈.)
+- 해결: 텍스트박스 **DOM/캐처에서 pending 시작 시** `window`에 `pointermove`/`pointerup`/`pointercancel`을 붙여 **리사이즈와 같은 패턴**으로 이동·업 처리. `onOverlayPointerUp` **후** `finally`에서 리스너 제거. 텍스트박스에 대해 **`g`의 move/up/cancel**은 윈도우 브리지가 살아 있는 동안 **스킵**해 이중 커밋 방지. `releasePointerCapture`는 `pointerdown` 타깃 ref로 통일.
+- 재발 방지: **textarea/contenteditable**에서 캔버스·오버레이 드래그를 섞을 때 **`window` 포인터 파이프** 또는 명시적 `preventDefault` 전략을 설계에 포함할 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-05 14:50 KST] 텍스트박스 하단만 드래그 실패 — 상단 SVG 레일 vs 하단 textarea만
+
+- 증상(Arc 등): 위·왼·오른은 되는데 **아래 모서리만** 이동이 안 됨.
+- 원인: **상단**은 투명 SVG `rect`로만 잡혀 textarea 기본 동작과 분리됨. **하단**은 그 레일이 없어 **textarea/FO** 한 줄에만 의존 → 선택·스크롤과 겹쳐 한 변만 깨지는 비대칭.
+- 해결: 선택·언락 시 **하단 SVG 드래그 레일** 추가(상단과 동일 두께, 박스 매우 낮을 때 비례 축소), `foreignObject` 높이를 `rh - 상하 레일`로 맞춤.
+- 재발 방지: 잡기(grab) 축은 **SVG와 HTML 입력층을 같은 변에서 섞지 말 것**.
+- 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`

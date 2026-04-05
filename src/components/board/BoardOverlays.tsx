@@ -13,7 +13,6 @@ import type { InteractionMode } from '../../types/state'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME, dataTransferHasBacklogItem } from '../../constants/dnd'
 import { MarkdownView } from '../common/MarkdownView'
-import { textBoxInteractiveHeight } from '../../utils/textBoxHit'
 import { scaledTextBoxFontPx } from '../../utils/textBoxScale'
 import { resolveTextBoxFill, resolveTextBoxStroke } from '../../utils/overlayAppearance'
 import { textBoxFontStack } from '../../constants/textBoxFonts'
@@ -57,6 +56,14 @@ function isWhiteboardTextBox(o: OverlayEntity): boolean {
 }
 
 const TEXTBOX_DRAG_RAIL = 1.35
+/** CTM/부동소수·하단 1px 갭으로 `ly===rh` 등이 밖으로 밀려 return 되는 것 방지 */
+const OVERLAY_HIT_EDGE_TOL = 0.14
+/** foreignObject 높이를 살짝 넘겨(선택 시) 하단이 캐처 rect만 맞는 경우 줄임 */
+const WB_FO_HEIGHT_EXTRA = 0.2
+
+/** 선택 시 SE 핸들 — 프레임 `(0…rw)×(0…rh)` 안과 겹치면 사용자가 ‘모서리=이동’으로 착각하기 쉬움 → 박스 바깥 우하단에 둠 */
+const RESIZE_HANDLE_GAP = 0.12
+const RESIZE_HANDLE_SIZE = 3.4
 
 type WbTextBoxProps = {
   o: OverlayEntity
@@ -201,6 +208,18 @@ export const BoardOverlays = memo(function BoardOverlays({
     origY: number
     scale: number
   } | null>(null)
+  /** 텍스트박스: textarea에서 클릭은 캐럿용, 움직임이 임계 넘으면 드래그(포스트잇과 동일 패턴) */
+  const pendingWbTextDragRef = useRef<{
+    id: string
+    startCX: number
+    startCY: number
+    origX: number
+    origY: number
+    scale: number
+  } | null>(null)
+  /** textarea는 브라우저가 텍스트 선택/스크롤로 포인터를 먹어 DOM 버블이 끊길 수 있음 → window 리스너로 move/up 보장 */
+  const wbTextWindowCleanupRef = useRef<(() => void) | null>(null)
+  const wbTextPointerDownTargetRef = useRef<Element | null>(null)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [overlayMenu, setOverlayMenu] = useState<{
@@ -230,6 +249,11 @@ export const BoardOverlays = memo(function BoardOverlays({
     }
   }, [])
 
+  const clearWbTextWindowListeners = useCallback(() => {
+    wbTextWindowCleanupRef.current?.()
+    wbTextWindowCleanupRef.current = null
+  }, [])
+
   useEffect(() => {
     if (!overlayMenu) return
     const onKey = (e: KeyboardEvent) => {
@@ -248,9 +272,20 @@ export const BoardOverlays = memo(function BoardOverlays({
     }
   }, [overlayMenu])
 
+  useEffect(
+    () => () => {
+      clearWbTextWindowListeners()
+      wbTextPointerDownTargetRef.current = null
+    },
+    [clearWbTextWindowListeners]
+  )
+
   const openOverlayMenuAt = useCallback((clientX: number, clientY: number, overlayId: string) => {
     clearLongPressTimer()
+    clearWbTextWindowListeners()
+    wbTextPointerDownTargetRef.current = null
     pendingMemoDragRef.current = null
+    pendingWbTextDragRef.current = null
     dragRef.current = null
     setDragDelta(null)
     setOverlayMenu({
@@ -258,7 +293,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       clientY: Math.min(clientY, window.innerHeight - 16),
       overlayId,
     })
-  }, [clearLongPressTimer])
+  }, [clearLongPressTimer, clearWbTextWindowListeners])
 
   const startMemoLongPress = useCallback(
     (clientX: number, clientY: number, overlayId: string) => {
@@ -266,10 +301,105 @@ export const BoardOverlays = memo(function BoardOverlays({
       longPressTimerRef.current = setTimeout(() => {
         longPressTimerRef.current = null
         pendingMemoDragRef.current = null
+        pendingWbTextDragRef.current = null
         openOverlayMenuAt(clientX, clientY, overlayId)
       }, LONG_PRESS_MS)
     },
     [clearLongPressTimer, openOverlayMenuAt]
+  )
+
+  const onOverlayPointerMove = useCallback(
+    (e: React.PointerEvent, o: OverlayEntity) => {
+      const pending = pendingMemoDragRef.current
+      if (pending && pending.id === o.id && interactionMode === 'select') {
+        const dxPx = e.clientX - pending.startCX
+        const dyPx = e.clientY - pending.startCY
+        if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
+          clearLongPressTimer()
+          dragRef.current = {
+            id: pending.id,
+            startClientX: pending.startCX,
+            startClientY: pending.startCY,
+            origX: pending.origX,
+            origY: pending.origY,
+            scale: pending.scale,
+          }
+          pendingMemoDragRef.current = null
+          setDragDelta({ id: o.id, dx: dxPx / pending.scale, dy: dyPx / pending.scale })
+        }
+        return
+      }
+
+      const pWb = pendingWbTextDragRef.current
+      if (pWb && pWb.id === o.id && interactionMode === 'select') {
+        const dxPx = e.clientX - pWb.startCX
+        const dyPx = e.clientY - pWb.startCY
+        if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
+          const ae = document.activeElement
+          if (ae instanceof HTMLTextAreaElement && ae.classList.contains('board-wb-textbox-ta')) {
+            ae.blur()
+          }
+          dragRef.current = {
+            id: pWb.id,
+            startClientX: pWb.startCX,
+            startClientY: pWb.startCY,
+            origX: pWb.origX,
+            origY: pWb.origY,
+            scale: pWb.scale,
+          }
+          pendingWbTextDragRef.current = null
+          setDragDelta({ id: o.id, dx: dxPx / pWb.scale, dy: dyPx / pWb.scale })
+        }
+        return
+      }
+
+      const d = dragRef.current
+      if (!d || d.id !== o.id) return
+      const dx = (e.clientX - d.startClientX) / d.scale
+      const dy = (e.clientY - d.startClientY) / d.scale
+      setDragDelta({ id: o.id, dx, dy })
+    },
+    [clearLongPressTimer, interactionMode]
+  )
+
+  const onOverlayPointerUp = useCallback(
+    (e: React.PointerEvent, o: OverlayEntity) => {
+      clearLongPressTimer()
+      const releaseTarget = wbTextPointerDownTargetRef.current
+      wbTextPointerDownTargetRef.current = null
+
+      const pending = pendingMemoDragRef.current
+      if (pending && pending.id === o.id) {
+        pendingMemoDragRef.current = null
+      }
+      const pWb = pendingWbTextDragRef.current
+      if (pWb && pWb.id === o.id) {
+        pendingWbTextDragRef.current = null
+      }
+
+      const d = dragRef.current
+      if (!d || d.id !== o.id) {
+        try {
+          ;(releaseTarget ?? (e.target as Element)).releasePointerCapture?.(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+        return
+      }
+      dragRef.current = null
+      const dx = (e.clientX - d.startClientX) / d.scale
+      const dy = (e.clientY - d.startClientY) / d.scale
+      setDragDelta(null)
+      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+        updateOverlay(o.id, { x: d.origX + dx, y: d.origY + dy })
+      }
+      try {
+        ;(releaseTarget ?? (e.target as Element)).releasePointerCapture?.(e.pointerId)
+      } catch {
+        /* ignore */
+      }
+    },
+    [clearLongPressTimer, updateOverlay]
   )
 
   const onOverlayPointerDown = useCallback(
@@ -281,16 +411,53 @@ export const BoardOverlays = memo(function BoardOverlays({
       const rh0 = o.height + (rd0?.dh ?? 0)
 
       if (isWhiteboardTextBox(o)) {
-        if ((e.target as HTMLElement).closest?.('textarea.board-wb-textbox-ta')) {
+        const loc = pointerInOverlayLocal(e)
+        const tol = OVERLAY_HIT_EDGE_TOL
+        if (!loc || loc.lx < -tol || loc.lx > rw0 + tol || loc.ly < -tol || loc.ly > rh0 + tol) return
+
+        const elT = e.target
+        const onCatcher =
+          elT instanceof SVGElement && elT.classList.contains('board-wb-textbox-catcher')
+        const inWbDom = elT instanceof Element && Boolean(elT.closest?.('.board-wb-textbox-root'))
+
+        if (inWbDom || (onCatcher && o.id === selectedOverlayId)) {
           e.stopPropagation()
+          wbTextPointerDownTargetRef.current = e.target as Element
+          const view = useBoardStore.getState().view
+          pendingWbTextDragRef.current = {
+            id: o.id,
+            startCX: e.clientX,
+            startCY: e.clientY,
+            origX: o.x,
+            origY: o.y,
+            scale: view.scale,
+          }
+          ;(e.target as Element).setPointerCapture?.(e.pointerId)
+
+          const pointerId = e.pointerId
+          clearWbTextWindowListeners()
+          const winMove = (ev: PointerEvent) => {
+            if (ev.pointerId !== pointerId) return
+            onOverlayPointerMove(ev as unknown as React.PointerEvent<Element>, o)
+          }
+          const winUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pointerId) return
+            try {
+              onOverlayPointerUp(ev as unknown as React.PointerEvent<Element>, o)
+            } finally {
+              clearWbTextWindowListeners()
+            }
+          }
+          window.addEventListener('pointermove', winMove)
+          window.addEventListener('pointerup', winUp)
+          window.addEventListener('pointercancel', winUp)
+          wbTextWindowCleanupRef.current = () => {
+            window.removeEventListener('pointermove', winMove)
+            window.removeEventListener('pointerup', winUp)
+            window.removeEventListener('pointercancel', winUp)
+          }
           return
         }
-        const loc = pointerInOverlayLocal(e)
-        if (!loc || loc.lx < 0 || loc.lx > rw0 || loc.ly < 0 || loc.ly > rh0) return
-        const isSelTb = o.id === selectedOverlayId
-        const baseHit = textBoxInteractiveHeight(o, rw0, rh0)
-        const hitCap = Math.min(rh0, baseHit + (isSelTb ? TEXTBOX_DRAG_RAIL : 0))
-        if (loc.ly > hitCap) return
       }
 
       e.stopPropagation()
@@ -325,71 +492,17 @@ export const BoardOverlays = memo(function BoardOverlays({
       setDragDelta({ id: o.id, dx: 0, dy: 0 })
       ;(e.target as Element).setPointerCapture?.(e.pointerId)
     },
-    [ensureLeftPanelOpen, interactionMode, resizeDelta, selectedOverlayId, setSelection, startMemoLongPress]
-  )
-
-  const onOverlayPointerMove = useCallback(
-    (e: React.PointerEvent, o: OverlayEntity) => {
-      const pending = pendingMemoDragRef.current
-      if (pending && pending.id === o.id && interactionMode === 'select') {
-        const dxPx = e.clientX - pending.startCX
-        const dyPx = e.clientY - pending.startCY
-        if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
-          clearLongPressTimer()
-          dragRef.current = {
-            id: pending.id,
-            startClientX: pending.startCX,
-            startClientY: pending.startCY,
-            origX: pending.origX,
-            origY: pending.origY,
-            scale: pending.scale,
-          }
-          pendingMemoDragRef.current = null
-          setDragDelta({ id: o.id, dx: dxPx / pending.scale, dy: dyPx / pending.scale })
-        }
-        return
-      }
-
-      const d = dragRef.current
-      if (!d || d.id !== o.id) return
-      const dx = (e.clientX - d.startClientX) / d.scale
-      const dy = (e.clientY - d.startClientY) / d.scale
-      setDragDelta({ id: o.id, dx, dy })
-    },
-    [clearLongPressTimer, interactionMode]
-  )
-
-  const onOverlayPointerUp = useCallback(
-    (e: React.PointerEvent, o: OverlayEntity) => {
-      clearLongPressTimer()
-      const pending = pendingMemoDragRef.current
-      if (pending && pending.id === o.id) {
-        pendingMemoDragRef.current = null
-      }
-
-      const d = dragRef.current
-      if (!d || d.id !== o.id) {
-        try {
-          ;(e.target as Element).releasePointerCapture?.(e.pointerId)
-        } catch {
-          /* ignore */
-        }
-        return
-      }
-      dragRef.current = null
-      const dx = (e.clientX - d.startClientX) / d.scale
-      const dy = (e.clientY - d.startClientY) / d.scale
-      setDragDelta(null)
-      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-        updateOverlay(o.id, { x: d.origX + dx, y: d.origY + dy })
-      }
-      try {
-        ;(e.target as Element).releasePointerCapture?.(e.pointerId)
-      } catch {
-        /* ignore */
-      }
-    },
-    [clearLongPressTimer, updateOverlay]
+    [
+      clearWbTextWindowListeners,
+      ensureLeftPanelOpen,
+      interactionMode,
+      onOverlayPointerMove,
+      onOverlayPointerUp,
+      resizeDelta,
+      selectedOverlayId,
+      setSelection,
+      startMemoLongPress,
+    ]
   )
 
   const onMemoContextMenu = useCallback(
@@ -399,6 +512,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       e.stopPropagation()
       clearLongPressTimer()
       pendingMemoDragRef.current = null
+      pendingWbTextDragRef.current = null
       openOverlayMenuAt(e.clientX, e.clientY, o.id)
     },
     [clearLongPressTimer, interactionMode, openOverlayMenuAt]
@@ -591,14 +705,44 @@ export const BoardOverlays = memo(function BoardOverlays({
           const showPostitHtml =
             isPostitMemo && (Boolean(bodyText) || Boolean(linked))
 
+          /** 상단은 SVG 드래그 레일이라 동작하는데 하단만 textarea(기본 선택·스크롤)에 묶여 Arc 등에서 끊김 → 하단도 동일 패턴 SVG 레일 */
+          const showWbGrabRails =
+            isWbText && isSel && interactionMode === 'select' && !o.locked
+          let wbTopRail = 0
+          let wbBottomRail = 0
+          if (showWbGrabRails) {
+            wbTopRail = TEXTBOX_DRAG_RAIL
+            wbBottomRail = TEXTBOX_DRAG_RAIL
+            if (rh < wbTopRail + wbBottomRail + 0.12) {
+              const slack = Math.max(0.1, rh - 0.08)
+              wbTopRail = Math.min(TEXTBOX_DRAG_RAIL, slack * 0.48)
+              wbBottomRail = Math.min(TEXTBOX_DRAG_RAIL, slack - wbTopRail)
+            }
+          }
+          const wbFoY = showWbGrabRails ? wbTopRail : 0
+          const wbReserved = showWbGrabRails ? wbTopRail + wbBottomRail : 0
+          const wbFoH = Math.max(
+            0.12,
+            rh - wbReserved + (isWbText && isSel ? WB_FO_HEIGHT_EXTRA : 0)
+          )
+
           return (
             <g
               key={o.id}
               transform={`translate(${ox}, ${oy})`}
               onPointerDown={e => onOverlayPointerDown(e, o)}
-              onPointerMove={e => onOverlayPointerMove(e, o)}
-              onPointerUp={e => onOverlayPointerUp(e, o)}
-              onPointerCancel={e => onOverlayPointerUp(e, o)}
+              onPointerMove={e => {
+                if (wbTextWindowCleanupRef.current !== null && isWbText) return
+                onOverlayPointerMove(e, o)
+              }}
+              onPointerUp={e => {
+                if (wbTextWindowCleanupRef.current !== null && isWbText) return
+                onOverlayPointerUp(e, o)
+              }}
+              onPointerCancel={e => {
+                if (wbTextWindowCleanupRef.current !== null && isWbText) return
+                onOverlayPointerUp(e, o)
+              }}
               onContextMenu={isPostitMemo ? e => onMemoContextMenu(e, o) : undefined}
               style={{
                 cursor: interactionMode === 'select' && !o.locked ? 'grab' : undefined,
@@ -646,20 +790,30 @@ export const BoardOverlays = memo(function BoardOverlays({
                     o={o}
                     rw={rw}
                     rh={rh}
-                    foY={isSel ? TEXTBOX_DRAG_RAIL : 0}
-                    foH={Math.max(0.2, rh - (isSel ? TEXTBOX_DRAG_RAIL : 0))}
+                    foY={wbFoY}
+                    foH={wbFoH}
                     isSel={isSel}
                     interactionMode={interactionMode}
                   />
-                  {isSel && interactionMode === 'select' && !o.locked ? (
-                    <rect
-                      y={0}
-                      width={rw}
-                      height={TEXTBOX_DRAG_RAIL}
-                      fill="transparent"
-                      pointerEvents="all"
-                      style={{ cursor: 'grab' }}
-                    />
+                  {showWbGrabRails ? (
+                    <>
+                      <rect
+                        y={0}
+                        width={rw}
+                        height={wbTopRail}
+                        fill="transparent"
+                        pointerEvents="all"
+                        style={{ cursor: 'grab' }}
+                      />
+                      <rect
+                        y={rh - wbBottomRail}
+                        width={rw}
+                        height={wbBottomRail}
+                        fill="transparent"
+                        pointerEvents="all"
+                        style={{ cursor: 'grab' }}
+                      />
+                    </>
                   ) : null}
                 </>
               ) : (
@@ -778,10 +932,10 @@ export const BoardOverlays = memo(function BoardOverlays({
                   {!o.locked && (
                     <rect
                       className="board-overlay-resize-handle"
-                      x={rw - 2.8}
-                      y={rh - 2.8}
-                      width={4.2}
-                      height={4.2}
+                      x={rw + RESIZE_HANDLE_GAP}
+                      y={rh + RESIZE_HANDLE_GAP}
+                      width={RESIZE_HANDLE_SIZE}
+                      height={RESIZE_HANDLE_SIZE}
                       rx={0.4}
                       onPointerDown={e => onResizePointerDown(e, o)}
                     />
