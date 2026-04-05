@@ -1,10 +1,22 @@
-import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react'
+import {
+  memo,
+  useRef,
+  useCallback,
+  useState,
+  useEffect,
+  useMemo,
+  useLayoutEffect,
+} from 'react'
 import { createPortal } from 'react-dom'
-import type { OverlayEntity } from '../../types/entities'
+import type { DrawToolKind, OverlayEntity } from '../../types/entities'
 import type { InteractionMode } from '../../types/state'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME, dataTransferHasBacklogItem } from '../../constants/dnd'
 import { MarkdownView } from '../common/MarkdownView'
+import { textBoxInteractiveHeight } from '../../utils/textBoxHit'
+import { scaledTextBoxFontPx } from '../../utils/textBoxScale'
+import { resolveTextBoxFill, resolveTextBoxStroke } from '../../utils/overlayAppearance'
+import { textBoxFontStack } from '../../constants/textBoxFonts'
 import './BoardOverlays.css'
 
 const EMPTY_ITEMS: Record<string, never> = {}
@@ -22,8 +34,127 @@ function overlayZOrder(a: OverlayEntity, b: OverlayEntity): number {
 function minOverlaySize(o: OverlayEntity): { minW: number; minH: number } {
   if (o.type === 'sticker') return { minW: 6, minH: 6 }
   if (o.type === 'text' && o.role === 'semantic') return { minW: 12, minH: 8 }
+  if (o.type === 'text' && o.drawTool === 'textbox') return { minW: 4, minH: 2.5 }
   return { minW: 0.45, minH: 0.45 }
 }
+
+/** `onPointerDown`이 붙은 오버레이 `<g>` 기준 로컬 좌표 (0…width, 0…height) */
+function pointerInOverlayLocal(e: React.PointerEvent<Element>): { lx: number; ly: number } | null {
+  const g = e.currentTarget as SVGGElement
+  const svg = g.ownerSVGElement
+  if (!svg) return null
+  const pt = svg.createSVGPoint()
+  pt.x = e.clientX
+  pt.y = e.clientY
+  const ctm = g.getScreenCTM()
+  if (!ctm) return null
+  const p = pt.matrixTransform(ctm.inverse())
+  return { lx: p.x, ly: p.y }
+}
+
+function isWhiteboardTextBox(o: OverlayEntity): boolean {
+  return o.type === 'text' && o.role === 'decorative' && o.drawTool === 'textbox'
+}
+
+const TEXTBOX_DRAG_RAIL = 1.35
+
+type WbTextBoxProps = {
+  o: OverlayEntity
+  rw: number
+  rh: number
+  foY: number
+  foH: number
+  isSel: boolean
+  interactionMode: InteractionMode
+}
+
+const WhiteboardTextBoxContent = memo(function WhiteboardTextBoxContent({
+  o,
+  rw,
+  rh,
+  foY,
+  foH,
+  isSel,
+  interactionMode,
+}: WbTextBoxProps) {
+  const view = useBoardStore(s => s.view)
+  const updateOverlay = useBoardStore(s => s.updateOverlay)
+  const scale = Math.max(view.scale, 0.01)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const baseFont = o.textBoxFontSizePx ?? 13
+  const fontPx = scaledTextBoxFontPx(baseFont, o.width, o.height, rw, rh)
+  const fontStack = textBoxFontStack(o.textBoxFontKey)
+  const color = o.textBoxTextColor || 'var(--text-primary)'
+  const text = o.text ?? ''
+
+  const syncContentHit = useCallback(() => {
+    const el = isSel ? taRef.current : contentRef.current
+    if (!el) return
+    const sh = el.scrollHeight
+    const padPx = 6
+    const contentBoard = Math.max(2.5, (sh + padPx) / scale)
+    const hitOnly = Math.min(rh, contentBoard)
+    const prev = o.textBoxContentHeight ?? -1
+    if (Math.abs(hitOnly - prev) < 0.04) return
+    updateOverlay(o.id, { textBoxContentHeight: hitOnly })
+  }, [isSel, o.id, o.textBoxContentHeight, rh, scale, updateOverlay])
+
+  useLayoutEffect(() => {
+    if (interactionMode !== 'select') return
+    syncContentHit()
+  }, [text, rw, foH, fontPx, isSel, interactionMode, syncContentHit, o.textBoxFontKey])
+
+  useEffect(() => {
+    if (!isSel || interactionMode !== 'select') return
+    const t = window.setTimeout(() => taRef.current?.focus(), 0)
+    return () => clearTimeout(t)
+  }, [isSel, interactionMode, o.id])
+
+  return (
+    <foreignObject
+      x={0}
+      y={foY}
+      width={rw}
+      height={foH}
+      className="board-wb-textbox-fo"
+      pointerEvents={isSel ? 'all' : 'none'}
+    >
+      <div
+        className="board-wb-textbox-root"
+        {...({ xmlns: 'http://www.w3.org/1999/xhtml' } as { xmlns: string })}
+      >
+        {isSel ? (
+          <textarea
+            ref={taRef}
+            className="board-wb-textbox-ta"
+            style={{ fontSize: fontPx, fontFamily: fontStack, color }}
+            value={text}
+            placeholder="Text"
+            spellCheck={false}
+            onChange={e => updateOverlay(o.id, { text: e.target.value })}
+            onInput={ev => {
+              if ((ev.nativeEvent as InputEvent).isComposing) return
+              syncContentHit()
+            }}
+          />
+        ) : (
+          <div
+            ref={contentRef}
+            className="board-wb-textbox-readonly"
+            style={{ fontSize: fontPx, fontFamily: fontStack, color }}
+          >
+            {text.trim() ? (
+              <MarkdownView source={text} className="board-wb-textbox-md" />
+            ) : (
+              <span className="board-wb-textbox-placeholder">Text</span>
+            )}
+          </div>
+        )}
+      </div>
+    </foreignObject>
+  )
+})
 
 const LONG_PRESS_MS = 520
 const DRAG_THRESHOLD_PX = 8
@@ -82,11 +213,13 @@ export const BoardOverlays = memo(function BoardOverlays({
     id: string
     origW: number
     origH: number
+    origFontPx: number
     startCX: number
     startCY: number
     scale: number
     type: OverlayEntity['type']
     role: OverlayEntity['role']
+    drawTool?: DrawToolKind
   } | null>(null)
   const [resizeDelta, setResizeDelta] = useState<{ id: string; dw: number; dh: number } | null>(null)
 
@@ -142,6 +275,24 @@ export const BoardOverlays = memo(function BoardOverlays({
   const onOverlayPointerDown = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
       if (interactionMode !== 'select' || o.locked) return
+
+      const rd0 = resizeDelta?.id === o.id ? resizeDelta : null
+      const rw0 = o.width + (rd0?.dw ?? 0)
+      const rh0 = o.height + (rd0?.dh ?? 0)
+
+      if (isWhiteboardTextBox(o)) {
+        if ((e.target as HTMLElement).closest?.('textarea.board-wb-textbox-ta')) {
+          e.stopPropagation()
+          return
+        }
+        const loc = pointerInOverlayLocal(e)
+        if (!loc || loc.lx < 0 || loc.lx > rw0 || loc.ly < 0 || loc.ly > rh0) return
+        const isSelTb = o.id === selectedOverlayId
+        const baseHit = textBoxInteractiveHeight(o, rw0, rh0)
+        const hitCap = Math.min(rh0, baseHit + (isSelTb ? TEXTBOX_DRAG_RAIL : 0))
+        if (loc.ly > hitCap) return
+      }
+
       e.stopPropagation()
       e.preventDefault()
       const view = useBoardStore.getState().view
@@ -174,7 +325,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       setDragDelta({ id: o.id, dx: 0, dy: 0 })
       ;(e.target as Element).setPointerCapture?.(e.pointerId)
     },
-    [ensureLeftPanelOpen, interactionMode, setSelection, startMemoLongPress]
+    [ensureLeftPanelOpen, interactionMode, resizeDelta, selectedOverlayId, setSelection, startMemoLongPress]
   )
 
   const onOverlayPointerMove = useCallback(
@@ -296,11 +447,13 @@ export const BoardOverlays = memo(function BoardOverlays({
         id: o.id,
         origW: o.width,
         origH: o.height,
+        origFontPx: o.textBoxFontSizePx ?? 13,
         startCX: e.clientX,
         startCY: e.clientY,
         scale: view.scale,
         type: o.type,
         role: o.role,
+        drawTool: o.drawTool,
       }
       setResizeDelta({ id: o.id, dw: 0, dh: 0 })
       const el = e.currentTarget
@@ -309,8 +462,13 @@ export const BoardOverlays = memo(function BoardOverlays({
       const onMove = (ev: PointerEvent) => {
         const r = resizeRef.current
         if (!r || r.id !== o.id) return
-        const dw = (ev.clientX - r.startCX) / r.scale
-        const dh = (ev.clientY - r.startCY) / r.scale
+        let dw = (ev.clientX - r.startCX) / r.scale
+        let dh = (ev.clientY - r.startCY) / r.scale
+        if (r.drawTool === 'textbox' && ev.shiftKey) {
+          const s = Math.max(r.origW + dw, r.origH + dh)
+          dw = s - r.origW
+          dh = s - r.origH
+        }
         setResizeDelta({ id: o.id, dw, dh })
       }
 
@@ -322,13 +480,23 @@ export const BoardOverlays = memo(function BoardOverlays({
         resizeRef.current = null
         setResizeDelta(null)
         if (r) {
-          const dw = (ev.clientX - r.startCX) / r.scale
-          const dh = (ev.clientY - r.startCY) / r.scale
-          const ghost = { type: r.type, role: r.role } as OverlayEntity
+          let dw = (ev.clientX - r.startCX) / r.scale
+          let dh = (ev.clientY - r.startCY) / r.scale
+          if (r.drawTool === 'textbox' && ev.shiftKey) {
+            const s = Math.max(r.origW + dw, r.origH + dh)
+            dw = s - r.origW
+            dh = s - r.origH
+          }
+          const ghost = { type: r.type, role: r.role, drawTool: r.drawTool } as OverlayEntity
           const { minW, minH } = minOverlaySize(ghost)
           const nw = Math.max(minW, r.origW + dw)
           const nh = Math.max(minH, r.origH + dh)
-          updateOverlay(r.id, { width: nw, height: nh })
+          if (r.drawTool === 'textbox') {
+            const newFont = scaledTextBoxFontPx(r.origFontPx, r.origW, r.origH, nw, nh)
+            updateOverlay(r.id, { width: nw, height: nh, textBoxFontSizePx: newFont })
+          } else {
+            updateOverlay(r.id, { width: nw, height: nh })
+          }
         }
         endHistoryBatch()
         try {
@@ -417,6 +585,7 @@ export const BoardOverlays = memo(function BoardOverlays({
           const fill = o.fillColor || 'none'
 
           const isPostitMemo = o.type === 'text' && o.role === 'semantic'
+          const isWbText = isWhiteboardTextBox(o)
           const linked = o.linkedItemId && boardItemsRecord ? boardItemsRecord[o.linkedItemId] : undefined
           const bodyText = (o.text ?? '').trim()
           const showPostitHtml =
@@ -433,7 +602,7 @@ export const BoardOverlays = memo(function BoardOverlays({
               onContextMenu={isPostitMemo ? e => onMemoContextMenu(e, o) : undefined}
               style={{
                 cursor: interactionMode === 'select' && !o.locked ? 'grab' : undefined,
-                touchAction: isPostitMemo ? 'none' : undefined,
+                touchAction: isPostitMemo || isWbText ? 'none' : undefined,
               }}
             >
               {isPostitMemo ? (
@@ -452,6 +621,46 @@ export const BoardOverlays = memo(function BoardOverlays({
                     points={`${rw - 2.2},0 ${rw},0 ${rw},2.2`}
                     pointerEvents="none"
                   />
+                </>
+              ) : isWbText ? (
+                <>
+                  {interactionMode === 'select' && !o.locked ? (
+                    <rect
+                      width={rw}
+                      height={rh}
+                      fill="transparent"
+                      pointerEvents="all"
+                      className="board-wb-textbox-catcher"
+                    />
+                  ) : null}
+                  <rect
+                    width={rw}
+                    height={rh}
+                    rx={0.45}
+                    fill={resolveTextBoxFill(o)}
+                    stroke={resolveTextBoxStroke(o)}
+                    strokeWidth={sw}
+                    pointerEvents="none"
+                  />
+                  <WhiteboardTextBoxContent
+                    o={o}
+                    rw={rw}
+                    rh={rh}
+                    foY={isSel ? TEXTBOX_DRAG_RAIL : 0}
+                    foH={Math.max(0.2, rh - (isSel ? TEXTBOX_DRAG_RAIL : 0))}
+                    isSel={isSel}
+                    interactionMode={interactionMode}
+                  />
+                  {isSel && interactionMode === 'select' && !o.locked ? (
+                    <rect
+                      y={0}
+                      width={rw}
+                      height={TEXTBOX_DRAG_RAIL}
+                      fill="transparent"
+                      pointerEvents="all"
+                      style={{ cursor: 'grab' }}
+                    />
+                  ) : null}
                 </>
               ) : (
                 <rect width={rw} height={rh} fill="transparent" />
@@ -520,7 +729,7 @@ export const BoardOverlays = memo(function BoardOverlays({
                   </div>
                 </foreignObject>
               ) : null}
-              {o.type === 'text' && o.role !== 'semantic' && (
+              {o.type === 'text' && o.role !== 'semantic' && !isWbText ? (
                 <text
                   x={2}
                   y={Math.min(rh * 0.55, 8)}
@@ -530,7 +739,7 @@ export const BoardOverlays = memo(function BoardOverlays({
                 >
                   {o.text || 'Note'}
                 </text>
-              )}
+              ) : null}
               {o.type === 'sticker' && (
                 <text
                   x={rw / 2}

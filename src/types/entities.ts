@@ -27,8 +27,16 @@ export type RangeStatus = 'none' | 'active' | 'done' | 'delayed'
 export type OverlayType = 'sticker' | 'text' | 'shape' | 'image'
 export type OverlayRole = 'semantic' | 'decorative'
 export type OverlayAnchorType = 'none' | 'month' | 'day' | 'range'
-/** 펜·형광펜(자유곡선 pathD), 도형(rect/ellipse), 지우개(오버레이 삭제) */
-export type DrawToolKind = 'pen' | 'highlighter' | 'rect' | 'ellipse' | 'eraser'
+/** 펜·형광·도형·텍스트 상자·지우개 */
+export type DrawToolKind =
+  | 'pen'
+  | 'highlighter'
+  | 'rect'
+  | 'ellipse'
+  | 'textbox'
+  | 'eraser'
+
+export type TextBoxFontKey = 'sans' | 'serif' | 'mono' | 'rounded'
 export type AssetType = 'image'
 export type AssetSourceType = 'builtin' | 'user' | 'external'
 
@@ -115,6 +123,14 @@ export type OverlayEntity = {
   strokeColor?: string
   fillColor?: string
   strokeWidthPx?: number
+  fillOpacity?: number
+  strokeOpacity?: number
+  /** 현재 width×height 기준 표시용(px). 리사이즈 시 면적 비율로 갱신 */
+  textBoxFontSizePx?: number
+  textBoxFontKey?: TextBoxFontKey
+  textBoxTextColor?: string
+  /** 본문 측정 높이(보드 단위) — 빈 프레임 하단 패스스루 히트용 */
+  textBoxContentHeight?: number
   /** false면 보드에서 숨김(목록에는 유지) */
   visible?: boolean
   /** 메모 등이 연결된 일정(item) — 보드에 있는 항목 id */

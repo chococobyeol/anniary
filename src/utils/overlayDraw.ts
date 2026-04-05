@@ -82,5 +82,8 @@ export function defaultStrokeForTool(tool: DrawToolKind): { color: string; width
   if (tool === 'rect') {
     return { color: 'var(--border-selected)', width: 0.6, fill: 'rgba(59, 130, 246, 0.12)' }
   }
+  if (tool === 'textbox') {
+    return { color: 'var(--border-selected)', width: 0.5, fill: 'rgba(249, 250, 251, 0.5)' }
+  }
   return { color: 'var(--status-in-progress)', width: 0.6, fill: 'rgba(16, 185, 129, 0.15)' }
 }

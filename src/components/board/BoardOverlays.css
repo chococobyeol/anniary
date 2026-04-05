@@ -198,3 +198,46 @@
 .board-overlay-ctx-menu-item--danger:hover {
   background: color-mix(in srgb, var(--status-delayed) 12%, transparent);
 }
+
+.board-wb-textbox-fo {
+  overflow: hidden;
+}
+
+.board-wb-textbox-root {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 1px 4px 2px;
+}
+
+.board-wb-textbox-ta {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  line-height: 1.35;
+}
+
+.board-wb-textbox-readonly {
+  min-height: 100%;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.board-wb-textbox-readonly .board-wb-textbox-md.markdown-view,
+.board-wb-textbox-readonly .markdown-view {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.board-wb-textbox-placeholder {
+  opacity: 0.42;
+  pointer-events: none;
+}

@@ -29,6 +29,7 @@ import type {
   OverlayRole,
   OverlayAnchorType,
   DrawToolKind,
+  TextBoxFontKey,
 } from '../types/entities'
 import { generateId, now } from '../utils/id'
 import { getZoomLevel, BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT, MAX_SCALE } from '../utils/zoom'
@@ -79,6 +80,12 @@ type Actions = {
     strokeColor?: string
     fillColor?: string
     strokeWidthPx?: number
+    fillOpacity?: number
+    strokeOpacity?: number
+    textBoxFontSizePx?: number
+    textBoxFontKey?: TextBoxFontKey
+    textBoxTextColor?: string
+    textBoxContentHeight?: number
     visible?: boolean
     linkedItemId?: string
   }) => string
@@ -179,7 +186,7 @@ function getBoardColumns(state: AppState): number {
   return getMaxColumnsForYear(bs.board.year)
 }
 
-const VALID_DRAW_TOOLS: DrawToolKind[] = ['pen', 'highlighter', 'rect', 'ellipse', 'eraser']
+const VALID_DRAW_TOOLS: DrawToolKind[] = ['pen', 'highlighter', 'rect', 'ellipse', 'textbox', 'eraser']
 
 function normDrawWeight(w: unknown): DrawStrokeWeight {
   return w === 'thin' || w === 'medium' || w === 'thick' ? w : 'medium'
@@ -459,6 +466,12 @@ export const useBoardStore = create<AppState & Actions>()(
       strokeColor: opts?.strokeColor,
       fillColor: opts?.fillColor,
       strokeWidthPx: opts?.strokeWidthPx,
+      fillOpacity: opts?.fillOpacity,
+      strokeOpacity: opts?.strokeOpacity,
+      textBoxFontSizePx: opts?.textBoxFontSizePx,
+      textBoxFontKey: opts?.textBoxFontKey,
+      textBoxTextColor: opts?.textBoxTextColor,
+      textBoxContentHeight: opts?.textBoxContentHeight,
       visible: opts?.visible ?? true,
       linkedItemId: opts?.linkedItemId,
       createdAt: now(), updatedAt: now(),

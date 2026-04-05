@@ -18,7 +18,7 @@ import './YearBoard.css'
 
 type DrawSession =
   | { kind: 'stroke'; points: [number, number][]; tool: 'pen' | 'highlighter' }
-  | { kind: 'shape'; start: [number, number]; tool: 'rect' | 'ellipse' }
+  | { kind: 'shape'; start: [number, number]; tool: 'rect' | 'ellipse' | 'textbox' }
 
 export function YearBoard() {
   const activeBoardId = useBoardStore(s => s.activeBoardId)
@@ -57,7 +57,7 @@ export function YearBoard() {
     y: number
     w: number
     h: number
-    tool: 'rect' | 'ellipse'
+    tool: 'rect' | 'ellipse' | 'textbox'
   } | null>(null)
   const [previewPoints, setPreviewPoints] = useState<[number, number][] | null>(null)
   const [previewStrokeTool, setPreviewStrokeTool] = useState<'pen' | 'highlighter' | null>(null)
@@ -66,7 +66,7 @@ export function YearBoard() {
     y: number
     w: number
     h: number
-    tool: 'rect' | 'ellipse'
+    tool: 'rect' | 'ellipse' | 'textbox'
   } | null>(null)
 
   const {
@@ -337,7 +337,7 @@ export function YearBoard() {
         setPreviewStrokeTool(tool)
         setPreviewPoints([[x, y]])
         setPreviewShape(null)
-      } else if (tool === 'rect' || tool === 'ellipse') {
+      } else if (tool === 'rect' || tool === 'ellipse' || tool === 'textbox') {
         drawSessionRef.current = { kind: 'shape', start: [x, y], tool }
         setPreviewStrokeTool(null)
         const initial = { x, y, w: 0, h: 0, tool }
@@ -362,10 +362,17 @@ export function YearBoard() {
           sess.points.push([p.x, p.y])
           setPreviewPoints([...sess.points])
         } else {
-          const x0 = Math.min(sess.start[0], p.x)
-          const y0 = Math.min(sess.start[1], p.y)
-          const w = Math.abs(p.x - sess.start[0])
-          const h = Math.abs(p.y - sess.start[1])
+          let w = Math.abs(p.x - sess.start[0])
+          let h = Math.abs(p.y - sess.start[1])
+          let x0 = Math.min(sess.start[0], p.x)
+          let y0 = Math.min(sess.start[1], p.y)
+          if (sess.tool === 'textbox' && ev.shiftKey) {
+            const s = Math.max(w, h)
+            w = s
+            h = s
+            x0 = p.x >= sess.start[0] ? sess.start[0] : sess.start[0] - s
+            y0 = p.y >= sess.start[1] ? sess.start[1] : sess.start[1] - s
+          }
           const next = { x: x0, y: y0, w, h, tool: sess.tool }
           latestPreviewShapeRef.current = next
           setPreviewShape(next)
@@ -407,6 +414,32 @@ export function YearBoard() {
           })
         } else {
           if (!sh || sh.w < 0.8 || sh.h < 0.8) return
+          if (sh.tool === 'textbox') {
+            const stroke = shapeStrokeFill(
+              sset.drawShapeStrokeColor,
+              sset.drawShapeFillColor,
+              sset.drawShapeStrokeWeight
+            )
+            const initialFont =
+              Math.round(Math.min(32, Math.max(9, Math.min(sh.w, sh.h) * 0.38)) * 10) / 10
+            const initialHit = Math.min(sh.h, initialFont * 1.35 + 2)
+            const oid = state.createOverlay(bId, 'text', 'decorative', sh.x, sh.y, sh.w, sh.h, {
+              text: '',
+              drawTool: 'textbox',
+              strokeColor: stroke.color,
+              strokeWidthPx: stroke.width,
+              strokeOpacity: 0,
+              fillColor: stroke.fill === 'none' ? undefined : stroke.fill,
+              fillOpacity: stroke.fill === 'none' ? 0 : 1,
+              textBoxFontSizePx: initialFont,
+              textBoxContentHeight: initialHit,
+            })
+            const after = useBoardStore.getState()
+            after.setSelection({ type: 'overlay', overlayId: oid })
+            after.setInteractionMode('select')
+            after.ensureLeftPanelOpen('detail')
+            return
+          }
           const stroke = shapeStrokeFill(
             sset.drawShapeStrokeColor,
             sset.drawShapeFillColor,
@@ -448,15 +481,16 @@ export function YearBoard() {
     )
     return (
       <g pointerEvents="none">
-        {previewShape.tool === 'rect' ? (
+        {previewShape.tool === 'rect' || previewShape.tool === 'textbox' ? (
           <rect
             x={previewShape.x}
             y={previewShape.y}
             width={previewShape.w}
             height={previewShape.h}
             fill={ps.fill}
-            stroke={ps.color}
-            strokeWidth={ps.width}
+            stroke={previewShape.tool === 'textbox' ? 'rgba(100, 100, 100, 0.45)' : ps.color}
+            strokeWidth={previewShape.tool === 'textbox' ? 0.42 : ps.width}
+            strokeDasharray={previewShape.tool === 'textbox' ? '1.2 1.2' : undefined}
             rx={0.5}
           />
         ) : (

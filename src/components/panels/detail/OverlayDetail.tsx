@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef } from 'react'
 import { useBoardStore } from '../../../store/board-store'
-import type { OverlayEntity } from '../../../types/entities'
+import type { OverlayEntity, TextBoxFontKey } from '../../../types/entities'
 import {
   DRAW_PEN_COLOR_PRESETS,
   DRAW_SHAPE_FILL_PRESETS,
   MEMO_PAPER_COLOR_PRESETS,
 } from '../../../constants/overlayUi'
+import { TEXTBOX_FONT_OPTIONS } from '../../../constants/textBoxFonts'
 import { hexToRgba, weightToHighlighterWidth, weightToPenWidth, weightToShapeStrokeWidth } from '../../../utils/overlayDraw'
 import { MarkdownView } from '../../common/MarkdownView'
 import { insertNewlineAtCursor } from '../../../utils/textareaNewline'
@@ -212,6 +213,96 @@ export function OverlayDetail() {
               />
             </label>
           </div>
+        </div>
+      )}
+      {overlay.drawTool === 'textbox' && (
+        <div className="detail-add-section" style={{ marginBottom: 8 }}>
+          <span className="detail-add-label">Frame fill</span>
+          <div className="overlay-memo-swatches">
+            {DRAW_SHAPE_FILL_PRESETS.map(c => {
+              const noFill = !overlay.fillColor || overlay.fillColor === 'none'
+              const fillActive = c === 'transparent' ? noFill : overlay.fillColor === c
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  className={`overlay-memo-swatch overlay-memo-swatch--fill ${fillActive ? 'active' : ''} ${c === 'transparent' ? 'overlay-memo-swatch--transparent' : ''}`}
+                  style={c === 'transparent' ? undefined : { backgroundColor: c }}
+                  title={c === 'transparent' ? 'None' : c}
+                  onClick={() =>
+                    updateOverlay(overlay.id, {
+                      fillColor: c === 'transparent' ? undefined : c,
+                      fillOpacity: c === 'transparent' ? 0 : 1,
+                    })
+                  }
+                />
+              )
+            })}
+          </div>
+          <span className="detail-add-label" style={{ marginTop: 12 }}>
+            Border opacity
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            className="detail-add-input"
+            style={{ width: '100%', marginTop: 4 }}
+            value={Math.round((overlay.strokeOpacity ?? 0) * 100)}
+            onChange={e => {
+              const v = Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100
+              updateOverlay(overlay.id, { strokeOpacity: v })
+            }}
+          />
+          <span className="detail-add-label" style={{ marginTop: 12 }}>
+            Border color
+          </span>
+          <div className="overlay-memo-swatches">
+            {DRAW_PEN_COLOR_PRESETS.map(c => (
+              <button
+                key={c}
+                type="button"
+                className={`overlay-memo-swatch ${overlay.strokeColor === c ? 'active' : ''}`}
+                style={{ backgroundColor: c }}
+                title={c}
+                onClick={() => updateOverlay(overlay.id, { strokeColor: c })}
+              />
+            ))}
+          </div>
+          <span className="detail-add-label" style={{ marginTop: 12 }}>
+            Font size (px, current frame {Math.round(overlay.width)}×{Math.round(overlay.height)})
+          </span>
+          <input
+            type="number"
+            className="detail-add-input"
+            min={6}
+            max={96}
+            step={0.5}
+            value={overlay.textBoxFontSizePx ?? 13}
+            onChange={e => {
+              const v = Math.min(96, Math.max(6, Number(e.target.value) || 13))
+              updateOverlay(overlay.id, { textBoxFontSizePx: v })
+            }}
+          />
+          <span className="detail-add-label" style={{ marginTop: 12 }}>
+            Font
+          </span>
+          <select
+            className="detail-add-input"
+            style={{ width: '100%', marginTop: 4 }}
+            value={overlay.textBoxFontKey ?? 'sans'}
+            onChange={e =>
+              updateOverlay(overlay.id, {
+                textBoxFontKey: e.target.value as TextBoxFontKey,
+              })
+            }
+          >
+            {TEXTBOX_FONT_OPTIONS.map(opt => (
+              <option key={opt.key} value={opt.key}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
       {overlay.type === 'shape' && (

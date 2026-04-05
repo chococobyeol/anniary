@@ -583,3 +583,21 @@
 - 재발 방지: 날짜 하이라이트와 **디테일 패널 콘텐츠** 진입을 혼동하지 말 것.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/panels/DetailPanel.tsx`, `src/components/board/ExpandedCell.tsx`, `src/components/board/YearBoard.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] Excalidraw류 텍스트박스 — 리사이즈에 글자 크기 연동
+
+- 증상: 상자만 키우고 글자 크기는 그대로여 [Excalidraw](https://excalidraw.com/)와 다름.
+- 원인: `textBoxFontSizePx`를 뷰에 그대로 쓰고 프레임 면적 변화를 반영하지 않음.
+- 해결: `textBoxScale.ts`로 `√(새면적/이전면적)` 배율; 리사이즈 포인터 업 시 `textBoxFontSizePx` 갱신. 렌더는 `scaledTextBoxFontPx(저장값, o.width, o.height, rw, rh)`로 드래그 중에도 동일 규칙. 툴 아이콘 `IconExText`(굵은 T).
+- 재발 방지: 화이트보드 텍스트는 박스 스케일과 폰트 스케일을 한 식으로 유지; 디테일 패널의 px는 «현재 박스 크기 기준」임을 라벨로 명시.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/utils/textBoxScale.ts`, `src/components/board/BoardOverlays.tsx`, `src/components/board/YearBoard.tsx`, `src/components/icons/Icons.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `src/types/entities.ts`, `src/store/board-store.ts`, `docs/MISTAKE_LOG.md`
+
+## [2026-03-31] 텍스트박스 셀렉트 — 좌표계 오류 + 포인터 미수신
+
+- 증상: 셀렉트 모드에서 텍스트박스를 눌러도 선택이 안 됨.
+- 원인: (1) `svg.getScreenCTM()`으로 변환한 뒤 오버레이 위치 `ox, oy`를 빼 로컬 좌표가 어긋남. (2) 배경·FO가 모두 `pointer-events: none`이면 SVG `<g>`만으로는 포인터 타겟이 되지 않아 이벤트가 도달하지 않음.
+- 해결: `pointerInOverlayLocal`에서 `e.currentTarget`(오버레이 g)의 `getScreenCTM().inverse()`만 사용. 셀렉트 시 전면 `pointer-events: all` 투명 `rect`(catcher) 추가. 편집 시 `foreignObject`는 `pointer-events: all`.
+- 재발 방지: 오버레이 내부 히트는 **그룹 로컬 CTM**으로만 변환하고, 잡을 영역이 없으면 **명시적 투명 rect**로 받기.
+- 검증: `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`

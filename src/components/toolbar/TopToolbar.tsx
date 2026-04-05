@@ -27,6 +27,7 @@ import {
   IconRedo,
   IconStickyNote,
   IconStar,
+  IconExText,
 } from '../icons/Icons'
 import './TopToolbar.css'
 
@@ -35,6 +36,7 @@ const DRAW_TOOLS: { tool: DrawToolKind; label: string; Icon: typeof IconPenNib }
   { tool: 'highlighter', label: 'Highlighter', Icon: IconHighlighter },
   { tool: 'rect', label: 'Rectangle', Icon: IconSquare },
   { tool: 'ellipse', label: 'Ellipse', Icon: IconCircle },
+  { tool: 'textbox', label: 'Text box', Icon: IconExText },
   { tool: 'eraser', label: 'Eraser', Icon: IconEraser },
 ]
 
@@ -214,7 +216,9 @@ export function TopToolbar() {
                     </div>
                   </>
                 )}
-                {(settings.drawTool === 'rect' || settings.drawTool === 'ellipse') && (
+                {(settings.drawTool === 'rect'
+                  || settings.drawTool === 'ellipse'
+                  || settings.drawTool === 'textbox') && (
                   <>
                     <p className="toolbar-flyout-label">Shape stroke color</p>
                     <div className="toolbar-flyout-swatches" role="group" aria-label="Shape stroke color">

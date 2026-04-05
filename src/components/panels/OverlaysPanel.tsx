@@ -9,6 +9,7 @@ function overlayLabel(o: OverlayEntity): string {
   if (o.pathD) return o.drawTool === 'highlighter' ? 'Highlighter stroke' : 'Pen stroke'
   if (o.drawTool === 'rect') return 'Rectangle'
   if (o.drawTool === 'ellipse') return 'Ellipse'
+  if (o.drawTool === 'textbox') return 'Text box'
   return o.type
 }
 
