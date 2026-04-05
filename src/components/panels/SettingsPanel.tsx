@@ -40,29 +40,36 @@ export function SettingsPanel() {
       <div className="settings-section">
         <div className="settings-section-title">Layout</div>
 
-        <label className="settings-row">
-          <span className="settings-label">Day display</span>
-          <select
-            className="settings-select"
-            value={settings.dayLayout}
-            onChange={e => updateSettings({ dayLayout: e.target.value as DayLayout })}
-          >
-            <option value="linear">Cell inline (sequence)</option>
-            <option value="weekday-aligned">Top header (weekday aligned)</option>
-          </select>
-        </label>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Day display</span>
+          </div>
+          <div className="settings-control">
+            <select
+              className="settings-input"
+              value={settings.dayLayout}
+              onChange={e => updateSettings({ dayLayout: e.target.value as DayLayout })}
+            >
+              <option value="linear">Cell inline (sequence)</option>
+              <option value="weekday-aligned">Top header (weekday aligned)</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-title">Zoom</div>
 
-        <label className="settings-row">
-          <span className="settings-label">Zoom direction inverted</span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Zoom direction inverted</span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
               {settings.zoomInverted ? 'down=zoom out' : 'down=zoom in'}
             </span>
             <button
+              type="button"
               className={`settings-toggle ${settings.zoomInverted ? 'active' : ''}`}
               onClick={() => updateSettings({ zoomInverted: !settings.zoomInverted })}
               role="switch"
@@ -71,37 +78,43 @@ export function SettingsPanel() {
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
+        </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-title">Backlog</div>
 
-        <label className="settings-row">
-          <span className="settings-label">Display count</span>
-          <select
-            className="settings-select"
-            value={settings.backlogDisplayLimit == null ? '' : String(settings.backlogDisplayLimit)}
-            onChange={e => {
-              const v = e.target.value
-              updateSettings({ backlogDisplayLimit: v === '' ? null : Number(v) })
-            }}
-          >
-            <option value="">Show all</option>
-            <option value="50">Last 50</option>
-            <option value="100">Last 100</option>
-            <option value="200">Last 200</option>
-          </select>
-        </label>
-        <p className="settings-hint-block">Based on last updated (updatedAt).</p>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Display count</span>
+            <span className="settings-hint-sub">Based on last updated (updatedAt).</span>
+          </div>
+          <div className="settings-control">
+            <select
+              className="settings-input"
+              value={settings.backlogDisplayLimit == null ? '' : String(settings.backlogDisplayLimit)}
+              onChange={e => {
+                const v = e.target.value
+                updateSettings({ backlogDisplayLimit: v === '' ? null : Number(v) })
+              }}
+            >
+              <option value="">Show all</option>
+              <option value="50">Last 50</option>
+              <option value="100">Last 100</option>
+              <option value="200">Last 200</option>
+            </select>
+          </div>
+        </div>
 
-        <label className="settings-row">
-          <span className="settings-label settings-label--with-help">
-            Newline insert button
-            <HelpTip text={COPY_NEWLINE_BUTTON_HELP} />
-          </span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label settings-label--with-help">
+              Newline insert button
+              <HelpTip text={COPY_NEWLINE_BUTTON_HELP} />
+            </span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
               {settings.showNewlineInsertButton ? '↵ next to fields' : 'Off'}
             </span>
             <button
@@ -116,218 +129,231 @@ export function SettingsPanel() {
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
+        </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-heading">
-          <div className="settings-section-title">Place — default memo size</div>
+          <span className="settings-section-title">Place — default memo size</span>
           <HelpTip text={COPY_PLACE_MEMO_SIZE_HELP} />
         </div>
-        <label className="settings-row">
-          <span className="settings-label">Width</span>
-          <input
-            type="number"
-            className="settings-select"
-            style={{ maxWidth: 100 }}
-            min={12}
-            max={120}
-            value={settings.placeMemoWidth}
-            onChange={e =>
-              updateSettings({
-                placeMemoWidth: Math.min(120, Math.max(12, Number(e.target.value) || 12)),
-              })
-            }
-          />
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Height</span>
-          <input
-            type="number"
-            className="settings-select"
-            style={{ maxWidth: 100 }}
-            min={8}
-            max={80}
-            value={settings.placeMemoHeight}
-            onChange={e =>
-              updateSettings({
-                placeMemoHeight: Math.min(80, Math.max(8, Number(e.target.value) || 8)),
-              })
-            }
-          />
-        </label>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Width</span>
+          </div>
+          <div className="settings-control">
+            <input
+              type="number"
+              className="settings-input"
+              min={12}
+              max={120}
+              value={settings.placeMemoWidth}
+              onChange={e =>
+                updateSettings({
+                  placeMemoWidth: Math.min(120, Math.max(12, Number(e.target.value) || 12)),
+                })
+              }
+            />
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Height</span>
+          </div>
+          <div className="settings-control">
+            <input
+              type="number"
+              className="settings-input"
+              min={8}
+              max={80}
+              value={settings.placeMemoHeight}
+              onChange={e =>
+                updateSettings({
+                  placeMemoHeight: Math.min(80, Math.max(8, Number(e.target.value) || 8)),
+                })
+              }
+            />
+          </div>
+        </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-heading">
-          <div className="settings-section-title">Data</div>
+          <span className="settings-section-title">Data</span>
           <HelpTip text={COPY_DATA_BACKUP_HELP} />
         </div>
-        <div className="settings-row" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <button
-            type="button"
-            className="settings-select"
-            style={{ cursor: 'pointer', padding: '6px 10px' }}
-            onClick={() => {
-              const s = useBoardStore.getState()
-              const payload = {
-                anniaryExportVersion: 2,
-                exportedAt: new Date().toISOString(),
-                boards: s.boards,
-                activeBoardId: s.activeBoardId,
-                settings: s.settings,
-                view: s.view,
-                panel: s.panel,
-                interactionMode: s.interactionMode,
-                selection: s.selection,
-                lastTouchedItemId: s.lastTouchedItemId,
-                rangeEditPreview: s.rangeEditPreview,
-                dirty: s.dirty,
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Backup</span>
+            <span className="settings-hint-sub">JSON export / import</span>
+          </div>
+          <div className="settings-control">
+            <div className="settings-btn-pair">
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={() => {
+                  const s = useBoardStore.getState()
+                  const payload = {
+                    anniaryExportVersion: 2,
+                    exportedAt: new Date().toISOString(),
+                    boards: s.boards,
+                    activeBoardId: s.activeBoardId,
+                    settings: s.settings,
+                    view: s.view,
+                    panel: s.panel,
+                    interactionMode: s.interactionMode,
+                    selection: s.selection,
+                    lastTouchedItemId: s.lastTouchedItemId,
+                    rangeEditPreview: s.rangeEditPreview,
+                    dirty: s.dirty,
+                  }
+                  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                    type: 'application/json',
+                  })
+                  const a = document.createElement('a')
+                  a.href = URL.createObjectURL(blob)
+                  a.download = formatBackupJsonFilename()
+                  a.click()
+                  URL.revokeObjectURL(a.href)
+                }}
+              >
+                Export
+              </button>
+              <button type="button" className="settings-btn" onClick={() => fileRef.current?.click()}>
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={async e => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (!f) return
+            try {
+              const text = await f.text()
+              const data = JSON.parse(text) as {
+                anniaryExportVersion?: number
+                boards?: Record<string, BoardState>
+                activeBoardId?: string | null
+                settings?: typeof settings
+                view?: unknown
+                panel?: unknown
+                interactionMode?: unknown
+                selection?: unknown
+                lastTouchedItemId?: string | null
+                rangeEditPreview?: unknown
+                dirty?: boolean
               }
-              const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-              const a = document.createElement('a')
-              a.href = URL.createObjectURL(blob)
-              a.download = formatBackupJsonFilename()
-              a.click()
-              URL.revokeObjectURL(a.href)
-            }}
-          >
-            Export JSON
-          </button>
-          <button
-            type="button"
-            className="settings-select"
-            style={{ cursor: 'pointer', padding: '6px 10px' }}
-            onClick={() => fileRef.current?.click()}
-          >
-            Import JSON…
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            style={{ display: 'none' }}
-            onChange={async e => {
-              const f = e.target.files?.[0]
-              e.target.value = ''
-              if (!f) return
-              try {
-                const text = await f.text()
-                const data = JSON.parse(text) as {
-                  anniaryExportVersion?: number
-                  boards?: Record<string, BoardState>
-                  activeBoardId?: string | null
-                  settings?: typeof settings
-                  view?: unknown
-                  panel?: unknown
-                  interactionMode?: unknown
-                  selection?: unknown
-                  lastTouchedItemId?: string | null
-                  rangeEditPreview?: unknown
-                  dirty?: boolean
-                }
-                if (!data.boards || typeof data.boards !== 'object') {
-                  window.alert('Invalid file: missing boards')
+              if (!data.boards || typeof data.boards !== 'object') {
+                window.alert('Invalid file: missing boards')
+                return
+              }
+              const cur = useBoardStore.getState()
+              const nextSettings: AppSettings =
+                data.settings && typeof data.settings === 'object'
+                  ? {
+                      ...cur.settings,
+                      ...data.settings,
+                      boardViewFilter: normalizeBoardViewFilter(
+                        data.settings.boardViewFilter !== undefined
+                          ? {
+                              ...normalizeBoardViewFilter(cur.settings.boardViewFilter),
+                              ...data.settings.boardViewFilter,
+                            }
+                          : cur.settings.boardViewFilter
+                      ),
+                      drawTool: data.settings.drawTool ?? cur.settings.drawTool,
+                      placeKind: data.settings.placeKind ?? cur.settings.placeKind,
+                      placeStickerChar:
+                        data.settings.placeStickerChar?.trim() || cur.settings.placeStickerChar,
+                      drawPenColor:
+                        data.settings.drawPenColor?.startsWith('#')
+                          ? data.settings.drawPenColor
+                          : cur.settings.drawPenColor,
+                      placeMemoWidth: data.settings.placeMemoWidth ?? cur.settings.placeMemoWidth,
+                      placeMemoHeight: data.settings.placeMemoHeight ?? cur.settings.placeMemoHeight,
+                      placeMemoPaperColor:
+                        data.settings.placeMemoPaperColor?.startsWith('#')
+                          ? data.settings.placeMemoPaperColor
+                          : cur.settings.placeMemoPaperColor,
+                      drawPenWidthWeight: normImportedDrawWeight(
+                        data.settings.drawPenWidthWeight,
+                        cur.settings.drawPenWidthWeight
+                      ),
+                      drawHighlighterColor: data.settings.drawHighlighterColor?.startsWith('#')
+                        ? data.settings.drawHighlighterColor
+                        : cur.settings.drawHighlighterColor,
+                      drawHighlighterWidthWeight: normImportedDrawWeight(
+                        data.settings.drawHighlighterWidthWeight,
+                        cur.settings.drawHighlighterWidthWeight
+                      ),
+                      drawShapeStrokeColor: data.settings.drawShapeStrokeColor?.startsWith('#')
+                        ? data.settings.drawShapeStrokeColor
+                        : cur.settings.drawShapeStrokeColor,
+                      drawShapeFillColor: (() => {
+                        const cf = data.settings.drawShapeFillColor
+                        if (cf === 'transparent' || cf === 'none') return cf
+                        if (typeof cf === 'string' && cf.startsWith('#')) return cf
+                        return cur.settings.drawShapeFillColor
+                      })(),
+                      drawShapeStrokeWeight: normImportedDrawWeight(
+                        data.settings.drawShapeStrokeWeight,
+                        cur.settings.drawShapeStrokeWeight
+                      ),
+                    }
+                  : cur.settings
+              importBoardsAndSettings(data.boards, data.activeBoardId ?? null, nextSettings, {
+                view: data.view,
+                panel: data.panel,
+                interactionMode: data.interactionMode,
+                selection: data.selection,
+                lastTouchedItemId: data.lastTouchedItemId ?? null,
+                rangeEditPreview: data.rangeEditPreview,
+                dirty: data.dirty,
+              })
+            } catch (err) {
+              window.alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
+            }
+          }}
+        />
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label settings-label--with-help">
+              Reset
+              <HelpTip text={COPY_DATA_RESET_HELP} />
+            </span>
+          </div>
+          <div className="settings-control">
+            <button
+              type="button"
+              className="settings-btn settings-btn-danger"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Delete ALL data in this browser for Anniary? This cannot be undone unless you have a JSON backup.',
+                  )
+                ) {
                   return
                 }
-                const cur = useBoardStore.getState()
-                const nextSettings: AppSettings =
-                  data.settings && typeof data.settings === 'object'
-                    ? {
-                        ...cur.settings,
-                        ...data.settings,
-                        boardViewFilter: normalizeBoardViewFilter(
-                          data.settings.boardViewFilter !== undefined
-                            ? {
-                                ...normalizeBoardViewFilter(cur.settings.boardViewFilter),
-                                ...data.settings.boardViewFilter,
-                              }
-                            : cur.settings.boardViewFilter
-                        ),
-                        drawTool: data.settings.drawTool ?? cur.settings.drawTool,
-                        placeKind: data.settings.placeKind ?? cur.settings.placeKind,
-                        placeStickerChar:
-                          data.settings.placeStickerChar?.trim() || cur.settings.placeStickerChar,
-                        drawPenColor:
-                          data.settings.drawPenColor?.startsWith('#')
-                            ? data.settings.drawPenColor
-                            : cur.settings.drawPenColor,
-                        placeMemoWidth: data.settings.placeMemoWidth ?? cur.settings.placeMemoWidth,
-                        placeMemoHeight: data.settings.placeMemoHeight ?? cur.settings.placeMemoHeight,
-                        placeMemoPaperColor:
-                          data.settings.placeMemoPaperColor?.startsWith('#')
-                            ? data.settings.placeMemoPaperColor
-                            : cur.settings.placeMemoPaperColor,
-                        drawPenWidthWeight: normImportedDrawWeight(
-                          data.settings.drawPenWidthWeight,
-                          cur.settings.drawPenWidthWeight
-                        ),
-                        drawHighlighterColor: data.settings.drawHighlighterColor?.startsWith('#')
-                          ? data.settings.drawHighlighterColor
-                          : cur.settings.drawHighlighterColor,
-                        drawHighlighterWidthWeight: normImportedDrawWeight(
-                          data.settings.drawHighlighterWidthWeight,
-                          cur.settings.drawHighlighterWidthWeight
-                        ),
-                        drawShapeStrokeColor: data.settings.drawShapeStrokeColor?.startsWith('#')
-                          ? data.settings.drawShapeStrokeColor
-                          : cur.settings.drawShapeStrokeColor,
-                        drawShapeFillColor: (() => {
-                          const f = data.settings.drawShapeFillColor
-                          if (f === 'transparent' || f === 'none') return f
-                          if (typeof f === 'string' && f.startsWith('#')) return f
-                          return cur.settings.drawShapeFillColor
-                        })(),
-                        drawShapeStrokeWeight: normImportedDrawWeight(
-                          data.settings.drawShapeStrokeWeight,
-                          cur.settings.drawShapeStrokeWeight
-                        ),
-                      }
-                    : cur.settings
-                importBoardsAndSettings(data.boards, data.activeBoardId ?? null, nextSettings, {
-                  view: data.view,
-                  panel: data.panel,
-                  interactionMode: data.interactionMode,
-                  selection: data.selection,
-                  lastTouchedItemId: data.lastTouchedItemId ?? null,
-                  rangeEditPreview: data.rangeEditPreview,
-                  dirty: data.dirty,
-                })
-              } catch (err) {
-                window.alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
-              }
-            }}
-          />
-        </div>
-        <div className="settings-row">
-          <span className="settings-label settings-label--with-help">
-            Reset
-            <HelpTip text={COPY_DATA_RESET_HELP} />
-          </span>
-          <button
-            type="button"
-            className="settings-select settings-btn-danger"
-            style={{ cursor: 'pointer', padding: '6px 10px' }}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  'Delete ALL data in this browser for Anniary? This cannot be undone unless you have a JSON backup.',
-                )
-              ) {
-                return
-              }
-              if (
-                !window.confirm(
-                  'Final confirmation: everything will be removed and the app will start fresh.',
-                )
-              ) {
-                return
-              }
-              resetAllData()
-            }}
-          >
-            Erase everything…
-          </button>
+                if (
+                  !window.confirm(
+                    'Final confirmation: everything will be removed and the app will start fresh.',
+                  )
+                ) {
+                  return
+                }
+                resetAllData()
+              }}
+            >
+              Erase all
+            </button>
+          </div>
         </div>
       </div>
     </div>
