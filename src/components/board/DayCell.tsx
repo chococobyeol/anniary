@@ -57,6 +57,10 @@ export const DayCell = memo(function DayCell({
     : 'var(--border-light)'
   const strokeW = isHighlighted ? 1.5 : 0.5
 
+  const dayNumFill = vm.isToday ? 'var(--status-in-progress)' : vm.isWeekend ? dowColor : 'var(--text-primary)'
+  const dayNumWeight = vm.isToday ? 700 : 400
+  const dayNumFont = zoomLevel === 'Z0' ? 7 : 8
+
   return (
     <g
       data-date-key={vm.dateKey}
@@ -99,13 +103,12 @@ export const DayCell = memo(function DayCell({
           {vm.dayOfWeekLabel}
         </text>
       )}
-
       <text
         x={2}
-        y={zoomLevel === 'Z0' ? h / 2 + 1 : 9}
-        fontSize={zoomLevel === 'Z0' ? 7 : 8}
-        fill={vm.isToday ? 'var(--status-in-progress)' : vm.isWeekend ? dowColor : 'var(--text-primary)'}
-        fontWeight={vm.isToday ? 700 : 400}
+        y={9}
+        fontSize={dayNumFont}
+        fill={dayNumFill}
+        fontWeight={dayNumWeight}
       >
         {vm.dayNumber}
       </text>

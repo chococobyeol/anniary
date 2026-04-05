@@ -667,3 +667,30 @@
 - 재발 방지: 잡기(grab) 축은 **SVG와 HTML 입력층을 같은 변에서 섞지 말 것**.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/board/BoardOverlays.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-05 17:30 KST] DayCell Z0 — 요일 같은 줄(인라인 tspan·중앙 정렬)
+
+- 증상: Z0에서 요일·일 숫자를 같은 `y`만 맞추거나 양끝(x=2 vs x=w-2)에 두면 광학적으로 한 줄이 아니거나, 좁은 셀에서 오른쪽 글자가 벽에 붙어 보임.
+- 원인: 서로 다른 `fontSize`의 `<text>` 두 개는 동일 베이스라인만으로는 정돈이 안 되고, 요일만 상단·우측 고정이면 숫자가 중앙에 있어 수직이 갈라짐.
+- 해결: **Z0 + showDow**일 때만 단일 `<text>`에 `<tspan>` 두 개(숫자 6.5 → 요일 3.25, `dx=2`)로 왼쪽부터 이어 붙이고 `y={h/2}` + `dominantBaseline="middle"`. Z1 이상은 기존 요일 우상단 + 숫자 분리 유지.
+- 재발 방지: 초미세 셀에서 이중 라벨은 **한 `text` 안 tspans**로 묶거나 캡-하이 기준을 맞출 것. 줄바꿈 없이 가로가 모자라면 폰트·dx를 함께 줄일 것.
+- 검증: `npx tsc --noEmit`, `npm run lint` 성공.
+- 관련 파일: `src/components/board/DayCell.tsx`
+
+## [2026-04-05 17:31 KST] DayCell Z0 — 인라인·단독 숫자 모두 상단(y=9)으로
+
+- 증상: Z0 인라인 라벨을 `y=h/2`+`middle`로 두어 셀 위쪽이 비고 글자가 아래로 붙어 보임. 연간 축소 뷰에서 숫자가 칸 위에 붙지 않음.
+- 원인: 세로 중앙 정렬이 tiny 셀에서 연간 보드 UX(Z1과 같은 상단 밴드)와 어긋남.
+- 해결: Z0 인라인 `<text>`를 `y=9`(기본 알파베틱 베이스라인, Z1 일 숫자와 동일). Z0·단독 숫자 분기도 `h/2+1` 제거 후 `y=9` 통일.
+- 재발 방지: Z0 텍스트 세로 위치를 바꿀 때 **Z1 일 숫자 `y=9`·상태 점 `cy=10`** 과 한 덩어리로 맞출 것.
+- 검증: `npx tsc --noEmit`, `npm run lint` 성공.
+- 관련 파일: `src/components/board/DayCell.tsx`
+
+## [2026-04-05 17:33 KST] DayCell Z0 — Z1과 동일 분기(좌 숫자·우 요일)로 통일
+
+- 증상: Z0만 `tspan` 인라인으로 그려 Z1(요일 `y=5` 우측, 숫자 `y=9` 좌측)과 레이아웃이 달라 보임.
+- 원인: "한 줄" 요구에 과도하게 특수 케이스를 둔 결과, 참조 줌(Z1)과 기하 구조가 불일치.
+- 해결: Z0 **전용 인라인 분기 제거**. `showDow`면 모든 줌에서 동일하게 요일 `x=w-2,y=5`, 숫자 `x=2,y=9`만 **Z0일 때 `fontSize` 7**, 그 외 8.
+- 재발 방지: 줌은 **글자 크기·정책**만 `DAY_CELL_POLICY` 등으로 구분하고, **라벨 상대 좌표는 한 경로로** 유지할 것.
+- 검증: `npx tsc --noEmit`, `npm run lint` 성공.
+- 관련 파일: `src/components/board/DayCell.tsx`
