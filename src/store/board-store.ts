@@ -34,6 +34,17 @@ import type {
 import { generateId, now } from '../utils/id'
 import { getZoomLevel, BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT, MAX_SCALE } from '../utils/zoom'
 import { getMaxColumnsForYear } from '../utils/date'
+import {
+  normImportedView,
+  normImportedPanel,
+  normImportedInteractionMode,
+  parseSelectionJson,
+  parseRangeEditPreviewJson,
+  sanitizeSelectionForActiveBoard,
+  sanitizeLastTouchedItemId,
+  sanitizeRangeEditPreview,
+  type ImportUiBlob,
+} from '../utils/persistedAppSlice'
 
 type Actions = {
   createBoard: (year: number, title?: string) => string
@@ -103,8 +114,12 @@ type Actions = {
   importBoardsAndSettings: (
     boards: Record<string, BoardState>,
     activeBoardId: string | null,
-    settings: AppSettings
+    settings: AppSettings,
+    /** 생략 시: 뷰·패널·모드·선택 등 UI 상태는 유지하고 selection만 null (기존 동작) */
+    ui?: ImportUiBlob
   ) => void
+  /** localStorage·undo 스택 포함 앱 데이터 전부 초기화(확인은 UI에서) */
+  resetAllData: () => void
 }
 
 const initialState: AppState = {
@@ -139,6 +154,42 @@ const initialState: AppState = {
   rangeEditPreview: null,
   dirty: false,
   _historyUi: { canUndo: false, canRedo: false },
+}
+
+function getResetAppState(): AppState {
+  return {
+    _hydrated: true,
+    activeBoardId: null,
+    boards: {},
+    view: { scale: 1, translateX: 0, translateY: 0, zoomLevel: 'Z1' },
+    panel: { leftOpen: false, leftMode: 'backlog', rightOpen: false, rightMode: 'settings' },
+    interactionMode: 'pan',
+    selection: null,
+    lastTouchedItemId: null,
+    settings: {
+      dayLayout: 'linear',
+      zoomInverted: false,
+      backlogDisplayLimit: null,
+      showNewlineInsertButton: false,
+      boardViewFilter: { ...DEFAULT_BOARD_VIEW_FILTER },
+      drawTool: 'pen',
+      placeKind: 'memo',
+      placeStickerChar: '⭐',
+      drawPenColor: '#2563eb',
+      placeMemoWidth: 40,
+      placeMemoHeight: 16,
+      placeMemoPaperColor: '#ffffff',
+      drawPenWidthWeight: 'medium',
+      drawHighlighterColor: '#facc15',
+      drawHighlighterWidthWeight: 'medium',
+      drawShapeStrokeColor: '#2563eb',
+      drawShapeFillColor: 'transparent',
+      drawShapeStrokeWeight: 'medium',
+    },
+    rangeEditPreview: null,
+    dirty: false,
+    _historyUi: { canUndo: false, canRedo: false },
+  }
 }
 
 const MAX_HISTORY = 32
@@ -598,7 +649,7 @@ export const useBoardStore = create<AppState & Actions>()(
     historyRestoring = false
   },
 
-  importBoardsAndSettings: (boards, activeBoardId, settings) => {
+  importBoardsAndSettings: (boards, activeBoardId, settings, ui) => {
     if (historyRestoring) return
     if (historyBatchDepth === 0) {
       const s = get()
@@ -607,17 +658,64 @@ export const useBoardStore = create<AppState & Actions>()(
       historyFuture.length = 0
     }
     historyRestoring = true
-    set({
-      boards: structuredClone(boards),
-      activeBoardId,
-      settings,
-      selection: null,
-      dirty: true,
-      _historyUi: {
-        canUndo: historyPast.length > 0,
-        canRedo: historyFuture.length > 0,
-      },
-    })
+    const b = structuredClone(boards)
+    const aid = activeBoardId
+    if (ui === undefined) {
+      set({
+        boards: b,
+        activeBoardId: aid,
+        settings,
+        selection: null,
+        dirty: true,
+        _historyUi: {
+          canUndo: historyPast.length > 0,
+          canRedo: historyFuture.length > 0,
+        },
+      })
+    } else {
+      const view = normImportedView(ui.view)
+      const panel = normImportedPanel(ui.panel)
+      const interactionMode = normImportedInteractionMode(ui.interactionMode)
+      const selRaw = parseSelectionJson(ui.selection)
+      const selection = sanitizeSelectionForActiveBoard(b, aid, selRaw)
+      const ltRaw = ui.lastTouchedItemId
+      const lastTouchedItemId = sanitizeLastTouchedItemId(
+        b,
+        aid,
+        ltRaw !== undefined && ltRaw !== null && typeof ltRaw === 'string' ? ltRaw : null,
+      )
+      const rangeEditPreview = sanitizeRangeEditPreview(
+        b,
+        aid,
+        parseRangeEditPreviewJson(ui.rangeEditPreview),
+      )
+      const dirty = typeof ui.dirty === 'boolean' ? ui.dirty : true
+      set({
+        boards: b,
+        activeBoardId: aid,
+        settings,
+        view,
+        panel,
+        interactionMode,
+        selection,
+        lastTouchedItemId,
+        rangeEditPreview,
+        dirty,
+        _historyUi: {
+          canUndo: historyPast.length > 0,
+          canRedo: historyFuture.length > 0,
+        },
+      })
+    }
+    historyRestoring = false
+  },
+
+  resetAllData: () => {
+    historyPast.length = 0
+    historyFuture.length = 0
+    useBoardStore.persist.clearStorage()
+    historyRestoring = true
+    set(getResetAppState())
     historyRestoring = false
   },
   }
@@ -625,60 +723,90 @@ export const useBoardStore = create<AppState & Actions>()(
   ,
     {
       name: 'anniary-storage',
-      version: 8,
+      version: 9,
       migrate: (persisted, _version) => {
-        const p = persisted as { settings?: AppSettings & { backlogShowNewlineButton?: boolean } }
-        if (!p?.settings) return persisted
-        const legacyNewlineBtn = p.settings.backlogShowNewlineButton === true
-        const rawTool = p.settings.drawTool
-        const drawTool: DrawToolKind =
-          rawTool && VALID_DRAW_TOOLS.includes(rawTool) ? rawTool : 'pen'
-        const paper =
-          p.settings.placeMemoPaperColor?.startsWith('#') ? p.settings.placeMemoPaperColor : '#ffffff'
-        const next: AppSettings = {
-          ...p.settings,
-          boardViewFilter: normalizeBoardViewFilter(p.settings.boardViewFilter),
-          drawTool,
-          placeKind: p.settings.placeKind ?? 'memo',
-          placeStickerChar: p.settings.placeStickerChar?.trim() || '⭐',
-          drawPenColor: p.settings.drawPenColor?.startsWith('#') ? p.settings.drawPenColor : '#2563eb',
-          placeMemoWidth: Math.min(120, Math.max(12, p.settings.placeMemoWidth ?? 40)),
-          placeMemoHeight: Math.min(80, Math.max(8, p.settings.placeMemoHeight ?? 16)),
-          placeMemoPaperColor: paper,
-          drawPenWidthWeight: normDrawWeight(p.settings.drawPenWidthWeight),
-          drawHighlighterColor: p.settings.drawHighlighterColor?.startsWith('#')
-            ? p.settings.drawHighlighterColor
-            : '#facc15',
-          drawHighlighterWidthWeight: normDrawWeight(p.settings.drawHighlighterWidthWeight),
-          drawShapeStrokeColor: p.settings.drawShapeStrokeColor?.startsWith('#')
-            ? p.settings.drawShapeStrokeColor
-            : '#2563eb',
-          drawShapeFillColor:
-            p.settings.drawShapeFillColor === 'transparent'
-            || p.settings.drawShapeFillColor === 'none'
-            || (typeof p.settings.drawShapeFillColor === 'string'
-              && p.settings.drawShapeFillColor.startsWith('#'))
-              ? (p.settings.drawShapeFillColor as string)
-              : 'transparent',
-          drawShapeStrokeWeight: normDrawWeight(p.settings.drawShapeStrokeWeight),
-          showNewlineInsertButton:
-            p.settings.showNewlineInsertButton === true || legacyNewlineBtn,
+        const p = { ...(persisted as Record<string, unknown>) }
+        if (p.settings && typeof p.settings === 'object') {
+          const ps = p.settings as AppSettings & { backlogShowNewlineButton?: boolean }
+          const legacyNewlineBtn = ps.backlogShowNewlineButton === true
+          const rawTool = ps.drawTool
+          const drawTool: DrawToolKind =
+            rawTool && VALID_DRAW_TOOLS.includes(rawTool) ? rawTool : 'pen'
+          const paper =
+            ps.placeMemoPaperColor?.startsWith('#') ? ps.placeMemoPaperColor : '#ffffff'
+          const next: AppSettings = {
+            ...ps,
+            boardViewFilter: normalizeBoardViewFilter(ps.boardViewFilter),
+            drawTool,
+            placeKind: ps.placeKind ?? 'memo',
+            placeStickerChar: ps.placeStickerChar?.trim() || '⭐',
+            drawPenColor: ps.drawPenColor?.startsWith('#') ? ps.drawPenColor : '#2563eb',
+            placeMemoWidth: Math.min(120, Math.max(12, ps.placeMemoWidth ?? 40)),
+            placeMemoHeight: Math.min(80, Math.max(8, ps.placeMemoHeight ?? 16)),
+            placeMemoPaperColor: paper,
+            drawPenWidthWeight: normDrawWeight(ps.drawPenWidthWeight),
+            drawHighlighterColor: ps.drawHighlighterColor?.startsWith('#')
+              ? ps.drawHighlighterColor
+              : '#facc15',
+            drawHighlighterWidthWeight: normDrawWeight(ps.drawHighlighterWidthWeight),
+            drawShapeStrokeColor: ps.drawShapeStrokeColor?.startsWith('#')
+              ? ps.drawShapeStrokeColor
+              : '#2563eb',
+            drawShapeFillColor:
+              ps.drawShapeFillColor === 'transparent'
+              || ps.drawShapeFillColor === 'none'
+              || (typeof ps.drawShapeFillColor === 'string'
+                && ps.drawShapeFillColor.startsWith('#'))
+                ? (ps.drawShapeFillColor as string)
+                : 'transparent',
+            drawShapeStrokeWeight: normDrawWeight(ps.drawShapeStrokeWeight),
+            showNewlineInsertButton:
+              ps.showNewlineInsertButton === true || legacyNewlineBtn,
+          }
+          delete (next as { backlogShowNewlineButton?: boolean }).backlogShowNewlineButton
+          p.settings = next
         }
-        delete (next as { backlogShowNewlineButton?: boolean }).backlogShowNewlineButton
-        return { ...p, settings: next }
+
+        p.view = normImportedView(p.view)
+        p.panel = normImportedPanel(p.panel)
+        p.interactionMode = normImportedInteractionMode(p.interactionMode)
+        p.selection = parseSelectionJson(p.selection)
+        p.lastTouchedItemId =
+          typeof p.lastTouchedItemId === 'string' ? p.lastTouchedItemId : null
+        p.rangeEditPreview = parseRangeEditPreviewJson(p.rangeEditPreview)
+        if (typeof p.dirty !== 'boolean') p.dirty = false
+
+        return p
       },
       partialize: (state) => ({
         activeBoardId: state.activeBoardId,
         boards: state.boards,
         settings: state.settings,
+        view: state.view,
+        panel: state.panel,
+        interactionMode: state.interactionMode,
+        selection: state.selection,
+        lastTouchedItemId: state.lastTouchedItemId,
+        rangeEditPreview: state.rangeEditPreview,
+        dirty: state.dirty,
       }),
     }
   )
 )
 
+function rehydrateSanitizedUiPatch() {
+  const s = useBoardStore.getState()
+  return {
+    selection: sanitizeSelectionForActiveBoard(s.boards, s.activeBoardId, s.selection),
+    lastTouchedItemId: sanitizeLastTouchedItemId(s.boards, s.activeBoardId, s.lastTouchedItemId),
+    rangeEditPreview: sanitizeRangeEditPreview(s.boards, s.activeBoardId, s.rangeEditPreview),
+  }
+}
+
 useBoardStore.persist.onFinishHydration(() => {
   useBoardStore.setState({
     _hydrated: true,
+    ...rehydrateSanitizedUiPatch(),
     _historyUi: {
       canUndo: historyPast.length > 0,
       canRedo: historyFuture.length > 0,
@@ -688,6 +816,7 @@ useBoardStore.persist.onFinishHydration(() => {
 if (useBoardStore.persist.hasHydrated()) {
   useBoardStore.setState({
     _hydrated: true,
+    ...rehydrateSanitizedUiPatch(),
     _historyUi: {
       canUndo: historyPast.length > 0,
       canRedo: historyFuture.length > 0,

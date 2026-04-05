@@ -15,10 +15,24 @@ const COPY_NEWLINE_BUTTON_HELP =
 const COPY_PLACE_MEMO_SIZE_HELP =
   'Default width/height for memos created with Place (board units). Memos already on the board: edit size in the left detail panel.'
 
+const COPY_DATA_BACKUP_HELP =
+  'JSON backup includes boards (items, ranges, overlays, drawings, assets), settings, zoom/pan, panels, tool mode, and selection. Data syncs to this browser automatically. Undo history is not stored in the file.'
+
+const COPY_DATA_RESET_HELP =
+  'Deletes all data in this browser and clears undo. Use Export JSON first if you need a copy.'
+
+/** 로컬 날짜·시간(파일명에 `:` 미사용) */
+function formatBackupJsonFilename(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `anniary-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.json`
+}
+
 export function SettingsPanel() {
   const settings = useBoardStore(s => s.settings)
   const updateSettings = useBoardStore(s => s.updateSettings)
   const importBoardsAndSettings = useBoardStore(s => s.importBoardsAndSettings)
+  const resetAllData = useBoardStore(s => s.resetAllData)
   const fileRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -145,10 +159,10 @@ export function SettingsPanel() {
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-title">Data</div>
-        <p className="settings-hint-block">
-          Full backup (boards + settings). Also synced to browser localStorage automatically.
-        </p>
+        <div className="settings-section-heading">
+          <div className="settings-section-title">Data</div>
+          <HelpTip text={COPY_DATA_BACKUP_HELP} />
+        </div>
         <div className="settings-row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <button
             type="button"
@@ -156,20 +170,24 @@ export function SettingsPanel() {
             style={{ cursor: 'pointer', padding: '6px 10px' }}
             onClick={() => {
               const s = useBoardStore.getState()
-              const year = s.activeBoardId
-                ? s.boards[s.activeBoardId]?.board.year
-                : new Date().getFullYear()
               const payload = {
-                anniaryExportVersion: 1,
+                anniaryExportVersion: 2,
                 exportedAt: new Date().toISOString(),
                 boards: s.boards,
                 activeBoardId: s.activeBoardId,
                 settings: s.settings,
+                view: s.view,
+                panel: s.panel,
+                interactionMode: s.interactionMode,
+                selection: s.selection,
+                lastTouchedItemId: s.lastTouchedItemId,
+                rangeEditPreview: s.rangeEditPreview,
+                dirty: s.dirty,
               }
               const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
               const a = document.createElement('a')
               a.href = URL.createObjectURL(blob)
-              a.download = `anniary-${year}.json`
+              a.download = formatBackupJsonFilename()
               a.click()
               URL.revokeObjectURL(a.href)
             }}
@@ -196,9 +214,17 @@ export function SettingsPanel() {
               try {
                 const text = await f.text()
                 const data = JSON.parse(text) as {
+                  anniaryExportVersion?: number
                   boards?: Record<string, BoardState>
                   activeBoardId?: string | null
                   settings?: typeof settings
+                  view?: unknown
+                  panel?: unknown
+                  interactionMode?: unknown
+                  selection?: unknown
+                  lastTouchedItemId?: string | null
+                  rangeEditPreview?: unknown
+                  dirty?: boolean
                 }
                 if (!data.boards || typeof data.boards !== 'object') {
                   window.alert('Invalid file: missing boards')
@@ -258,12 +284,50 @@ export function SettingsPanel() {
                         ),
                       }
                     : cur.settings
-                importBoardsAndSettings(data.boards, data.activeBoardId ?? null, nextSettings)
+                importBoardsAndSettings(data.boards, data.activeBoardId ?? null, nextSettings, {
+                  view: data.view,
+                  panel: data.panel,
+                  interactionMode: data.interactionMode,
+                  selection: data.selection,
+                  lastTouchedItemId: data.lastTouchedItemId ?? null,
+                  rangeEditPreview: data.rangeEditPreview,
+                  dirty: data.dirty,
+                })
               } catch (err) {
                 window.alert(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
               }
             }}
           />
+        </div>
+        <div className="settings-row">
+          <span className="settings-label settings-label--with-help">
+            Reset
+            <HelpTip text={COPY_DATA_RESET_HELP} />
+          </span>
+          <button
+            type="button"
+            className="settings-select settings-btn-danger"
+            style={{ cursor: 'pointer', padding: '6px 10px' }}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  'Delete ALL data in this browser for Anniary? This cannot be undone unless you have a JSON backup.',
+                )
+              ) {
+                return
+              }
+              if (
+                !window.confirm(
+                  'Final confirmation: everything will be removed and the app will start fresh.',
+                )
+              ) {
+                return
+              }
+              resetAllData()
+            }}
+          >
+            Erase everything…
+          </button>
         </div>
       </div>
     </div>

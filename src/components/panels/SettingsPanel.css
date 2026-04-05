@@ -115,3 +115,12 @@
 .settings-toggle.active .settings-toggle-thumb {
   transform: translateX(14px);
 }
+
+.settings-btn-danger {
+  border-color: var(--status-delayed) !important;
+  color: var(--status-delayed);
+}
+
+.settings-btn-danger:hover {
+  background: color-mix(in srgb, var(--status-delayed) 12%, var(--bg-cell));
+}

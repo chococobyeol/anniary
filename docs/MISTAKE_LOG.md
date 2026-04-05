@@ -694,3 +694,21 @@
 - 재발 방지: 줌은 **글자 크기·정책**만 `DAY_CELL_POLICY` 등으로 구분하고, **라벨 상대 좌표는 한 경로로** 유지할 것.
 - 검증: `npx tsc --noEmit`, `npm run lint` 성공.
 - 관련 파일: `src/components/board/DayCell.tsx`
+
+## [2026-04-05 19:08 KST] persist·JSON 백업 — 보드 데이터 + UI 상태 전부
+
+- 증상: `partialize`가 `boards`/`settings`/`activeBoardId`만 저장·복원해 줌·팬·패널·모드·선택·미리보기·dirty가 새로고침·수동 백업에서 빠짐. 그림·메모는 이미 `BoardState.overlays` 등에 있으나 “앱 전체 상태”와 문구가 불일치.
+- 원인: 초기에 최소 슬라이스만 persist. Export JSON도 동일 누락.
+- 해결: persist **v9** — `view`,`panel`,`interactionMode`,`selection`,`lastTouchedItemId`,`rangeEditPreview`,`dirty` 추가. `migrate`에서 구 저장분에 UI 기본값·JSON 파싱형 필드 정규화. hydration 직후 `selection`·`lastTouchedItemId`·`rangeEditPreview`를 활성 보드 기준 **sanitize**. `importBoardsAndSettings` 4번째 인자 `ImportUiBlob`으로 JSON 가져오기 시 동일 적용(v1 export는 필드 없음→정규화 기본값). Export `anniaryExportVersion: 2`. 공통 정규화는 `persistedAppSlice.ts`. **undo/redo 스택**은 모듈 전역·용량 이유로 여전히 비영속 — 설정 안내 문구에 명시.
+- 재발 방지: 새 `AppState` 필드 추가 시 **persist `partialize` + export + import + migrate** 네 곳을 같이 점검할 것.
+- 검증: `npx tsc --noEmit`, `npm run lint` 성공.
+- 관련 파일: `src/store/board-store.ts`, `src/utils/persistedAppSlice.ts`, `src/components/panels/SettingsPanel.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-05 19:11 KST] 백업 파일명(날짜·시간) + 설정에서 데이터 전체 초기화
+
+- 증상: JSON 내보내기 파일명이 연도만 포함해 백업 구분이 어렵고, 브라우저 데이터를 한 번에 비울 UI가 없음.
+- 원인: `anniary-{year}.json` 고정. 초기화 액션·위험 버튼 미구현.
+- 해결: 다운로드명을 로컬 `anniary-backup-YYYY-MM-DD_HH-mm-ss.json` 형식으로 변경. `getResetAppState` + `resetAllData`(persist `clearStorage`, undo 스택 비우기, 상태 초기화). 설정 Data 섹션에 이중 `confirm` 후 **Reset all data…** 버튼(`.settings-btn-danger`). `App.tsx` 기존 로직으로 초기화 직후 빈 보드면 올해 보드 자동 생성.
+- 재발 방지: 파괴적 조작은 이중 확인 + 백업 권장 문구. 초기 상태와 `initialState` 필드를 맞출 때 `getResetAppState`와 중복이 생기면 한쪽을 기준으로 동기화할 것.
+- 검증: `npx tsc --noEmit`, `npm run lint` 성공.
+- 관련 파일: `src/store/board-store.ts`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/SettingsPanel.css`, `docs/MISTAKE_LOG.md`
