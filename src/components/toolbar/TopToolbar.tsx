@@ -88,7 +88,11 @@ export function TopToolbar() {
     <header className="top-toolbar">
       <div className="toolbar-left">
         <span className="toolbar-year">{year}</span>
-        <span className="toolbar-zoom">{view.zoomLevel} · {zoomPercent}%</span>
+        <span className="toolbar-zoom">
+          <span className="toolbar-zoom-z">{view.zoomLevel}</span>
+          <span className="toolbar-zoom-sep"> · </span>
+          <span className="toolbar-zoom-pct">{zoomPercent}%</span>
+        </span>
       </div>
 
       <div className="toolbar-center-wrap">

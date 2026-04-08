@@ -14,7 +14,12 @@ export function RightPanel() {
     <div className="right-panel">
       <div className="right-panel-header">
         <span className="right-panel-title">{rightMode}</span>
-        <button className="right-panel-close" onClick={() => toggleRightPanel()}>
+        <button
+          type="button"
+          className="right-panel-close"
+          onClick={() => toggleRightPanel()}
+          aria-label="Close panel"
+        >
           <IconX size={16} />
         </button>
       </div>

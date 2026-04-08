@@ -319,6 +319,9 @@ export const useBoardStore = create<AppState & Actions>()(
     if (mode && s.panel.leftOpen && s.panel.leftMode === mode) {
       return { panel: { ...s.panel, leftOpen: false } }
     }
+    if (!mode && s.panel.leftOpen) {
+      return { panel: { ...s.panel, leftOpen: false } }
+    }
     return { panel: { ...s.panel, leftOpen: true, leftMode: mode || s.panel.leftMode } }
   }),
 
@@ -328,6 +331,9 @@ export const useBoardStore = create<AppState & Actions>()(
 
   toggleRightPanel: (mode) => set(s => {
     if (mode && s.panel.rightOpen && s.panel.rightMode === mode) {
+      return { panel: { ...s.panel, rightOpen: false } }
+    }
+    if (!mode && s.panel.rightOpen) {
       return { panel: { ...s.panel, rightOpen: false } }
     }
     return { panel: { ...s.panel, rightOpen: true, rightMode: mode || s.panel.rightMode } }

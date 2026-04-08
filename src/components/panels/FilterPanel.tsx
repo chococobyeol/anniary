@@ -78,29 +78,38 @@ export function FilterPanel() {
 
       <div className="settings-section">
         <div className="settings-section-title">Items</div>
-        <label className="settings-row">
-          <span className="settings-label">Hide done</span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">{filter.hideDoneItems ? 'Hidden' : 'Visible'}</span>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Hide done</span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
+              {filter.hideDoneItems ? 'Hidden' : 'Visible'}
+            </span>
             <button
               type="button"
               className={`settings-toggle ${filter.hideDoneItems ? 'active' : ''}`}
               onClick={() => updateBoardViewFilter({ hideDoneItems: !filter.hideDoneItems })}
               role="switch"
               aria-checked={filter.hideDoneItems}
+              aria-label="Hide done items"
             >
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
+        </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-title">Timeline</div>
-        <label className="settings-row">
-          <span className="settings-label">Hide multi-day period bars</span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">{filter.showTimelineBarsMultiDay ? 'Visible' : 'Hidden'}</span>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Hide multi-day / period bars</span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
+              {filter.showTimelineBarsMultiDay ? 'Visible' : 'Hidden'}
+            </span>
             <button
               type="button"
               className={`settings-toggle ${!filter.showTimelineBarsMultiDay ? 'active' : ''}`}
@@ -109,15 +118,20 @@ export function FilterPanel() {
               }
               role="switch"
               aria-checked={!filter.showTimelineBarsMultiDay}
+              aria-label="Hide multi-day period timeline bars"
             >
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Hide all-day single-day bars</span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">{filter.showTimelineBarsSingleDay ? 'Visible' : 'Hidden'}</span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Hide all-day single-day bars</span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
+              {filter.showTimelineBarsSingleDay ? 'Visible' : 'Hidden'}
+            </span>
             <button
               type="button"
               className={`settings-toggle ${!filter.showTimelineBarsSingleDay ? 'active' : ''}`}
@@ -126,15 +140,20 @@ export function FilterPanel() {
               }
               role="switch"
               aria-checked={!filter.showTimelineBarsSingleDay}
+              aria-label="Hide all-day single-day timeline bars"
             >
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
-        <label className="settings-row">
-          <span className="settings-label">Hide same-day time bars</span>
-          <div className="settings-toggle-wrap">
-            <span className="settings-hint">{filter.showTimelineBarsTimeOfDay ? 'Visible' : 'Hidden'}</span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-label-col">
+            <span className="settings-label">Hide same-day time bars</span>
+          </div>
+          <div className="settings-control settings-control--toggle">
+            <span className="settings-hint-inline">
+              {filter.showTimelineBarsTimeOfDay ? 'Visible' : 'Hidden'}
+            </span>
             <button
               type="button"
               className={`settings-toggle ${!filter.showTimelineBarsTimeOfDay ? 'active' : ''}`}
@@ -143,11 +162,12 @@ export function FilterPanel() {
               }
               role="switch"
               aria-checked={!filter.showTimelineBarsTimeOfDay}
+              aria-label="Hide same-day time timeline bars"
             >
               <span className="settings-toggle-thumb" />
             </button>
           </div>
-        </label>
+        </div>
       </div>
 
       <div className="settings-section">

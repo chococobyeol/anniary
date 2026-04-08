@@ -137,10 +137,6 @@
   text-align: right;
 }
 
-.settings-toggle-wrap {
-  flex-shrink: 0;
-}
-
 .settings-hint-block {
   font-size: var(--font-size-xs);
   color: var(--text-muted);

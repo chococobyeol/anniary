@@ -1,4 +1,5 @@
 import { useBoardStore } from '../../store/board-store'
+import { IconX } from '../icons/Icons'
 import { BacklogPanel } from './BacklogPanel'
 import { DetailPanel } from './DetailPanel'
 import { FilterPanel } from './FilterPanel'
@@ -10,6 +11,7 @@ import './LeftPanel.css'
 export function LeftPanel() {
   const leftOpen = useBoardStore(s => s.panel.leftOpen)
   const leftMode = useBoardStore(s => s.panel.leftMode)
+  const toggleLeftPanel = useBoardStore(s => s.toggleLeftPanel)
 
   if (!leftOpen) return null
 
@@ -19,6 +21,14 @@ export function LeftPanel() {
         <span className="left-panel-title">
           {leftMode === 'tags' ? 'Tags' : leftMode}
         </span>
+        <button
+          type="button"
+          className="left-panel-close"
+          onClick={() => toggleLeftPanel()}
+          aria-label="Close panel"
+        >
+          <IconX size={16} />
+        </button>
       </div>
       <div className="left-panel-content">
         {leftMode === 'backlog' && <BacklogPanel />}

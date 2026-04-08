@@ -2,6 +2,21 @@
   margin-top: 0;
 }
 
+/* Match Settings grid: fixed control column, right-aligned toggles, centered vs multi-line labels */
+.filter-panel .settings-row {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* Align with Settings: fixed control column, toggles on one row, hints don’t wrap */
+.filter-panel .settings-control--toggle {
+  flex-wrap: nowrap;
+}
+
+.filter-panel .settings-hint-inline {
+  white-space: nowrap;
+}
+
 .filter-tag-chips {
   display: flex;
   flex-wrap: wrap;

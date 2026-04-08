@@ -712,3 +712,21 @@
 - 재발 방지: 파괴적 조작은 이중 확인 + 백업 권장 문구. 초기 상태와 `initialState` 필드를 맞출 때 `getResetAppState`와 중복이 생기면 한쪽을 기준으로 동기화할 것.
 - 검증: `npx tsc --noEmit`, `npm run lint` 성공.
 - 관련 파일: `src/store/board-store.ts`, `src/components/panels/SettingsPanel.tsx`, `src/components/panels/SettingsPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-08 23:36 KST] 패널 닫기(X)·왼쪽 사이드바 닫기·모바일 툴바
+
+- 증상: 오른쪽 설정 패널 X가 동작하지 않음. 왼쪽 패널에는 닫기 버튼 없음. 모바일에서 상단 툴바가 길어 설정 아이콘이 화면 밖으로 밀림. Z 줌 레벨 라벨은 모바일에 불필요.
+- 원인: `toggleRightPanel`/`toggleLeftPanel`을 **인자 없이** 호출하면 분기 없이 항상 `open: true`만 설정됨. 툴바는 `space-between` + 중앙 뭉치 `flex: 0 0 auto`로 좁은 뷰포트에서 오른쪽이 밀림.
+- 해결: 모드 없이 호출 시 이미 열린 패널이면 닫도록 스토어 분기 추가. `LeftPanel` 헤더에 X(`toggleLeftPanel()`). `RightPanel` 닫기 버튼에 `type="button"`·`aria-label`. 줌 표시를 Z/구분자/%로 쪼개 **640px 이하**에서 Z·구분자 숨김. `toolbar-center-wrap`에 `flex:1; min-width:0`, `.toolbar-center`에 가로 스크롤·버튼 `flex-shrink:0`, 모바일 패딩·연도 크기 축소.
+- 재발 방지: 토글 API는 **닫기 전용 호출(무인자)** 과 **모드 토글(인자)** 의미를 문서화하거나, 닫기는 `closeLeftPanel` 등 명시 액션으로 분리 검토.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/store/board-store.ts`, `src/components/panels/LeftPanel.tsx`, `src/components/panels/LeftPanel.css`, `src/components/panels/RightPanel.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/components/toolbar/TopToolbar.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-08 23:39 KST] 필터 패널 — 토글·라벨 그리드 정렬
+
+- 증상: 필터 패널에서 `Visible`/토글이 행마다 들쭉날쭉하고, 두 줄 라벨일 때 토글이 아래줄에 붙어 보임. 미정의 클래스 `.settings-hint`/약한 `.settings-toggle-wrap` 사용.
+- 원인: 설정 패널과 달리 `label`+`settings-label` 직접 자식 그리드로 두 번째 칸이 `settings-control--toggle` 패턴이 아니어서 오른쪽 정렬·세로 맞춤이 깨짐.
+- 해결: Items/Timeline 행을 설정과 동일하게 `settings-label-col` + `settings-control settings-control--toggle` + `settings-hint-inline` 구조로 통일. 스위치에 `aria-label` 추가. Timeline 첫 항목 카피를 스샷에 맞게 `Hide multi-day / period bars`. `FilterPanel.css`에서 필터 전용 행 좌우 패딩, 토글 행 `nowrap`, 힌트 `white-space: nowrap`. 미사용 `.settings-toggle-wrap` 제거. 왼쪽 패널 헤더 X 여밈 약간 확대.
+- 재발 방지: 토글 행은 **항상** `settings-row` + `settings-label-col` + `settings-control--toggle` 조합으로 맞출 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/FilterPanel.tsx`, `src/components/panels/FilterPanel.css`, `src/components/panels/SettingsPanel.css`, `src/components/panels/LeftPanel.css`, `docs/MISTAKE_LOG.md`
