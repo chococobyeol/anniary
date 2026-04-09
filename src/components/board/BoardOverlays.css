@@ -209,26 +209,37 @@
   height: 100%;
   margin: 0;
   padding: 1px 4px 2px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .board-wb-textbox-ta {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 0;
   border: none;
   outline: none;
   resize: none;
   background: transparent;
-  line-height: 1.35;
+  line-height: 1.4;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .board-wb-textbox-readonly {
-  min-height: 100%;
-  line-height: 1.35;
+  flex: 1 1 auto;
+  min-height: 0;
+  line-height: 1.4;
   word-break: break-word;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .board-wb-textbox-readonly .board-wb-textbox-md.markdown-view,

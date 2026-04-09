@@ -34,7 +34,19 @@ export default function App() {
         || (tag instanceof HTMLElement && tag.isContentEditable)
 
       if (e.key === 'Escape') {
-        if (typing) return
+        if (typing) {
+          const st = useBoardStore.getState()
+          const wbTextarea =
+            tag instanceof HTMLTextAreaElement
+            && tag.classList.contains('board-wb-textbox-ta')
+            && st.selection?.type === 'overlay'
+          if (wbTextarea) {
+            e.preventDefault()
+            tag.blur()
+            setSelection(null)
+          }
+          return
+        }
         if (selection) {
           setSelection(null)
         } else {
@@ -64,6 +76,21 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selection, setSelection, closeAllPanels, undo, redo, deleteOverlay])
+
+  /** Select 모드에서 보드 오버레이 밖을 누르면 포커스/선택 해제(텍스트박스 편집 유지로 안 풀리던 문제) */
+  useEffect(() => {
+    const onPointerDownCapture = (e: PointerEvent) => {
+      if (e.button !== 0) return
+      const st = useBoardStore.getState()
+      if (st.interactionMode !== 'select' || st.selection?.type !== 'overlay') return
+      const t = e.target
+      if (!(t instanceof Element)) return
+      if (t.closest('.board-overlays') || t.closest('.board-overlay-ctx-menu')) return
+      st.setSelection(null)
+    }
+    window.addEventListener('pointerdown', onPointerDownCapture, true)
+    return () => window.removeEventListener('pointerdown', onPointerDownCapture, true)
+  }, [])
 
   return (
     <div className="app-layout">

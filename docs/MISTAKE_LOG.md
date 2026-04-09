@@ -730,3 +730,21 @@
 - 재발 방지: 토글 행은 **항상** `settings-row` + `settings-label-col` + `settings-control--toggle` 조합으로 맞출 것.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/components/panels/FilterPanel.tsx`, `src/components/panels/FilterPanel.css`, `src/components/panels/SettingsPanel.css`, `src/components/panels/LeftPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-10 02:46 KST] 화이트보드 텍스트박스 — 중간 높이에서 본문 잘림
+
+- 증상: 프레임 높이가 한두 줄 사이일 때 `textarea` 두 번째 줄이 가로로 반만 보이거나 글자 하단이 잘림.
+- 원인: `min-height: 100%`만 있고 **명시 높이 제약이 없어** 브라우저가 본문 높이만큼 `textarea` 박스를 키움 → 부모 `foreignObject`는 `overflow: hidden`이라 **박스 하단이 프레임 밖으로 나가 잘림**.
+- 해결: `.board-wb-textbox-root`를 세로 flex + `min-height: 0`. `.board-wb-textbox-ta`/readonly를 `flex: 1; min-height: 0`, `overflow-y: auto`, `overflow-x: hidden`으로 **항상 프레임 안 높이에 맞추고** 넘치면 스크롤. `line-height` 1.35→1.4로 디센더 여유 소폭.
+- 재발 방지: `foreignObject` 안 입력층은 **높이 100% 체인 + flex shrink**로 고정하고, 바깥으로 성장시키지 말 것. `overflow: visible`로 덮기 전에 이 패턴 검토.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-10 02:50 KST] 보드 텍스트박스 — ESC·오버레이 밖 클릭 시 선택 해제
+
+- 증상: 텍스트박스 편집 후 ESC 또는 툴바·패널 등 오버레이 바깥 클릭해도 오버레이 선택이 잘 안 풀린다고 느낌.
+- 원인: `App` 전역 `Escape`가 `textarea`면 무조건 `return`해 오버레이 선택을 비우지 않음. 오버레이 바깥 클릭 시 `setSelection(null)` 호출 경로가 없음(달력 셀만 맞으면 up에서 day로 바뀜).
+- 해결: 화이트보드 텍스트박스(`board-wb-textbox-ta`)이면서 선택이 오버레이일 때만 ESC로 `blur` + `setSelection(null)`. `pointerdown` 캡처에서 Select 모드·오버레이 선택일 때 `.board-overlays`/메모 컨텍스트 메뉴 밖이면 선택 해제.
+- 재발 방지: 입력 중 전역 단축키는 **필드 종류·선택 타입**까지 좁혀 예외 처리할 것. 오버레이 UX는 “밖 클릭=닫기” 패턴을 한 곳에서 유지할 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/App.tsx`, `docs/MISTAKE_LOG.md`
