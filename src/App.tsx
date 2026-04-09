@@ -85,7 +85,13 @@ export default function App() {
       if (st.interactionMode !== 'select' || st.selection?.type !== 'overlay') return
       const t = e.target
       if (!(t instanceof Element)) return
-      if (t.closest('.board-overlays') || t.closest('.board-overlay-ctx-menu')) return
+      if (
+        t.closest('.board-overlays')
+        || t.closest('.board-overlay-ctx-menu')
+        || t.closest('.detail-panel')
+      ) {
+        return
+      }
       st.setSelection(null)
     }
     window.addEventListener('pointerdown', onPointerDownCapture, true)

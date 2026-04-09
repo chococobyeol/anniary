@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useBoardStore } from '../../../store/board-store'
 import type { OverlayEntity, TextBoxFontKey } from '../../../types/entities'
 import {
@@ -21,17 +21,11 @@ const EMPTY_ITEM_LIST: { id: string; title: string }[] = []
 /** `items`가 일시적으로 비어 있을 때 스냅샷이 매번 새 `{}`로 바뀌는 것을 막기 위한 고정 참조 */
 const EMPTY_ITEMS: Record<string, never> = {}
 
-type OverlayTextFieldInnerProps = {
-  overlayId: string
-  initialText: string
-  emptyBody: boolean
-}
-
-function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTextFieldInnerProps) {
-  const [text, setText] = useState(initialText)
+function OverlayTextField({ overlay }: { overlay: OverlayEntity }) {
   const taRef = useRef<HTMLTextAreaElement>(null)
   const updateOverlay = useBoardStore(s => s.updateOverlay)
   const showNewlineInsertButton = useBoardStore(s => s.settings.showNewlineInsertButton)
+  const text = overlay.text ?? ''
   return (
     <>
       <span className="detail-add-label">Body (markdown)</span>
@@ -41,11 +35,9 @@ function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTex
           className="detail-add-input overlay-memo-md-textarea"
           style={{ minHeight: '4rem', resize: 'vertical' }}
           rows={5}
-          autoFocus={emptyBody}
           value={text}
           placeholder="Enter for newline · **bold** `code`"
-          onChange={e => setText(e.target.value)}
-          onBlur={() => updateOverlay(overlayId, { text })}
+          onChange={e => updateOverlay(overlay.id, { text: e.target.value })}
         />
         {showNewlineInsertButton ? (
           <button
@@ -54,7 +46,14 @@ function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTex
             title="Insert newline"
             aria-label="Insert newline"
             onMouseDown={e => e.preventDefault()}
-            onClick={() => insertNewlineAtCursor(taRef.current, setText)}
+            onClick={() =>
+              insertNewlineAtCursor(taRef.current, up => {
+                const st = useBoardStore.getState()
+                const bid = st.activeBoardId
+                const prev = bid ? st.boards[bid]?.overlays[overlay.id]?.text ?? '' : ''
+                updateOverlay(overlay.id, { text: up(prev) })
+              })
+            }
           >
             ↵
           </button>
@@ -67,19 +66,6 @@ function OverlayTextFieldInner({ overlayId, initialText, emptyBody }: OverlayTex
         </div>
       ) : null}
     </>
-  )
-}
-
-function OverlayTextField({ overlay }: { overlay: OverlayEntity }) {
-  const emptyBody = !(overlay.text ?? '').trim()
-  const t = overlay.text ?? ''
-  return (
-    <OverlayTextFieldInner
-      key={`${overlay.id}:${t}`}
-      overlayId={overlay.id}
-      initialText={t}
-      emptyBody={emptyBody}
-    />
   )
 }
 

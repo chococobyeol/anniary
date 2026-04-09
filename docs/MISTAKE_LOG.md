@@ -748,3 +748,21 @@
 - 재발 방지: 입력 중 전역 단축키는 **필드 종류·선택 타입**까지 좁혀 예외 처리할 것. 오버레이 UX는 “밖 클릭=닫기” 패턴을 한 곳에서 유지할 것.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/App.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-10 03:11 KST] 오버레이 디테일 Body — 빈 본문 시 포커스 탈취·보드와 불일치
+
+- 증상: 보드 텍스트박스에서 백스페이스로 전부 지우면 디테일 패널 Body로 커서가 이동. 디테일에서 입력해도 보드 상자에 반영이 안 됨.
+- 원인: `OverlayTextFieldInner`가 `emptyBody`일 때 `autoFocus` + 본문 문자열을 `key`에 넣어 텍스트가 `''`가 되는 순간 리마운트 후 자동 포커스. Body는 로컬 state + `onBlur`에서만 `updateOverlay`해 스토어와 보드 controlled 입력이 어긋남.
+- 해결: Body를 **스토어 직결** — `value={overlay.text ?? ''}`, `onChange`에서 즉시 `updateOverlay`. `autoFocus`·텍스트 기반 `key` 제거. ↵ 삽입은 `insertNewlineAtCursor` 콜백 안에서 `getState()`로 `prev` 읽어 갱신.
+- 재발 방지: 오버레이 본문은 보드·디테일 **단일 소스(스토어)** 로 두고, “빈 값일 때만 포커스”류는 리마운트·키와 섞지 말 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-10 03:13 KST] 오버레이 선택 + 디테일 Body 클릭 시 포커스·선택 증발
+
+- 증상: 텍스트박스 선택 후 왼쪽 디테일 Body를 눌러 편집하려 하면 포커스가 바로 풀리거나 편집 불가.
+- 원인: `App`의 `pointerdown` 캡처가 `.board-overlays` 밖이면 `setSelection(null)` — 디테일은 SVG 밖 DOM이라 Body `textarea` 클릭도 “밖 클릭”으로 처리됨.
+- 해결: 캡처에서 `t.closest('.detail-panel')`이면 선택 유지(아이템/레인지/오버레이 디테일 공통 루트).
+- 재발 방지: 전역 “밖 클릭 해제”는 보드뿐 아니라 **연관 패널 DOM**을 화이트리스트할 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/App.tsx`, `docs/MISTAKE_LOG.md`
