@@ -74,10 +74,10 @@
 }
 
 .backlog-tag-chip {
-  padding: 2px 8px;
+  padding: 4px 10px;
   font-size: var(--font-size-xs);
   border: 1px solid var(--border-light);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-panel);
   cursor: pointer;
   color: var(--text-secondary);
@@ -396,8 +396,8 @@
 }
 
 .backlog-item-tag {
-  padding: 1px 6px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: var(--bg-cell-hover);
   color: var(--text-secondary);
 }

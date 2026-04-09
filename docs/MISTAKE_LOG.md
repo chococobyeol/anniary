@@ -766,3 +766,12 @@
 - 재발 방지: 전역 “밖 클릭 해제”는 보드뿐 아니라 **연관 패널 DOM**을 화이트리스트할 것.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/App.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-10 04:20 KST] 태그 칩 — 필터·백로그 실루엣·색 계층 통일
+
+- 증상: 필터 태그는 네모에 가깝고 active가 연한 편, 백로그는 pill·솔리드 active로 같은 “태그”인데 얼굴이 다름.
+- 원인: 필터만 `--radius-sm`, 백로그만 `999px`/솔리드. 토큰 미공유.
+- 해결: `theme.css`에 `--radius-pill`. 필터·백로그 칩 모두 pill + 패딩 `4px 10px`. 필터 active는 다중 선택에 맞게 `bg-cell-selected` 틴트 + 진한 테두리(솔리드 primary 아님). 백로그 active·행 뱃지는 기존 솔리드/뱃지 역할 유지, 반경만 토큰·뱃지 패딩 소폭 정리.
+- 재발 방지: 새 태그 UI는 `--radius-pill`과 칩/뱃지 패딩을 공유할 것.
+- 검증: `npm run lint`, `npm run build` 성공.
+- 관련 파일: `src/theme/theme.css`, `src/components/panels/FilterPanel.css`, `src/components/panels/BacklogPanel.css`, `docs/MISTAKE_LOG.md`
