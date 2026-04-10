@@ -39,7 +39,7 @@ export function useZoomPan(containerRef: RefObject<HTMLDivElement | null>) {
         const dy = wheelDeltaYPixels(e)
         if (dy === 0) return
         const zoomIn = settings.zoomInverted ? dy > 0 : dy < 0
-        const magnitude = Math.min(Math.abs(dy) * 0.00125, 0.11)
+        const magnitude = Math.min(Math.abs(dy) * 0.00250, 0.22)
         const mult = zoomIn ? 1 + magnitude : 1 / (1 + magnitude)
         const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale * mult))
         const cursorX = e.clientX - rect.left
