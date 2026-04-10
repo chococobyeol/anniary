@@ -775,3 +775,12 @@
 - 재발 방지: 새 태그 UI는 `--radius-pill`과 칩/뱃지 패딩을 공유할 것.
 - 검증: `npm run lint`, `npm run build` 성공.
 - 관련 파일: `src/theme/theme.css`, `src/components/panels/FilterPanel.css`, `src/components/panels/BacklogPanel.css`, `docs/MISTAKE_LOG.md`
+
+## [2026-04-11] 포스트잇 백로그 연동 표시·클리핑 + Ctrl/⌘ 휠 줌 폭주
+
+- 증상: 연동 시 첫 줄이 `title` 전용 스타일로 볼드·크게 보임(사용자는 한 블록 context). 백로그 본문 구간만 왼쪽 글자가 잘림. Windows 등에서 Ctrl+휠 한 번에 배율이 MIN/MAX까지 튐(고해상·무한 휠).
+- 원인: `BoardOverlays`가 `linked.title`/`linked.body`를 분리 렌더+`.board-postit-linked-title` CSS. 연동 블록만 이중 `overflow:hidden`+flex로 메모와 클리핑이 달랐음. `useZoomPan`이 `wheel` 이벤트마다 `×1.08`/`×0.92` 고정이라 이벤트 폭주 시 복리로 한계까지 도달.
+- 해결: `linkedBacklogMarkdown`로 title+body를 상세 패널과 동일하게 `\n`으로 합쳐 단일 `MarkdownView`. 연동 블록은 `min-width:0`, 본문은 `overflow-y:auto`+`min-width:0`; 루트 좌패딩 소폭 증가; 포스트잇 내 `hr` 마진 축소. 휠은 `deltaMode` 반영 픽셀 환산 후 `|dy|*0.0009` 한도 0.09로 배율 변화.
+- 재발 방지: 저장 필드 분리(title/body)와 **표시**를 혼동하지 말 것; flex 자식 가로 클리핑은 `min-width:0`·스크롤 담당 계층 한 곳. 줌은 이벤트당 고정 배율 대신 delta 기반+상한.
+- 검증: `npx tsc --noEmit`, `npm run build` 성공.
+- 관련 파일: `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `src/hooks/useZoomPan.ts`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`

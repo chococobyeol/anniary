@@ -14,7 +14,7 @@ import { HelpTip } from './HelpTip'
 import '../DetailPanel.css'
 
 const COPY_LINKED_MEMO_HELP =
-  'Drag a backlog row onto the memo, or open the memo menu in Select (right-click / long-press). The item renders as markdown under your memo. Using Place after choosing an item links it too.'
+  'Drag a backlog row onto the memo, or open the memo menu in Select (right-click / long-press). The linked backlog text shows as markdown below your memo (same content as in the backlog editor). Using Place after choosing an item links it too.'
 
 const EMPTY_ITEM_LIST: { id: string; title: string }[] = []
 

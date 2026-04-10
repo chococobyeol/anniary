@@ -30,6 +30,16 @@ function overlayZOrder(a: OverlayEntity, b: OverlayEntity): number {
   return a.createdAt.localeCompare(b.createdAt)
 }
 
+/** 백로그는 저장 시 첫 줄=title·나머지=body — 포스트잇에서는 한 덩어리 마크다운으로만 표시(첫 줄 별도 볼드 제거) */
+function linkedBacklogMarkdown(item: { title?: string; body?: string }): string | null {
+  const t = item.title?.trim() ?? ''
+  const b = item.body?.trim() ?? ''
+  if (t && b) return `${t}\n${b}`
+  if (t) return t
+  if (b) return b
+  return null
+}
+
 function minOverlaySize(o: OverlayEntity): { minW: number; minH: number } {
   if (o.type === 'sticker') return { minW: 6, minH: 6 }
   if (o.type === 'text' && o.role === 'semantic') return { minW: 12, minH: 8 }
@@ -701,6 +711,7 @@ export const BoardOverlays = memo(function BoardOverlays({
           const isPostitMemo = o.type === 'text' && o.role === 'semantic'
           const isWbText = isWhiteboardTextBox(o)
           const linked = o.linkedItemId && boardItemsRecord ? boardItemsRecord[o.linkedItemId] : undefined
+          const linkedMd = linked ? linkedBacklogMarkdown(linked) : null
           const bodyText = (o.text ?? '').trim()
           const showPostitHtml =
             isPostitMemo && (Boolean(bodyText) || Boolean(linked))
@@ -870,14 +881,11 @@ export const BoardOverlays = memo(function BoardOverlays({
                     {bodyText && linked ? <div className="board-postit-linked-sep" /> : null}
                     {linked ? (
                       <div className="board-postit-linked-block">
-                        {linked.title?.trim() ? (
-                          <div className="board-postit-linked-title">{linked.title}</div>
-                        ) : null}
-                        {linked.body?.trim() ? (
-                          <MarkdownView source={linked.body} className="board-postit-md-linked" />
-                        ) : !linked.title?.trim() ? (
+                        {linkedMd ? (
+                          <MarkdownView source={linkedMd} className="board-postit-md-linked" />
+                        ) : (
                           <div className="board-postit-linked-empty">Linked item has no title or body.</div>
-                        ) : null}
+                        )}
                       </div>
                     ) : null}
                   </div>

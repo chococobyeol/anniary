@@ -2,6 +2,22 @@ import { useCallback, useRef, useEffect, type RefObject } from 'react'
 import { useBoardStore } from '../store/board-store'
 import { MIN_SCALE, MAX_SCALE } from '../utils/zoom'
 
+/** deltaMode별로 픽셀에 가깝게 환산 — 무한 휠 등에서 이벤트당 고정 8% 곱셈 시 MIN/MAX까지 순식간에 도달하는 문제 완화 */
+function wheelDeltaYPixels(e: WheelEvent): number {
+  let d = e.deltaY
+  switch (e.deltaMode) {
+    case WheelEvent.DOM_DELTA_LINE:
+      d *= 32
+      break
+    case WheelEvent.DOM_DELTA_PAGE:
+      d *= 480
+      break
+    default:
+      break
+  }
+  return d
+}
+
 export function useZoomPan(containerRef: RefObject<HTMLDivElement | null>) {
   const setView = useBoardStore(s => s.setView)
   const updateZoomLevel = useBoardStore(s => s.updateZoomLevel)
@@ -20,10 +36,12 @@ export function useZoomPan(containerRef: RefObject<HTMLDivElement | null>) {
       const rect = el.getBoundingClientRect()
 
       if (e.ctrlKey || e.metaKey) {
-        const down = e.deltaY > 0
-        const zoomIn = settings.zoomInverted ? down : !down
-        const zoomFactor = zoomIn ? 1.08 : 0.92
-        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale * zoomFactor))
+        const dy = wheelDeltaYPixels(e)
+        if (dy === 0) return
+        const zoomIn = settings.zoomInverted ? dy > 0 : dy < 0
+        const magnitude = Math.min(Math.abs(dy) * 0.00125, 0.11)
+        const mult = zoomIn ? 1 + magnitude : 1 / (1 + magnitude)
+        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale * mult))
         const cursorX = e.clientX - rect.left
         const cursorY = e.clientY - rect.top
         const ratio = newScale / view.scale

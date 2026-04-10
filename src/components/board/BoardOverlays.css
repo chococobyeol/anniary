@@ -45,7 +45,7 @@
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 1.35px 2.3px 1.2px 1.55px;
+  padding: 1.35px 2.3px 1.2px 2.15px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -64,7 +64,9 @@
 .board-overlay-postit-fobj-root .markdown-view.board-postit-md-linked {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .board-overlay-postit-fobj-root .markdown-view p {
@@ -97,6 +99,12 @@
   overflow: hidden;
 }
 
+.board-overlay-postit-fobj-root .markdown-view hr {
+  margin: 0.28em 0;
+  border: none;
+  border-top: 0.2px solid rgba(113, 63, 18, 0.22);
+}
+
 .board-postit-linked-sep {
   flex-shrink: 0;
   margin: 0.3px 0;
@@ -106,18 +114,10 @@
 .board-postit-linked-block {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25px;
-}
-
-.board-postit-linked-title {
-  flex-shrink: 0;
-  font-size: 2.55px;
-  font-weight: 700;
-  color: #713f12;
-  word-break: break-word;
 }
 
 .board-postit-linked-empty {
