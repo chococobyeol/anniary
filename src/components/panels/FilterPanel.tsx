@@ -6,12 +6,18 @@ import './SettingsPanel.css'
 import './FilterPanel.css'
 
 const EMPTY_ITEMS: Record<string, ItemEntity> = {}
+const EMPTY_TAG_CATALOG: string[] = []
 
 export function FilterPanel() {
   const items = useBoardStore(s => {
     const id = s.activeBoardId
     if (!id) return EMPTY_ITEMS
     return s.boards[id]?.items ?? EMPTY_ITEMS
+  })
+  const tagCatalog = useBoardStore(s => {
+    const id = s.activeBoardId
+    if (!id) return EMPTY_TAG_CATALOG
+    return s.boards[id]?.tagCatalog ?? EMPTY_TAG_CATALOG
   })
   const boardViewFilterRaw = useBoardStore(s => s.settings.boardViewFilter)
   const filter = useMemo(
@@ -21,7 +27,10 @@ export function FilterPanel() {
   const updateBoardViewFilter = useBoardStore(s => s.updateBoardViewFilter)
   const resetBoardViewFilter = useBoardStore(s => s.resetBoardViewFilter)
 
-  const tagList = useMemo(() => collectTagsFromItems(items), [items])
+  const tagList = useMemo(
+    () => collectTagsFromItems(items, tagCatalog),
+    [items, tagCatalog],
+  )
 
   const toggleTag = (tag: string) => {
     const key = normalizeFilterTag(tag)
@@ -64,6 +73,7 @@ export function FilterPanel() {
               type="button"
               className={`filter-tag-chip ${isTagActive(tag) ? 'active' : ''}`}
               onClick={() => toggleTag(tag)}
+              aria-pressed={isTagActive(tag)}
             >
               {tag}
             </button>

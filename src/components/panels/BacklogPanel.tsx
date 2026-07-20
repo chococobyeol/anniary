@@ -6,11 +6,13 @@ import { MarkdownView } from '../common/MarkdownView'
 import { sortDateKeys, isContiguousDateSpan } from '../../utils/date'
 import { formatRepeatSummary, getEffectiveItemRepeat, itemOccursOnDate } from '../../utils/repeat'
 import type { ItemStatus } from '../../types/entities'
-import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck } from '../icons/Icons'
+import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconCheck, IconPencil } from '../icons/Icons'
 import { insertNewlineAtCursor } from '../../utils/textareaNewline'
+import { isLegacyTagPlaceholder } from '../../utils/tagManagement'
 import './BacklogPanel.css'
 
 const DEFAULT_TAG = 'General'
+const EMPTY_TAG_CATALOG: string[] = []
 
 function backlogListTitle(item: { title?: string; body?: string }): string {
   const t = item.title?.trim()
@@ -42,6 +44,10 @@ export function BacklogPanel() {
     if (!s.activeBoardId) return {}
     return s.boards[s.activeBoardId]?.items || {}
   })
+  const tagCatalog = useBoardStore(s => {
+    if (!s.activeBoardId) return EMPTY_TAG_CATALOG
+    return s.boards[s.activeBoardId]?.tagCatalog ?? EMPTY_TAG_CATALOG
+  })
   const ranges = useBoardStore(s => {
     if (!s.activeBoardId) return {}
     return s.boards[s.activeBoardId]?.ranges || {}
@@ -67,7 +73,7 @@ export function BacklogPanel() {
   const [showDone, setShowDone] = useState(false)
 
   const allBacklog = useMemo(() => {
-    const list = Object.values(items)
+    const list = Object.values(items).filter(item => !isLegacyTagPlaceholder(item))
     if (!selection) return list
     if (selection.type === 'day') {
       const dateKey = selection.dateKey
@@ -104,6 +110,34 @@ export function BacklogPanel() {
     return list
   }, [items, ranges, selection, boardYear])
 
+  const contextSummary = useMemo(() => {
+    if (!selection) return null
+    if (selection.type === 'day') return `Showing items on ${selection.dateKey}`
+    if (selection.type === 'days') {
+      const keys = sortDateKeys([...new Set(selection.dateKeys)])
+      if (keys.length === 0) return null
+      if (keys.length === 1) return `Showing items on ${keys[0]}`
+      return isContiguousDateSpan(keys)
+        ? `Showing items from ${keys[0]} to ${keys[keys.length - 1]}`
+        : `Showing items on ${keys.length} selected days`
+    }
+    if (selection.type === 'range') {
+      const range = ranges[selection.rangeId]
+      if (!range) return null
+      return `Showing items from ${range.startDate} to ${range.endDate}`
+    }
+    if (selection.type === 'item') {
+      const item = items[selection.itemId]
+      if (!item) return null
+      if (item.date) return `Showing items on ${item.date}`
+      if (item.rangeId && ranges[item.rangeId]) {
+        const range = ranges[item.rangeId]
+        return `Showing items from ${range.startDate} to ${range.endDate}`
+      }
+    }
+    return null
+  }, [items, ranges, selection])
+
   const sortedByUpdated = useMemo(
     () => [...allBacklog].sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1)),
     [allBacklog]
@@ -132,6 +166,7 @@ export function BacklogPanel() {
   /** 보드 전체 item 기준 — 선택 날짜의 목록(allBacklog)이 아니라 어디에든 쓰인 태그를 칩에 표시 */
   const uniqueTags = useMemo(() => {
     const set = new Set<string>([DEFAULT_TAG])
+    for (const tag of tagCatalog) set.add((tag && tag.trim()) || DEFAULT_TAG)
     for (const it of Object.values(items)) {
       if (it.tags?.length) {
         for (const t of it.tags) {
@@ -142,7 +177,7 @@ export function BacklogPanel() {
       }
     }
     return [...set].sort((a, b) => (a === DEFAULT_TAG ? -1 : b === DEFAULT_TAG ? 1 : a.localeCompare(b)))
-  }, [items])
+  }, [items, tagCatalog])
 
 
   const handleAdd = () => {
@@ -230,6 +265,7 @@ export function BacklogPanel() {
             className={`backlog-status-btn status-${item.status}`}
             onClick={() => updateItem(item.id, { status: toggleDone(item.status) })}
             title={`Status: ${item.status}`}
+            aria-label={`Status: ${item.status}`}
           >
             {item.status === 'done' && <IconCheck size={8} />}
           </button>
@@ -268,16 +304,31 @@ export function BacklogPanel() {
             )}
           </div>
           <span className="backlog-item-tag">{getItemTag(item)}</span>
+          <button
+            type="button"
+            className="backlog-edit-btn"
+            onClick={(e) => { e.stopPropagation(); openItemDetail(item.id) }}
+            title="Edit"
+            aria-label={`Edit ${backlogListTitle(item)}`}
+          >
+            <IconPencil size={12} />
+          </button>
           {item.body && (
             <button
               className="backlog-expand-btn"
               onClick={(e) => { e.stopPropagation(); toggleExpand(item.id) }}
               title={isExpanded ? 'Collapse' : 'Expand'}
+              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${backlogListTitle(item)}`}
             >
               {isExpanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
             </button>
           )}
-          <button className="backlog-delete-btn" onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }} title="Delete">
+          <button
+            className="backlog-delete-btn"
+            onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }}
+            title="Delete"
+            aria-label={`Delete ${backlogListTitle(item)}`}
+          >
             <IconTrash size={12} />
           </button>
         </div>
@@ -292,6 +343,12 @@ export function BacklogPanel() {
 
   return (
     <div className="backlog-panel">
+      {contextSummary && (
+        <div className="backlog-context" role="status">
+          <span>{contextSummary}</span>
+          <button type="button" onClick={() => setSelection(null)}>Show all</button>
+        </div>
+      )}
       <div className="backlog-input-group">
         <div className="backlog-input-row backlog-textarea-row">
           <textarea
@@ -333,6 +390,7 @@ export function BacklogPanel() {
                 type="button"
                 className={`backlog-tag-chip ${selectedTag === tag && !customTag.trim() ? 'active' : ''}`}
                 onClick={() => { setSelectedTag(tag); setCustomTag('') }}
+                aria-pressed={selectedTag === tag && !customTag.trim()}
               >
                 {tag}
               </button>

@@ -26,6 +26,21 @@ export default function App() {
   }, [hydrated, activeBoardId, createBoard])
 
   useEffect(() => {
+    const narrowViewport = window.matchMedia('(max-width: 640px)')
+    const keepOneSidePanel = () => {
+      if (!narrowViewport.matches) return
+      const state = useBoardStore.getState()
+      if (!state.panel.leftOpen || !state.panel.rightOpen) return
+      useBoardStore.setState({
+        panel: { ...state.panel, leftOpen: false },
+      })
+    }
+    keepOneSidePanel()
+    narrowViewport.addEventListener('change', keepOneSidePanel)
+    return () => narrowViewport.removeEventListener('change', keepOneSidePanel)
+  }, [])
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = e.target
       const typing =

@@ -1,13 +1,100 @@
 import { useRef } from 'react'
 import { useBoardStore } from '../../store/board-store'
-import type { AppSettings, BoardState, DayLayout, DrawStrokeWeight } from '../../types/state'
+import type { AppSettings, DayLayout, DrawStrokeWeight } from '../../types/state'
+import { normalizeBoardViewFilter } from '../../utils/boardViewFilter'
+import { validateBackupPayload } from '../../utils/backupValidation'
+import { HelpTip } from './detail/HelpTip'
+import './SettingsPanel.css'
 
 function normImportedDrawWeight(w: unknown, fallback: DrawStrokeWeight): DrawStrokeWeight {
   return w === 'thin' || w === 'medium' || w === 'thick' ? w : fallback
 }
-import { normalizeBoardViewFilter } from '../../utils/boardViewFilter'
-import { HelpTip } from './detail/HelpTip'
-import './SettingsPanel.css'
+
+function finiteBetween(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback
+}
+
+function hexColor(value: unknown, fallback: string): string {
+  return typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)
+    ? value
+    : fallback
+}
+
+function normalizeImportedSettings(
+  imported: Partial<AppSettings> | undefined,
+  current: AppSettings,
+  selectedAssetExists: (assetId: string) => boolean,
+): AppSettings {
+  if (!imported) return current
+  const drawTools = ['pen', 'highlighter', 'rect', 'ellipse', 'textbox', 'eraser']
+  const backlogLimit = imported.backlogDisplayLimit
+  const selectedAssetId = imported.placeStickerAssetId
+  return {
+    ...current,
+    dayLayout:
+      imported.dayLayout === 'linear' || imported.dayLayout === 'weekday-aligned'
+        ? imported.dayLayout
+        : current.dayLayout,
+    zoomInverted:
+      typeof imported.zoomInverted === 'boolean' ? imported.zoomInverted : current.zoomInverted,
+    backlogDisplayLimit:
+      backlogLimit === null
+        ? null
+        : typeof backlogLimit === 'number' && Number.isFinite(backlogLimit) && backlogLimit > 0
+          ? Math.round(backlogLimit)
+          : current.backlogDisplayLimit,
+    showNewlineInsertButton:
+      typeof imported.showNewlineInsertButton === 'boolean'
+        ? imported.showNewlineInsertButton
+        : current.showNewlineInsertButton,
+    boardViewFilter: normalizeBoardViewFilter(imported.boardViewFilter ?? current.boardViewFilter),
+    drawTool: drawTools.includes(String(imported.drawTool))
+      ? imported.drawTool!
+      : current.drawTool,
+    placeKind:
+      imported.placeKind === 'memo' || imported.placeKind === 'sticker'
+        ? imported.placeKind
+        : current.placeKind,
+    placeStickerChar:
+      typeof imported.placeStickerChar === 'string' && imported.placeStickerChar.trim()
+        ? imported.placeStickerChar.trim()
+        : current.placeStickerChar,
+    placeStickerAssetId:
+      typeof selectedAssetId === 'string' && selectedAssetExists(selectedAssetId)
+        ? selectedAssetId
+        : null,
+    drawPenColor: hexColor(imported.drawPenColor, current.drawPenColor),
+    placeMemoWidth: finiteBetween(imported.placeMemoWidth, 12, 120, current.placeMemoWidth),
+    placeMemoHeight: finiteBetween(imported.placeMemoHeight, 8, 80, current.placeMemoHeight),
+    placeMemoPaperColor: hexColor(imported.placeMemoPaperColor, current.placeMemoPaperColor),
+    drawPenWidthWeight: normImportedDrawWeight(
+      imported.drawPenWidthWeight,
+      current.drawPenWidthWeight,
+    ),
+    drawHighlighterColor: hexColor(
+      imported.drawHighlighterColor,
+      current.drawHighlighterColor,
+    ),
+    drawHighlighterWidthWeight: normImportedDrawWeight(
+      imported.drawHighlighterWidthWeight,
+      current.drawHighlighterWidthWeight,
+    ),
+    drawShapeStrokeColor: hexColor(
+      imported.drawShapeStrokeColor,
+      current.drawShapeStrokeColor,
+    ),
+    drawShapeFillColor:
+      imported.drawShapeFillColor === 'transparent' || imported.drawShapeFillColor === 'none'
+        ? imported.drawShapeFillColor
+        : hexColor(imported.drawShapeFillColor, current.drawShapeFillColor),
+    drawShapeStrokeWeight: normImportedDrawWeight(
+      imported.drawShapeStrokeWeight,
+      current.drawShapeStrokeWeight,
+    ),
+  }
+}
 
 const COPY_NEWLINE_BUTTON_HELP =
   'Adds ↵ next to backlog and markdown fields to insert a line break—useful when Shift+Enter is hard on touch keyboards.'
@@ -236,79 +323,19 @@ export function SettingsPanel() {
             e.target.value = ''
             if (!f) return
             try {
+              if (f.size > 25 * 1024 * 1024) {
+                throw new Error('the backup file is larger than 25 MB')
+              }
               const text = await f.text()
-              const data = JSON.parse(text) as {
-                anniaryExportVersion?: number
-                boards?: Record<string, BoardState>
-                activeBoardId?: string | null
-                settings?: typeof settings
-                view?: unknown
-                panel?: unknown
-                interactionMode?: unknown
-                selection?: unknown
-                lastTouchedItemId?: string | null
-                rangeEditPreview?: unknown
-                dirty?: boolean
-              }
-              if (!data.boards || typeof data.boards !== 'object') {
-                window.alert('Invalid file: missing boards')
-                return
-              }
+              const data = validateBackupPayload(JSON.parse(text))
               const cur = useBoardStore.getState()
-              const nextSettings: AppSettings =
-                data.settings && typeof data.settings === 'object'
-                  ? {
-                      ...cur.settings,
-                      ...data.settings,
-                      boardViewFilter: normalizeBoardViewFilter(
-                        data.settings.boardViewFilter !== undefined
-                          ? {
-                              ...normalizeBoardViewFilter(cur.settings.boardViewFilter),
-                              ...data.settings.boardViewFilter,
-                            }
-                          : cur.settings.boardViewFilter
-                      ),
-                      drawTool: data.settings.drawTool ?? cur.settings.drawTool,
-                      placeKind: data.settings.placeKind ?? cur.settings.placeKind,
-                      placeStickerChar:
-                        data.settings.placeStickerChar?.trim() || cur.settings.placeStickerChar,
-                      drawPenColor:
-                        data.settings.drawPenColor?.startsWith('#')
-                          ? data.settings.drawPenColor
-                          : cur.settings.drawPenColor,
-                      placeMemoWidth: data.settings.placeMemoWidth ?? cur.settings.placeMemoWidth,
-                      placeMemoHeight: data.settings.placeMemoHeight ?? cur.settings.placeMemoHeight,
-                      placeMemoPaperColor:
-                        data.settings.placeMemoPaperColor?.startsWith('#')
-                          ? data.settings.placeMemoPaperColor
-                          : cur.settings.placeMemoPaperColor,
-                      drawPenWidthWeight: normImportedDrawWeight(
-                        data.settings.drawPenWidthWeight,
-                        cur.settings.drawPenWidthWeight
-                      ),
-                      drawHighlighterColor: data.settings.drawHighlighterColor?.startsWith('#')
-                        ? data.settings.drawHighlighterColor
-                        : cur.settings.drawHighlighterColor,
-                      drawHighlighterWidthWeight: normImportedDrawWeight(
-                        data.settings.drawHighlighterWidthWeight,
-                        cur.settings.drawHighlighterWidthWeight
-                      ),
-                      drawShapeStrokeColor: data.settings.drawShapeStrokeColor?.startsWith('#')
-                        ? data.settings.drawShapeStrokeColor
-                        : cur.settings.drawShapeStrokeColor,
-                      drawShapeFillColor: (() => {
-                        const cf = data.settings.drawShapeFillColor
-                        if (cf === 'transparent' || cf === 'none') return cf
-                        if (typeof cf === 'string' && cf.startsWith('#')) return cf
-                        return cur.settings.drawShapeFillColor
-                      })(),
-                      drawShapeStrokeWeight: normImportedDrawWeight(
-                        data.settings.drawShapeStrokeWeight,
-                        cur.settings.drawShapeStrokeWeight
-                      ),
-                    }
-                  : cur.settings
-              importBoardsAndSettings(data.boards, data.activeBoardId ?? null, nextSettings, {
+              const selectedBoard = data.activeBoardId ? data.boards[data.activeBoardId] : undefined
+              const nextSettings = normalizeImportedSettings(
+                data.settings,
+                cur.settings,
+                assetId => Boolean(selectedBoard?.assets[assetId]),
+              )
+              importBoardsAndSettings(data.boards, data.activeBoardId, nextSettings, {
                 view: data.view,
                 panel: data.panel,
                 interactionMode: data.interactionMode,
@@ -356,6 +383,12 @@ export function SettingsPanel() {
           </div>
         </div>
       </div>
+
+      <footer className="settings-footer">
+        <a className="settings-privacy-link" href="/privacy.html">
+          Privacy Policy
+        </a>
+      </footer>
     </div>
   )
 }

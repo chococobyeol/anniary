@@ -14,11 +14,12 @@ import { fitToScreenRef } from '../../utils/fitToScreen'
 import { clientToBoardPoint, pointsBBox, pointsToPathD } from '../../utils/boardCoords'
 import { highlighterStroke, penStroke, shapeStrokeFill } from '../../utils/overlayDraw'
 import { topOverlayIdAt } from '../../utils/overlayHit'
+import type { PanelState, SelectionTarget } from '../../types/state'
 import './YearBoard.css'
 
 type DrawSession =
-  | { kind: 'stroke'; points: [number, number][]; tool: 'pen' | 'highlighter' }
-  | { kind: 'shape'; start: [number, number]; tool: 'rect' | 'ellipse' | 'textbox' }
+  | { kind: 'stroke'; pointerId: number; points: [number, number][]; tool: 'pen' | 'highlighter' }
+  | { kind: 'shape'; pointerId: number; start: [number, number]; tool: 'rect' | 'ellipse' | 'textbox' }
 
 export function YearBoard() {
   const activeBoardId = useBoardStore(s => s.activeBoardId)
@@ -37,7 +38,6 @@ export function YearBoard() {
     [boardViewFilterRaw]
   )
   const rangeEditPreview = useBoardStore(s => s.rangeEditPreview)
-  const createOverlay = useBoardStore(s => s.createOverlay)
   const settingsDrawTool = useBoardStore(s => s.settings.drawTool)
   const drawUi = useBoardStore(s => s.settings)
 
@@ -46,10 +46,17 @@ export function YearBoard() {
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null)
   const [dragPreviewKeys, setDragPreviewKeys] = useState<string[] | null>(null)
   const dragSessionRef = useRef<{
+    pointerId: number
     anchorKey: string
     currentKey: string
     startX: number
     startY: number
+  } | null>(null)
+  const selectWindowCleanupRef = useRef<(() => void) | null>(null)
+  const drawWindowCleanupRef = useRef<(() => void) | null>(null)
+  const touchUiSnapshotRef = useRef<{
+    selection: SelectionTarget | null
+    panel: PanelState
   } | null>(null)
   const drawSessionRef = useRef<DrawSession | null>(null)
   const latestPreviewShapeRef = useRef<{
@@ -68,11 +75,56 @@ export function YearBoard() {
     h: number
     tool: 'rect' | 'ellipse' | 'textbox'
   } | null>(null)
+  const suppressBoardClicksUntilRef = useRef(0)
+  const [interactionCancelToken, setInteractionCancelToken] = useState(0)
+
+  const handleTouchSequenceStart = useCallback(() => {
+    const state = useBoardStore.getState()
+    touchUiSnapshotRef.current = {
+      selection: state.selection,
+      panel: { ...state.panel },
+    }
+  }, [])
+
+  const handlePinchStart = useCallback(() => {
+    selectWindowCleanupRef.current?.()
+    selectWindowCleanupRef.current = null
+    drawWindowCleanupRef.current?.()
+    drawWindowCleanupRef.current = null
+    dragSessionRef.current = null
+    drawSessionRef.current = null
+    latestPreviewShapeRef.current = null
+    setDragPreviewKeys(null)
+    setPreviewPoints(null)
+    setPreviewStrokeTool(null)
+    setPreviewShape(null)
+    setInteractionCancelToken(token => token + 1)
+    suppressBoardClicksUntilRef.current = Date.now() + 500
+    const snapshot = touchUiSnapshotRef.current
+    if (snapshot) {
+      useBoardStore.setState({
+        selection: snapshot.selection,
+        panel: snapshot.panel,
+      })
+    }
+  }, [])
+
+  const handleTouchSequenceEnd = useCallback((hadPinch: boolean) => {
+    if (hadPinch) suppressBoardClicksUntilRef.current = Date.now() + 500
+  }, [])
 
   const {
+    handlePointerDownCapture,
+    handlePointerMoveCapture,
+    handlePointerUpCapture,
+    handlePointerCancelCapture,
     handlePointerDown, handlePointerMove, handlePointerUp,
-    handleTouchStart, handleTouchMove, handleTouchEnd,
-  } = useZoomPan(containerRef)
+    isPointerSuppressed,
+  } = useZoomPan(containerRef, {
+    onTouchSequenceStart: handleTouchSequenceStart,
+    onPinchStart: handlePinchStart,
+    onTouchSequenceEnd: handleTouchSequenceEnd,
+  })
 
   const year = boardState?.board.year || new Date().getFullYear()
   const isAligned = dayLayout === 'weekday-aligned'
@@ -105,6 +157,7 @@ export function YearBoard() {
   }
 
   const handlePanCellClick = useCallback((dateKey: string) => {
+    if (Date.now() < suppressBoardClicksUntilRef.current) return
     const state = useBoardStore.getState()
     if (state.interactionMode !== 'pan') return
     setExpandedDateKey(null)
@@ -116,6 +169,7 @@ export function YearBoard() {
   }, [selection, setSelection, toggleLeftPanel])
 
   const handleModifierCellClick = useCallback((dateKey: string) => {
+    if (Date.now() < suppressBoardClicksUntilRef.current) return
     const state = useBoardStore.getState()
     if (state.interactionMode !== 'select') return
     setExpandedDateKey(null)
@@ -125,9 +179,14 @@ export function YearBoard() {
   }, [setSelection])
 
   const handleSelectPointerDown = useCallback((e: React.PointerEvent, anchorKey: string) => {
-    if (useBoardStore.getState().interactionMode !== 'select') return
+    if (
+      useBoardStore.getState().interactionMode !== 'select'
+      || isPointerSuppressed(e.pointerId)
+    ) return
+    selectWindowCleanupRef.current?.()
     setExpandedDateKey(null)
     dragSessionRef.current = {
+      pointerId: e.pointerId,
       anchorKey,
       currentKey: anchorKey,
       startX: e.clientX,
@@ -137,21 +196,28 @@ export function YearBoard() {
 
     const onMove = (ev: PointerEvent) => {
       const sess = dragSessionRef.current
-      if (!sess) return
+      if (!sess || ev.pointerId !== sess.pointerId || isPointerSuppressed(ev.pointerId)) return
       const k = getDateKeyFromPoint(ev.clientX, ev.clientY)
       if (!k) return
       sess.currentKey = k
       setDragPreviewKeys(getDateKeysBetween(sess.anchorKey, k))
     }
 
-    const onUp = (_ev: PointerEvent) => {
+    const cleanup = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
+      if (selectWindowCleanupRef.current === cleanup) selectWindowCleanupRef.current = null
+    }
+
+    const onUp = (ev: PointerEvent) => {
+      const active = dragSessionRef.current
+      if (!active || ev.pointerId !== active.pointerId) return
+      cleanup()
       const sess = dragSessionRef.current
       dragSessionRef.current = null
       setDragPreviewKeys(null)
-      if (!sess) return
+      if (!sess || ev.type === 'pointercancel' || isPointerSuppressed(ev.pointerId)) return
 
       const keys = getDateKeysBetween(sess.anchorKey, sess.currentKey)
       const state = useBoardStore.getState()
@@ -176,9 +242,16 @@ export function YearBoard() {
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
+    selectWindowCleanupRef.current = cleanup
+  }, [isPointerSuppressed])
+
+  useEffect(() => () => {
+    selectWindowCleanupRef.current?.()
+    drawWindowCleanupRef.current?.()
   }, [])
 
   const handleCellDoubleClick = useCallback((dateKey: string) => {
+    if (Date.now() < suppressBoardClicksUntilRef.current) return
     setExpandedDateKey(prev => prev === dateKey ? null : dateKey)
     setSelection({ type: 'day', dateKey })
   }, [setSelection])
@@ -274,34 +347,116 @@ export function YearBoard() {
 
       if (mode === 'place') {
         e.stopPropagation()
-        const set = st.settings
-        if (set.placeKind === 'sticker') {
-          const ch = set.placeStickerChar?.trim() || '⭐'
-          createOverlay(bid, 'sticker', 'decorative', x - 5, y - 5, 11, 11, { text: ch })
-        } else {
-          const mw = Math.min(120, Math.max(12, set.placeMemoWidth))
-          const mh = Math.min(80, Math.max(8, set.placeMemoHeight))
-          const linkId = st.selection?.type === 'item' ? st.selection.itemId : undefined
-          const memoId = createOverlay(bid, 'text', 'semantic', x - mw / 2, y - mh / 2, mw, mh, {
-            fillColor: set.placeMemoPaperColor,
-            linkedItemId: linkId,
-            strokeColor: 'rgba(0, 0, 0, 0.1)',
-          })
-          const after = useBoardStore.getState()
-          after.setSelection({ type: 'overlay', overlayId: memoId })
-          after.setInteractionMode('select')
-          after.ensureLeftPanelOpen('detail')
+        const placeAtClient = (clientX: number, clientY: number) => {
+          const current = useBoardStore.getState()
+          const currentBoardId = current.activeBoardId
+          const currentContainer = containerRef.current
+          if (!currentBoardId || !currentContainer || current.interactionMode !== 'place') return
+          const currentRect = currentContainer.getBoundingClientRect()
+          const point = clientToBoardPoint(clientX, clientY, currentRect, current.view)
+          if (
+            point.x < -canvasPad
+            || point.y < -canvasPad
+            || point.x > boardW + canvasPad
+            || point.y > boardH + canvasPad
+          ) return
+
+          const settings = current.settings
+          if (settings.placeKind === 'sticker') {
+            const assetId = settings.placeStickerAssetId
+            const asset = assetId ? current.boards[currentBoardId]?.assets[assetId] : undefined
+            if (asset) {
+              const naturalW = Math.max(1, asset.width ?? 1)
+              const naturalH = Math.max(1, asset.height ?? 1)
+              const maxSide = 14
+              const scale = maxSide / Math.max(naturalW, naturalH)
+              const width = Math.max(4, naturalW * scale)
+              const height = Math.max(4, naturalH * scale)
+              current.createOverlay(
+                currentBoardId,
+                'image',
+                'decorative',
+                point.x - width / 2,
+                point.y - height / 2,
+                width,
+                height,
+                { assetId: asset.id },
+              )
+            } else {
+              const ch = settings.placeStickerChar?.trim() || '⭐'
+              current.createOverlay(
+                currentBoardId,
+                'sticker',
+                'decorative',
+                point.x - 5.5,
+                point.y - 5.5,
+                11,
+                11,
+                { text: ch },
+              )
+            }
+          } else {
+            const mw = Math.min(120, Math.max(12, settings.placeMemoWidth))
+            const mh = Math.min(80, Math.max(8, settings.placeMemoHeight))
+            const linkId = current.selection?.type === 'item' ? current.selection.itemId : undefined
+            const memoId = current.createOverlay(
+              currentBoardId,
+              'text',
+              'semantic',
+              point.x - mw / 2,
+              point.y - mh / 2,
+              mw,
+              mh,
+              {
+                fillColor: settings.placeMemoPaperColor,
+                linkedItemId: linkId,
+                strokeColor: 'rgba(0, 0, 0, 0.1)',
+              },
+            )
+            const after = useBoardStore.getState()
+            after.setSelection({ type: 'overlay', overlayId: memoId })
+            after.setInteractionMode('select')
+            after.ensureLeftPanelOpen('detail')
+          }
         }
+
+        if (e.pointerType !== 'touch') {
+          placeAtClient(e.clientX, e.clientY)
+          return
+        }
+
+        const pointerId = e.pointerId
+        const cleanup = () => {
+          window.removeEventListener('pointerup', onUp)
+          window.removeEventListener('pointercancel', onUp)
+          if (drawWindowCleanupRef.current === cleanup) drawWindowCleanupRef.current = null
+        }
+        const onUp = (ev: PointerEvent) => {
+          if (ev.pointerId !== pointerId) return
+          cleanup()
+          if (ev.type === 'pointercancel' || isPointerSuppressed(ev.pointerId)) return
+          placeAtClient(ev.clientX, ev.clientY)
+        }
+        drawWindowCleanupRef.current?.()
+        window.addEventListener('pointerup', onUp)
+        window.addEventListener('pointercancel', onUp)
+        drawWindowCleanupRef.current = cleanup
         return
       }
 
       if (mode !== 'draw') return
       e.stopPropagation()
       const tool = st.settings.drawTool
+      const pointerId = e.pointerId
 
       if (tool === 'eraser') {
-        const { beginHistoryBatch } = useBoardStore.getState()
-        beginHistoryBatch()
+        let batchStarted = false
+        let erased = false
+        const ensureBatch = () => {
+          if (batchStarted) return
+          useBoardStore.getState().beginHistoryBatch()
+          batchStarted = true
+        }
         const eraseAt = (bx: number, by: number) => {
           const s2 = useBoardStore.getState()
           const bid2 = s2.activeBoardId
@@ -309,36 +464,57 @@ export function YearBoard() {
           const ovs = s2.boards[bid2]?.overlays
           if (!ovs) return
           const oid = topOverlayIdAt(ovs, bx, by)
-          if (oid) s2.deleteOverlay(oid)
+          if (oid) {
+            ensureBatch()
+            s2.deleteOverlay(oid)
+            erased = true
+          }
         }
-        eraseAt(x, y)
+        if (e.pointerType !== 'touch') eraseAt(x, y)
         const onMove = (ev: PointerEvent) => {
-          if (!containerRef.current) return
+          if (
+            ev.pointerId !== pointerId
+            || isPointerSuppressed(ev.pointerId)
+            || !containerRef.current
+          ) return
           const r = containerRef.current.getBoundingClientRect()
           const v = useBoardStore.getState().view
           const p = clientToBoardPoint(ev.clientX, ev.clientY, r, v)
           eraseAt(p.x, p.y)
         }
-        const onUp = () => {
+        const cleanup = () => {
           window.removeEventListener('pointermove', onMove)
           window.removeEventListener('pointerup', onUp)
           window.removeEventListener('pointercancel', onUp)
-          useBoardStore.getState().endHistoryBatch()
+          if (batchStarted) useBoardStore.getState().endHistoryBatch()
+          if (drawWindowCleanupRef.current === cleanup) drawWindowCleanupRef.current = null
+        }
+        const onUp = (ev: PointerEvent) => {
+          if (ev.pointerId !== pointerId) return
+          const cancelled = ev.type === 'pointercancel' || isPointerSuppressed(ev.pointerId)
+          if (!cancelled && e.pointerType === 'touch' && !erased && containerRef.current) {
+            const r = containerRef.current.getBoundingClientRect()
+            const v = useBoardStore.getState().view
+            const p = clientToBoardPoint(ev.clientX, ev.clientY, r, v)
+            eraseAt(p.x, p.y)
+          }
+          cleanup()
         }
         window.addEventListener('pointermove', onMove)
         window.addEventListener('pointerup', onUp)
         window.addEventListener('pointercancel', onUp)
+        drawWindowCleanupRef.current = cleanup
         return
       }
 
       if (tool === 'pen' || tool === 'highlighter') {
-        drawSessionRef.current = { kind: 'stroke', points: [[x, y]], tool }
+        drawSessionRef.current = { kind: 'stroke', pointerId, points: [[x, y]], tool }
         latestPreviewShapeRef.current = null
         setPreviewStrokeTool(tool)
         setPreviewPoints([[x, y]])
         setPreviewShape(null)
       } else if (tool === 'rect' || tool === 'ellipse' || tool === 'textbox') {
-        drawSessionRef.current = { kind: 'shape', start: [x, y], tool }
+        drawSessionRef.current = { kind: 'shape', pointerId, start: [x, y], tool }
         setPreviewStrokeTool(null)
         const initial = { x, y, w: 0, h: 0, tool }
         latestPreviewShapeRef.current = initial
@@ -350,7 +526,12 @@ export function YearBoard() {
 
       const onMove = (ev: PointerEvent) => {
         const sess = drawSessionRef.current
-        if (!sess || !containerRef.current) return
+        if (
+          !sess
+          || ev.pointerId !== sess.pointerId
+          || isPointerSuppressed(ev.pointerId)
+          || !containerRef.current
+        ) return
         const r = containerRef.current.getBoundingClientRect()
         const v = useBoardStore.getState().view
         const p = clientToBoardPoint(ev.clientX, ev.clientY, r, v)
@@ -379,10 +560,17 @@ export function YearBoard() {
         }
       }
 
-      const onUp = () => {
+      const cleanup = () => {
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onUp)
         window.removeEventListener('pointercancel', onUp)
+        if (drawWindowCleanupRef.current === cleanup) drawWindowCleanupRef.current = null
+      }
+
+      const onUp = (ev: PointerEvent) => {
+        const active = drawSessionRef.current
+        if (!active || ev.pointerId !== active.pointerId) return
+        cleanup()
         const sess = drawSessionRef.current
         drawSessionRef.current = null
         setPreviewPoints(null)
@@ -390,7 +578,7 @@ export function YearBoard() {
         const sh = latestPreviewShapeRef.current
         latestPreviewShapeRef.current = null
         setPreviewShape(null)
-        if (!sess) return
+        if (!sess || ev.type === 'pointercancel' || isPointerSuppressed(ev.pointerId)) return
         const state = useBoardStore.getState()
         const bId = state.activeBoardId
         if (!bId) return
@@ -457,8 +645,9 @@ export function YearBoard() {
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
       window.addEventListener('pointercancel', onUp)
+      drawWindowCleanupRef.current = cleanup
     },
-    [boardH, boardW, canvasPad, createOverlay]
+    [boardH, boardW, canvasPad, isPointerSuppressed]
   )
 
   const cursorStyle =
@@ -517,12 +706,14 @@ export function YearBoard() {
     <div
       ref={containerRef}
       className="year-board-container"
+      onPointerDownCapture={handlePointerDownCapture}
+      onPointerMoveCapture={handlePointerMoveCapture}
+      onPointerUpCapture={handlePointerUpCapture}
+      onPointerCancelCapture={handlePointerCancelCapture}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onPointerCancel={handlePointerUp}
       style={{ cursor: cursorStyle }}
     >
       {!boardState ? (
@@ -568,8 +759,11 @@ export function YearBoard() {
             )}
             <BoardOverlays
               overlays={boardState.overlays}
+              assets={boardState.assets}
               interactionMode={interactionMode}
               selectedOverlayId={selectedOverlayId}
+              isPointerSuppressed={isPointerSuppressed}
+              interactionCancelToken={interactionCancelToken}
             />
             {previewPoints && previewPoints.length > 1 && (
               <polyline

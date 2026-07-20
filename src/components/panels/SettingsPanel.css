@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 100%;
 }
 
 .settings-section {
@@ -185,4 +186,27 @@
 
 .settings-btn-danger:hover {
   background: color-mix(in srgb, var(--status-delayed) 12%, var(--bg-cell));
+}
+
+.settings-footer {
+  margin-top: auto;
+  padding: 16px 4px 8px;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.settings-privacy-link {
+  display: inline-block;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  text-underline-offset: 2px;
+}
+
+.settings-privacy-link:hover,
+.settings-privacy-link:focus-visible {
+  background: var(--bg-cell-hover);
+  color: var(--text-primary);
 }

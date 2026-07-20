@@ -54,6 +54,8 @@ export type PanelState = {
 
 export type BoardState = {
   board: BoardEntity
+  /** Explicitly created tags that may not have any items yet. `General` remains implicit. */
+  tagCatalog: string[]
   items: Record<string, ItemEntity>
   ranges: Record<string, RangeEntity>
   overlays: Record<string, OverlayEntity>
@@ -108,6 +110,8 @@ export type AppSettings = {
   placeKind: PlaceKind
   /** Place 스티커로 찍을 때 사용할 이모지(한 글자) */
   placeStickerChar: string
+  /** Place 스티커로 찍을 사용자 이미지 asset. null이면 이모지 사용. */
+  placeStickerAssetId: string | null
   /** 펜·사각형·타원 테두리 색 (SVG hex) */
   drawPenColor: string
   /** Place 메모 기본 가로·세로(보드 단위) */

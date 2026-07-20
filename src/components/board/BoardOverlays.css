@@ -127,7 +127,22 @@
 
 .board-overlay-sticker-emoji {
   fill: var(--text-primary);
-  font-size: 7.5px;
+  user-select: none;
+}
+
+.board-overlay-image {
+  pointer-events: none;
+}
+
+.board-overlay-image-missing {
+  fill: var(--bg-subtle);
+  stroke: var(--border-light);
+  stroke-width: 0.3;
+}
+
+.board-overlay-image-missing-text {
+  fill: var(--text-muted);
+  font-size: 2px;
   user-select: none;
 }
 

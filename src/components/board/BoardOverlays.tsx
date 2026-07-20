@@ -8,13 +8,14 @@ import {
   useLayoutEffect,
 } from 'react'
 import { createPortal } from 'react-dom'
-import type { DrawToolKind, OverlayEntity } from '../../types/entities'
+import type { AssetEntity, DrawToolKind, OverlayEntity } from '../../types/entities'
 import type { InteractionMode } from '../../types/state'
 import { useBoardStore } from '../../store/board-store'
 import { ANNIARY_BACKLOG_ITEM_MIME, dataTransferHasBacklogItem } from '../../constants/dnd'
 import { MarkdownView } from '../common/MarkdownView'
 import { scaledTextBoxFontPx } from '../../utils/textBoxScale'
 import { resolveTextBoxFill, resolveTextBoxStroke } from '../../utils/overlayAppearance'
+import { proportionalResizeDelta } from '../../utils/overlayResize'
 import { textBoxFontStack } from '../../constants/textBoxFonts'
 import './BoardOverlays.css'
 
@@ -22,8 +23,11 @@ const EMPTY_ITEMS: Record<string, never> = {}
 
 type Props = {
   overlays: Record<string, OverlayEntity>
+  assets: Record<string, AssetEntity>
   interactionMode: InteractionMode
   selectedOverlayId: string | null
+  isPointerSuppressed: (pointerId: number) => boolean
+  interactionCancelToken: number
 }
 
 function overlayZOrder(a: OverlayEntity, b: OverlayEntity): number {
@@ -42,6 +46,7 @@ function linkedBacklogMarkdown(item: { title?: string; body?: string }): string 
 
 function minOverlaySize(o: OverlayEntity): { minW: number; minH: number } {
   if (o.type === 'sticker') return { minW: 6, minH: 6 }
+  if (o.type === 'image') return { minW: 4, minH: 4 }
   if (o.type === 'text' && o.role === 'semantic') return { minW: 12, minH: 8 }
   if (o.type === 'text' && o.drawTool === 'textbox') return { minW: 4, minH: 2.5 }
   return { minW: 0.45, minH: 0.45 }
@@ -178,15 +183,15 @@ const DRAG_THRESHOLD_PX = 8
 
 export const BoardOverlays = memo(function BoardOverlays({
   overlays,
+  assets,
   interactionMode,
   selectedOverlayId,
+  isPointerSuppressed,
+  interactionCancelToken,
 }: Props) {
   const updateOverlay = useBoardStore(s => s.updateOverlay)
   const setSelection = useBoardStore(s => s.setSelection)
   const ensureLeftPanelOpen = useBoardStore(s => s.ensureLeftPanelOpen)
-  const beginHistoryBatch = useBoardStore(s => s.beginHistoryBatch)
-  const endHistoryBatch = useBoardStore(s => s.endHistoryBatch)
-
   const boardItemsRecord = useBoardStore(s => {
     const id = s.activeBoardId
     if (!id) return undefined
@@ -202,6 +207,7 @@ export const BoardOverlays = memo(function BoardOverlays({
 
   const dragRef = useRef<{
     id: string
+    pointerId: number
     startClientX: number
     startClientY: number
     origX: number
@@ -212,6 +218,7 @@ export const BoardOverlays = memo(function BoardOverlays({
 
   const pendingMemoDragRef = useRef<{
     id: string
+    pointerId: number
     startCX: number
     startCY: number
     origX: number
@@ -221,6 +228,7 @@ export const BoardOverlays = memo(function BoardOverlays({
   /** 텍스트박스: textarea에서 클릭은 캐럿용, 움직임이 임계 넘으면 드래그(포스트잇과 동일 패턴) */
   const pendingWbTextDragRef = useRef<{
     id: string
+    pointerId: number
     startCX: number
     startCY: number
     origX: number
@@ -240,6 +248,7 @@ export const BoardOverlays = memo(function BoardOverlays({
 
   const resizeRef = useRef<{
     id: string
+    pointerId: number
     origW: number
     origH: number
     origFontPx: number
@@ -290,6 +299,19 @@ export const BoardOverlays = memo(function BoardOverlays({
     [clearWbTextWindowListeners]
   )
 
+  useEffect(() => {
+    if (interactionCancelToken === 0) return
+    clearLongPressTimer()
+    clearWbTextWindowListeners()
+    wbTextPointerDownTargetRef.current = null
+    pendingMemoDragRef.current = null
+    pendingWbTextDragRef.current = null
+    dragRef.current = null
+    setDragDelta(null)
+    setResizeDelta(null)
+    setOverlayMenu(null)
+  }, [clearLongPressTimer, clearWbTextWindowListeners, interactionCancelToken])
+
   const openOverlayMenuAt = useCallback((clientX: number, clientY: number, overlayId: string) => {
     clearLongPressTimer()
     clearWbTextWindowListeners()
@@ -320,14 +342,21 @@ export const BoardOverlays = memo(function BoardOverlays({
 
   const onOverlayPointerMove = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
+      if (isPointerSuppressed(e.pointerId)) return
       const pending = pendingMemoDragRef.current
-      if (pending && pending.id === o.id && interactionMode === 'select') {
+      if (
+        pending &&
+        pending.id === o.id &&
+        pending.pointerId === e.pointerId &&
+        interactionMode === 'select'
+      ) {
         const dxPx = e.clientX - pending.startCX
         const dyPx = e.clientY - pending.startCY
         if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
           clearLongPressTimer()
           dragRef.current = {
             id: pending.id,
+            pointerId: pending.pointerId,
             startClientX: pending.startCX,
             startClientY: pending.startCY,
             origX: pending.origX,
@@ -341,7 +370,12 @@ export const BoardOverlays = memo(function BoardOverlays({
       }
 
       const pWb = pendingWbTextDragRef.current
-      if (pWb && pWb.id === o.id && interactionMode === 'select') {
+      if (
+        pWb &&
+        pWb.id === o.id &&
+        pWb.pointerId === e.pointerId &&
+        interactionMode === 'select'
+      ) {
         const dxPx = e.clientX - pWb.startCX
         const dyPx = e.clientY - pWb.startCY
         if (Math.hypot(dxPx, dyPx) > DRAG_THRESHOLD_PX) {
@@ -351,6 +385,7 @@ export const BoardOverlays = memo(function BoardOverlays({
           }
           dragRef.current = {
             id: pWb.id,
+            pointerId: pWb.pointerId,
             startClientX: pWb.startCX,
             startClientY: pWb.startCY,
             origX: pWb.origX,
@@ -364,12 +399,12 @@ export const BoardOverlays = memo(function BoardOverlays({
       }
 
       const d = dragRef.current
-      if (!d || d.id !== o.id) return
+      if (!d || d.id !== o.id || d.pointerId !== e.pointerId) return
       const dx = (e.clientX - d.startClientX) / d.scale
       const dy = (e.clientY - d.startClientY) / d.scale
       setDragDelta({ id: o.id, dx, dy })
     },
-    [clearLongPressTimer, interactionMode]
+    [clearLongPressTimer, interactionMode, isPointerSuppressed]
   )
 
   const onOverlayPointerUp = useCallback(
@@ -379,16 +414,16 @@ export const BoardOverlays = memo(function BoardOverlays({
       wbTextPointerDownTargetRef.current = null
 
       const pending = pendingMemoDragRef.current
-      if (pending && pending.id === o.id) {
+      if (pending && pending.id === o.id && pending.pointerId === e.pointerId) {
         pendingMemoDragRef.current = null
       }
       const pWb = pendingWbTextDragRef.current
-      if (pWb && pWb.id === o.id) {
+      if (pWb && pWb.id === o.id && pWb.pointerId === e.pointerId) {
         pendingWbTextDragRef.current = null
       }
 
       const d = dragRef.current
-      if (!d || d.id !== o.id) {
+      if (!d || d.id !== o.id || d.pointerId !== e.pointerId) {
         try {
           ;(releaseTarget ?? (e.target as Element)).releasePointerCapture?.(e.pointerId)
         } catch {
@@ -397,11 +432,14 @@ export const BoardOverlays = memo(function BoardOverlays({
         return
       }
       dragRef.current = null
-      const dx = (e.clientX - d.startClientX) / d.scale
-      const dy = (e.clientY - d.startClientY) / d.scale
       setDragDelta(null)
-      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-        updateOverlay(o.id, { x: d.origX + dx, y: d.origY + dy })
+      const cancelled = e.type === 'pointercancel' || isPointerSuppressed(e.pointerId)
+      if (!cancelled) {
+        const dx = (e.clientX - d.startClientX) / d.scale
+        const dy = (e.clientY - d.startClientY) / d.scale
+        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+          updateOverlay(o.id, { x: d.origX + dx, y: d.origY + dy })
+        }
       }
       try {
         ;(releaseTarget ?? (e.target as Element)).releasePointerCapture?.(e.pointerId)
@@ -409,12 +447,12 @@ export const BoardOverlays = memo(function BoardOverlays({
         /* ignore */
       }
     },
-    [clearLongPressTimer, updateOverlay]
+    [clearLongPressTimer, isPointerSuppressed, updateOverlay]
   )
 
   const onOverlayPointerDown = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
-      if (interactionMode !== 'select' || o.locked) return
+      if (interactionMode !== 'select' || o.locked || isPointerSuppressed(e.pointerId)) return
 
       const rd0 = resizeDelta?.id === o.id ? resizeDelta : null
       const rw0 = o.width + (rd0?.dw ?? 0)
@@ -436,6 +474,7 @@ export const BoardOverlays = memo(function BoardOverlays({
           const view = useBoardStore.getState().view
           pendingWbTextDragRef.current = {
             id: o.id,
+            pointerId: e.pointerId,
             startCX: e.clientX,
             startCY: e.clientY,
             origX: o.x,
@@ -480,6 +519,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       if (isPostit) {
         pendingMemoDragRef.current = {
           id: o.id,
+          pointerId: e.pointerId,
           startCX: e.clientX,
           startCY: e.clientY,
           origX: o.x,
@@ -493,6 +533,7 @@ export const BoardOverlays = memo(function BoardOverlays({
 
       dragRef.current = {
         id: o.id,
+        pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
         origX: o.x,
@@ -506,6 +547,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       clearWbTextWindowListeners,
       ensureLeftPanelOpen,
       interactionMode,
+      isPointerSuppressed,
       onOverlayPointerMove,
       onOverlayPointerUp,
       resizeDelta,
@@ -560,15 +602,15 @@ export const BoardOverlays = memo(function BoardOverlays({
 
   const onResizePointerDown = useCallback(
     (e: React.PointerEvent, o: OverlayEntity) => {
-      if (interactionMode !== 'select' || o.locked) return
+      if (interactionMode !== 'select' || o.locked || isPointerSuppressed(e.pointerId)) return
       e.stopPropagation()
       e.preventDefault()
       const view = useBoardStore.getState().view
       setSelection({ type: 'overlay', overlayId: o.id })
       ensureLeftPanelOpen('detail')
-      beginHistoryBatch()
       resizeRef.current = {
         id: o.id,
+        pointerId: e.pointerId,
         origW: o.width,
         origH: o.height,
         origFontPx: o.textBoxFontSizePx ?? 13,
@@ -585,34 +627,52 @@ export const BoardOverlays = memo(function BoardOverlays({
 
       const onMove = (ev: PointerEvent) => {
         const r = resizeRef.current
-        if (!r || r.id !== o.id) return
+        if (
+          !r ||
+          r.id !== o.id ||
+          r.pointerId !== ev.pointerId ||
+          isPointerSuppressed(ev.pointerId)
+        ) return
         let dw = (ev.clientX - r.startCX) / r.scale
         let dh = (ev.clientY - r.startCY) / r.scale
-        if (r.drawTool === 'textbox' && ev.shiftKey) {
+        const ghost = { type: r.type, role: r.role, drawTool: r.drawTool } as OverlayEntity
+        const { minW, minH } = minOverlaySize(ghost)
+        if (r.type === 'sticker' || r.type === 'image') {
+          const proportional = proportionalResizeDelta(r.origW, r.origH, dw, dh, minW, minH)
+          dw = proportional.dw
+          dh = proportional.dh
+        } else if (r.drawTool === 'textbox' && ev.shiftKey) {
           const s = Math.max(r.origW + dw, r.origH + dh)
           dw = s - r.origW
           dh = s - r.origH
         }
+        dw = Math.max(minW - r.origW, dw)
+        dh = Math.max(minH - r.origH, dh)
         setResizeDelta({ id: o.id, dw, dh })
       }
 
       const onUp = (ev: PointerEvent) => {
+        const r = resizeRef.current
+        if (!r || r.id !== o.id || r.pointerId !== ev.pointerId) return
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onUp)
         window.removeEventListener('pointercancel', onUp)
-        const r = resizeRef.current
         resizeRef.current = null
         setResizeDelta(null)
-        if (r) {
+        if (ev.type !== 'pointercancel' && !isPointerSuppressed(ev.pointerId)) {
           let dw = (ev.clientX - r.startCX) / r.scale
           let dh = (ev.clientY - r.startCY) / r.scale
-          if (r.drawTool === 'textbox' && ev.shiftKey) {
+          const ghost = { type: r.type, role: r.role, drawTool: r.drawTool } as OverlayEntity
+          const { minW, minH } = minOverlaySize(ghost)
+          if (r.type === 'sticker' || r.type === 'image') {
+            const proportional = proportionalResizeDelta(r.origW, r.origH, dw, dh, minW, minH)
+            dw = proportional.dw
+            dh = proportional.dh
+          } else if (r.drawTool === 'textbox' && ev.shiftKey) {
             const s = Math.max(r.origW + dw, r.origH + dh)
             dw = s - r.origW
             dh = s - r.origH
           }
-          const ghost = { type: r.type, role: r.role, drawTool: r.drawTool } as OverlayEntity
-          const { minW, minH } = minOverlaySize(ghost)
           const nw = Math.max(minW, r.origW + dw)
           const nh = Math.max(minH, r.origH + dh)
           if (r.drawTool === 'textbox') {
@@ -622,7 +682,6 @@ export const BoardOverlays = memo(function BoardOverlays({
             updateOverlay(r.id, { width: nw, height: nh })
           }
         }
-        endHistoryBatch()
         try {
           el.releasePointerCapture(ev.pointerId)
         } catch {
@@ -634,7 +693,7 @@ export const BoardOverlays = memo(function BoardOverlays({
       window.addEventListener('pointerup', onUp)
       window.addEventListener('pointercancel', onUp)
     },
-    [beginHistoryBatch, endHistoryBatch, ensureLeftPanelOpen, interactionMode, setSelection, updateOverlay]
+    [ensureLeftPanelOpen, interactionMode, isPointerSuppressed, setSelection, updateOverlay]
   )
 
   const menuOverlay = overlayMenu ? overlays[overlayMenu.overlayId] : null
@@ -707,6 +766,7 @@ export const BoardOverlays = memo(function BoardOverlays({
           const sw = o.strokeWidthPx ?? 0.8
           const stroke = o.strokeColor || 'var(--status-in-progress)'
           const fill = o.fillColor || 'none'
+          const imageAsset = o.type === 'image' && o.assetId ? assets[o.assetId] : undefined
 
           const isPostitMemo = o.type === 'text' && o.role === 'semantic'
           const isWbText = isWhiteboardTextBox(o)
@@ -909,10 +969,35 @@ export const BoardOverlays = memo(function BoardOverlays({
                   textAnchor="middle"
                   dominantBaseline="central"
                   className="board-overlay-sticker-emoji"
+                  style={{ fontSize: `${Math.max(4, Math.min(rw, rh) * 0.82)}px` }}
                 >
                   {o.text?.trim() || '⭐'}
                 </text>
               )}
+              {o.type === 'image' && imageAsset ? (
+                <image
+                  href={imageAsset.storageKey}
+                  width={rw}
+                  height={rh}
+                  preserveAspectRatio="xMidYMid meet"
+                  className="board-overlay-image"
+                  pointerEvents="none"
+                />
+              ) : null}
+              {o.type === 'image' && !imageAsset ? (
+                <>
+                  <rect width={rw} height={rh} rx={0.6} className="board-overlay-image-missing" />
+                  <text
+                    x={rw / 2}
+                    y={rh / 2}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="board-overlay-image-missing-text"
+                  >
+                    Missing image
+                  </text>
+                </>
+              ) : null}
               {isPostitMemo && interactionMode === 'select' && !o.locked ? (
                 <rect
                   className="board-overlay-postit-dropzone"

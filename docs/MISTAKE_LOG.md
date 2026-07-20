@@ -784,3 +784,30 @@
 - 재발 방지: 저장 필드 분리(title/body)와 **표시**를 혼동하지 말 것; flex 자식 가로 클리핑은 `min-width:0`·스크롤 담당 계층 한 곳. 줌은 이벤트당 고정 배율 대신 delta 기반+상한.
 - 검증: `npx tsc --noEmit`, `npm run build` 성공.
 - 관련 파일: `src/components/board/BoardOverlays.tsx`, `src/components/board/BoardOverlays.css`, `src/hooks/useZoomPan.ts`, `src/components/panels/detail/OverlayDetail.tsx`, `docs/MISTAKE_LOG.md`
+
+## [2026-07-21 06:33 KST] 모바일 pinch가 선택을 확정해 백로그를 여는 문제 + 스티커 확장/이미지 누락
+
+- 증상: Select 모드에서 한 손가락이 날짜 선택을 시작한 뒤 두 번째 손가락으로 pinch하면 첫 포인터의 up/cancel이 선택 완료로 처리되어 백로그가 열림. 스티커 프레임을 키워도 이모지는 고정 크기였고 사용자 이미지 파일을 추가할 경로가 없었음.
+- 원인: pinch는 Touch 이벤트, 선택·draw·place·오버레이는 Pointer 이벤트로 따로 처리되어 같은 터치 시퀀스를 공유하지 못함. 포인터 id를 추적하지 않았고 `pointercancel`도 성공 종료와 같게 처리. 이모지는 CSS `font-size: 7.5px` 고정. `AssetEntity` 스키마만 있고 생성·표시 UI와 SVG image 렌더가 미연결.
+- 해결: 모든 터치를 Pointer 이벤트로 통일하고 활성 포인터·pinch 포인터 억제·pointer id 필터를 추가. pinch 시작 시 선택/패널 상태를 복원하고 선택·draw·place·오버레이 작업과 long-press를 취소하며, `pointercancel`은 저장하지 않음. 이모지 글자 크기를 오버레이 프레임에 비례시킴. PNG/JPEG/WebP 업로드·축소 저장·이미지 asset 선택/배치/크기 편집/제거를 구현하고 저장 용량을 제한. 백업 구조 검증, 가져온 필터/설정 정규화, DOMPurify/개발 의존성 보안 업데이트와 회귀 테스트도 추가.
+- 재발 방지: 한 제스처는 한 이벤트 모델에서 소유하고, 다중 포인터가 시작되면 단일 포인터 작업은 commit이 아니라 cancel할 것. 시각 객체 리사이즈는 프레임과 실제 콘텐츠 크기를 함께 검증할 것. 백업 JSON은 타입 단언 전에 런타임 구조를 검사할 것.
+- 검증: Vitest 8개 통과, ESLint·프로덕션 빌드·전체 `npm audit` 통과. 브라우저 390×844에서 고정 폭 패널/스티커 메뉴, PNG 업로드·배치, 이미지 14×14→30×28, 이모지 9.02px→24.6px 확대를 확인하고 콘솔 오류 없음.
+- 관련 파일: `src/hooks/useZoomPan.ts`, `src/components/board/YearBoard.tsx`, `src/components/board/BoardOverlays.tsx`, `src/components/toolbar/TopToolbar.tsx`, `src/components/panels/detail/OverlayDetail.tsx`, `src/components/panels/SettingsPanel.tsx`, `src/store/board-store.ts`, `src/utils/pinch.ts`, `src/utils/stickerImage.ts`, `src/utils/backupValidation.ts`, `docs/prd_v2.md`, `docs/prd_v2_ux.md`
+
+## [2026-07-21 08:02 KST] 연도는 표시만 되고 이동 불가 + 모바일 패널·도구 팝업 중첩
+
+- 증상: 상단에 보드 연도가 표시되지만 변경할 입력이나 이동 동작이 없어 현재 연도 외 연간 보드를 사용할 수 없음. 모바일에서는 좌·우 패널을 동시에 열 수 있어 서로 겹치고, Draw/Place 도구 팝업이 열린 패널의 입력을 가림.
+- 원인: 구현 체크를 “연도 표시”에서 끝내 PRD의 “연도 이동”을 실제 조작 흐름으로 검증하지 않음. 패널 토글은 데스크톱·모바일에 동일한 다중 열림 규칙을 적용했고, 도구 팝업 노출 여부는 interaction mode만 봄.
+- 해결: 상단 연도를 직접 편집 가능한 4자리 숫자 입력으로 변경. `setBoardYear`는 표시 연도만 바꿔 다른 연도의 일정 날짜를 보존하고 기본 보드 제목·선택 상태·dirty·Undo/Redo를 함께 처리. 4자리 연도 범위를 상태와 JSON 백업 검증에 공통 적용. 640px 이하에서는 좌·우 패널을 하나만 열고, 어느 패널이든 열려 있으면 Draw/Place 팝업을 숨김.
+- 재발 방지: 표시되는 핵심 상태는 **읽기·변경·복원** 경로를 한 세트로 확인할 것. 모바일 검증은 패널 하나만 본 화면뿐 아니라 좌/우 패널과 도구 팝업을 교차해서 열어 중첩 상태까지 점검할 것.
+- 검증: 연도 2026→2028 변경, 999 입력 거부, Undo로 2026 복원 확인. 390×844에서 네 자리 연도 전체 표시, 좌·우 패널 상호 배타, 패널 위 도구 팝업 미노출 확인. Vitest 12개, ESLint, 프로덕션 빌드, `npm audit` 통과.
+- 관련 파일: `src/components/toolbar/TopToolbar.tsx`, `src/components/toolbar/TopToolbar.css`, `src/store/board-store.ts`, `src/store/board-year.test.ts`, `src/constants/boardYear.ts`, `src/utils/backupValidation.ts`, `src/App.tsx`, `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/MISTAKE_LOG.md`
+
+## [2026-07-21 08:21 KST] 실제 사이트 점검 — Backlog 범위 은닉·빈 태그 item·연도 교차 목록
+
+- 증상: (1) 날짜나 item 선택이 남은 채 Backlog를 열면 일부 일정만 보이지만 범위 안내나 전체 보기 동작이 없어 일정이 사라진 것처럼 보임. (2) Tags에서 빈 태그를 만들면 실제로는 빈 제목 item이 생겨 태그 개수는 1인데 선택 문맥에서는 목록이 비거나, 전체 Backlog에서는 `(no title)`이 노출됨. (3) 보드 연도를 바꾼 뒤 과거 연도의 item을 편집하고 Backlog로 돌아오면 해당 날짜 안내 아래 목록이 비어 있음. (4) 활성 태그 필터가 있는 상태로 태그를 변경하면 필터가 옛 이름을 계속 가리킴.
+- 원인: Backlog의 `selection` 기반 필터링이 UI에 드러나지 않았고, 태그 자체를 저장할 곳이 없어 item을 태그 보존용으로 오용. `itemOccursOnDate`가 요청 날짜가 아니라 현재 보드 연도를 경계로 사용. Tags 작업이 `boardViewFilter.includeTags`를 함께 갱신하지 않음.
+- 해결: Backlog 상단에 현재 날짜/기간 범위와 `Show all`을 추가하고 일정 행에 명시적 Edit 버튼을 제공. `BoardState.tagCatalog`·`setBoardTags`·persist v11을 추가해 빈 태그를 독립 저장하고 v10의 태그용 빈 item 및 구 백업을 자동 변환. 날짜 발생 판정은 요청 날짜의 연도를 사용. 태그 rename/reassign/delete 시 활성 필터를 같은 이름으로 치환·제거.
+- 재발 방지: 목록이 전역처럼 보이면서 selection으로 좁혀질 때는 필터 문맥과 해제 동작을 항상 노출할 것. 사용자 개념을 빈 도메인 객체로 대신 저장하지 말 것. 표시 연도와 데이터 날짜가 다를 수 있는 모든 조회를 교차 연도로 시험할 것.
+- 검증: 390×844 실제 화면에서 2027 보드 상태로 2026-03-10 item을 다시 열어 목록에 유지되는 것, `Work` 빈 태그가 0개로 표시되고 Backlog에 가짜 item이 생기지 않는 것, 활성 `Work` 필터가 `Office` rename 후 그대로 활성인 것을 확인. Vitest 7개 파일 18개 테스트, ESLint, 프로덕션 빌드 성공.
+- 관련 파일: `src/types/state.ts`, `src/store/board-store.ts`, `src/utils/tagManagement.ts`, `src/utils/repeat.ts`, `src/utils/backupValidation.ts`, `src/components/panels/BacklogPanel.tsx`, `src/components/panels/TagsPanel.tsx`, `src/components/panels/FilterPanel.tsx`, `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/prd_v2.md`, `docs/prd_v2_ux.md`, `docs/prd_v2_entity.md`, `docs/PRD_CHANGELOG.md`

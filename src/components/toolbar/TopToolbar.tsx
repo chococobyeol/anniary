@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardStore } from '../../store/board-store'
 import type { InteractionMode, PlaceKind } from '../../types/state'
 import type { DrawToolKind } from '../../types/entities'
@@ -11,6 +11,8 @@ import {
   MEMO_PAPER_COLOR_PRESETS,
 } from '../../constants/overlayUi'
 import type { DrawStrokeWeight } from '../../types/state'
+import { prepareStickerImage } from '../../utils/stickerImage'
+import { isValidBoardYear, MAX_BOARD_YEAR, MIN_BOARD_YEAR } from '../../constants/boardYear'
 import {
   IconMove,
   IconCursor,
@@ -71,23 +73,100 @@ export function TopToolbar() {
     return id ? s.boards[id] : null
   })
   const toggleRightPanel = useBoardStore(s => s.toggleRightPanel)
+  const sidePanelOpen = useBoardStore(s => s.panel.leftOpen || s.panel.rightOpen)
+  const setBoardYear = useBoardStore(s => s.setBoardYear)
   const undo = useBoardStore(s => s.undo)
   const redo = useBoardStore(s => s.redo)
   const historyUi = useBoardStore(s => s._historyUi)
+  const createImageAsset = useBoardStore(s => s.createImageAsset)
+  const deleteImageAsset = useBoardStore(s => s.deleteImageAsset)
+  const stickerFileRef = useRef<HTMLInputElement>(null)
+  const [stickerUploadError, setStickerUploadError] = useState<string | null>(null)
+  const [stickerUploading, setStickerUploading] = useState(false)
 
   const year = boardState?.board.year || new Date().getFullYear()
+  const [yearDraft, setYearDraft] = useState(String(year))
   const zoomPercent = Math.round(view.scale * 100)
+
+  useEffect(() => {
+    setYearDraft(String(year))
+  }, [year])
+  const customStickerAssets = useMemo(
+    () => Object.values(boardState?.assets ?? {})
+      .filter(a => a.type === 'image')
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [boardState?.assets]
+  )
+  const selectedStickerAsset = settings.placeStickerAssetId
+    ? boardState?.assets[settings.placeStickerAssetId]
+    : undefined
+  const selectedStickerUseCount = selectedStickerAsset
+    ? Object.values(boardState?.overlays ?? {}).filter(
+        overlay => overlay.assetId === selectedStickerAsset.id,
+      ).length
+    : 0
 
   const handleResetView = useCallback(() => {
     fitToScreenRef.current?.()
   }, [])
 
-  const showFlyout = interactionMode === 'draw' || interactionMode === 'place'
+  const commitYear = useCallback(() => {
+    const nextYear = Number(yearDraft)
+    if (!isValidBoardYear(nextYear)) {
+      setYearDraft(String(year))
+      return
+    }
+    if (nextYear === year) return
+    setBoardYear(nextYear)
+    requestAnimationFrame(() => fitToScreenRef.current?.())
+  }, [setBoardYear, year, yearDraft])
+
+  const handleStickerFile = useCallback(async (file: File | undefined) => {
+    const boardId = boardState?.board.id
+    if (!file || !boardId) return
+    setStickerUploadError(null)
+    setStickerUploading(true)
+    try {
+      const prepared = await prepareStickerImage(file)
+      const assetId = createImageAsset(boardId, prepared.dataUrl, prepared)
+      updateSettings({ placeStickerAssetId: assetId })
+    } catch (error) {
+      setStickerUploadError(error instanceof Error ? error.message : 'Could not add the image.')
+    } finally {
+      setStickerUploading(false)
+    }
+  }, [boardState?.board.id, createImageAsset, updateSettings])
+
+  const showFlyout = !sidePanelOpen
+    && (interactionMode === 'draw' || interactionMode === 'place')
 
   return (
     <header className="top-toolbar">
       <div className="toolbar-left">
-        <span className="toolbar-year">{year}</span>
+        <input
+          type="number"
+          className="toolbar-year-input"
+          aria-label="Year"
+          title="Change year"
+          min={MIN_BOARD_YEAR}
+          max={MAX_BOARD_YEAR}
+          step={1}
+          inputMode="numeric"
+          value={yearDraft}
+          onChange={e => setYearDraft(e.target.value)}
+          onFocus={e => e.currentTarget.select()}
+          onWheel={e => e.currentTarget.blur()}
+          onBlur={commitYear}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur()
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              setYearDraft(String(year))
+              e.currentTarget.select()
+            }
+          }}
+        />
         <span className="toolbar-zoom">
           <span className="toolbar-zoom-z">{view.zoomLevel}</span>
           <span className="toolbar-zoom-sep"> · </span>
@@ -284,20 +363,81 @@ export function TopToolbar() {
                   ))}
                 </div>
                 {settings.placeKind === 'sticker' && (
-                  <div className="toolbar-sticker-grid-compact" role="list" aria-label="Sticker emoji">
-                    {PLACE_STICKER_PRESETS.map(ch => (
+                  <>
+                    <div className="toolbar-sticker-grid-compact" role="list" aria-label="Sticker emoji">
+                      {PLACE_STICKER_PRESETS.map(ch => (
+                        <button
+                          key={ch}
+                          type="button"
+                          role="listitem"
+                          className={`toolbar-sticker-cell-sm ${!selectedStickerAsset && settings.placeStickerChar === ch ? 'active' : ''}`}
+                          title={ch}
+                          onClick={() => updateSettings({ placeStickerChar: ch, placeStickerAssetId: null })}
+                        >
+                          <span className="toolbar-sticker-emoji-sm">{ch}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {customStickerAssets.length > 0 && (
+                      <>
+                        <p className="toolbar-flyout-label">My images</p>
+                        <div className="toolbar-sticker-grid-compact" role="list" aria-label="My sticker images">
+                          {customStickerAssets.map(asset => (
+                            <button
+                              key={asset.id}
+                              type="button"
+                              role="listitem"
+                              className={`toolbar-sticker-cell-sm toolbar-sticker-image-cell ${settings.placeStickerAssetId === asset.id ? 'active' : ''}`}
+                              title={asset.name || 'Custom sticker'}
+                              onClick={() => updateSettings({ placeStickerAssetId: asset.id })}
+                            >
+                              <img src={asset.storageKey} alt="" className="toolbar-sticker-image-sm" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="toolbar-sticker-upload-btn"
+                      disabled={stickerUploading || !boardState}
+                      onClick={() => stickerFileRef.current?.click()}
+                    >
+                      {stickerUploading ? 'Adding image…' : '+ Add image sticker'}
+                    </button>
+                    {selectedStickerAsset ? (
                       <button
-                        key={ch}
                         type="button"
-                        role="listitem"
-                        className={`toolbar-sticker-cell-sm ${settings.placeStickerChar === ch ? 'active' : ''}`}
-                        title={ch}
-                        onClick={() => updateSettings({ placeStickerChar: ch })}
+                        className="toolbar-sticker-remove-btn"
+                        onClick={() => {
+                          const placedCopy = selectedStickerUseCount === 1 ? '1 placed copy' : `${selectedStickerUseCount} placed copies`
+                          if (
+                            window.confirm(
+                              `Remove “${selectedStickerAsset.name || 'Custom sticker'}” and ${placedCopy}?`,
+                            )
+                          ) {
+                            deleteImageAsset(selectedStickerAsset.id)
+                          }
+                        }}
                       >
-                        <span className="toolbar-sticker-emoji-sm">{ch}</span>
+                        Remove selected image
                       </button>
-                    ))}
-                  </div>
+                    ) : null}
+                    <input
+                      ref={stickerFileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      hidden
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        void handleStickerFile(file)
+                      }}
+                    />
+                    {stickerUploadError && (
+                      <p className="toolbar-sticker-upload-error" role="alert">{stickerUploadError}</p>
+                    )}
+                  </>
                 )}
                 {settings.placeKind === 'memo' && (
                   <div className="toolbar-flyout-swatches" role="group" aria-label="Memo paper color">

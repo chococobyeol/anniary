@@ -72,7 +72,7 @@
 ### 상단 툴바
 - [x] 반투명 오버레이 툴바
 - [x] Interaction mode 토글 (Pan/Select/Draw/Place)
-- [x] 연도 표시
+- [x] 연도 표시·직접 입력 이동 (4자리 연도, 기존 날짜 데이터 유지, Undo/Redo)
 - [x] 줌 레벨 + 퍼센트 표시
 - [x] 설정 버튼 → 우측 패널 토글
 
@@ -139,8 +139,8 @@
 - [x] **Interaction mode 규칙 (현재)**:
   - `pan`: 드래그=이동, 클릭=단일 날짜 선택 + 백로그 자동 포커스
   - `select`: Cmd/Ctrl+클릭=토글, 포인터 드래그=앵커~끝 날짜 사이 `days` 선택 + 백로그 자동 포커스
-  - `draw`: 그림/필기용 예정 (예전 draw 드래그 range 생성은 **제거됨**)
-  - `place`: 클릭=overlay·스티커 배치 예정
+  - `draw`: 펜·형광펜·사각형·타원·텍스트박스·지우개
+  - `place`: 메모·이모지 스티커·사용자 이미지 스티커 배치
 
 ### v2.1 — 셀 UX 개선 (2026-03-17)
 - [x] **셀 높이 증가** — `BASE_CELL_HEIGHT` 22→28. 세로 여유 확보, 내부 요소 y좌표 재배치.
@@ -169,7 +169,7 @@
 ### v3.2 — 백로그 UX (mwohaji 스타일 + 태그)
 - [x] **ItemEntity tags** — `tags?: string[]` 추가. 미지정 시 기본 `['일반']`.
 - [x] **BacklogPanel 입력 단순화** — textarea + 추가 버튼만 상단 배치. Enter=추가, Shift+Enter=줄바꿈. kind 선택 제거(기본 task). 날짜/기간/메모 입력 UI 제거(추가·편집은 디테일에서).
-- [x] **태그 선택** — 입력 영역 아래에 태그 행: 기존 태그 칩(일반 + 백로그 항목에서 추출) + "+ 새 태그" 입력란. 선택 안 하면 기본 "일반". 새 태그 입력 시 해당 태그로 생성.
+- [x] **태그 선택·독립 카탈로그** — 입력 영역 아래에 태그 행: 기본 `General` + 명시적으로 만든 태그 + 항목에서 추출한 태그. 일정이 0개여도 태그를 유지하며, 과거의 빈 제목 태그 보존용 item은 migration/import에서 카탈로그로 변환.
 - [x] **목록 태그별 그룹** — 백로그 목록을 태그별로 그룹화해 표시(그룹 헤더: 태그명 + 개수). 그룹 내·그룹 간 정렬은 updatedAt 기준(최근 수정 먼저).
 - [x] **백로그 표시 개수 설정** — AppSettings에 `backlogDisplayLimit: number | null`. null=전부 보기, N=최근 N개만(updatedAt 기준). 설정 패널에 "표시 개수: 전부 보기 / 최근 50·100·200개" 옵션 추가.
 - [x] **PRD 반영** — prd_v2.md §6.4·§11.4, prd_v2_ux.md §7, prd_v2_entity.md 태그 항목 수정. **수정 전/후 기록**: [docs/PRD_CHANGELOG.md](PRD_CHANGELOG.md).
@@ -185,31 +185,31 @@
 - [ ] 보드에서 **입력 없이** 제스처만으로 range 확정 (선택 사항; 현재는 백로그·range Detail 입력 경로)
 - [ ] Context menu (우클릭 / long press)
 - [x] Range 선택 및 DetailPanel 편집
-- [ ] Overlay 선택/이동/리사이즈
+- [x] Overlay 선택/이동/리사이즈
 - [ ] 키보드 단축키 (1=pan, 2=select, 3=draw, 4=place)
 
 ### Phase 3 — 패널 내부 완성
 - [x] Detail 패널 — item 상세 편집 (title, body, status)
 - [x] Detail 패널 — range 상세 편집 (label, body, kind, status, color)
-- [ ] Detail 패널 — overlay 속성 편집
-- [ ] Search 패널 — 전체 검색
+- [x] Detail 패널 — overlay 속성 편집 (본문, 크기, 색·굵기, 이미지 제거 등 현재 타입별 필드)
+- [x] Search 패널 — item·range 전체 검색과 결과 선택
 - [x] Filter 패널 — view filter (`FilterPanel.tsx`: 태그 OR, hide done, 기간 막대 표시 토글; **Item.kind 기반 필터 아님**)
-- [x] Tags 패널 — 태그 목록·개수, **새 태그 추가**(빈 제목 백로그 item + 해당 태그), 이름 변경(일괄), 제거 시 다른 태그로 이동 (좌측 `ranges` 슬롯을 `tags`로 교체)
+- [x] Tags 패널 — 태그 목록·실제 item 개수, **일정과 독립적인 새 태그 추가**, 이름 변경(일괄), 제거 시 다른 태그로 이동 또는 해당 item 삭제; 활성 태그 필터도 이름 변경·제거와 동기화
 - [ ] Ranges 패널 — range 목록 관리 (별도 메뉴 없음; 보드·디테일에서 관리)
-- [ ] Overlays 패널 — overlay 목록 관리
+- [x] Overlays 패널 — overlay 목록, 선택, 표시/숨김, 이름 편집, 삭제
 - [ ] Layers 패널 — 레이어 show/hide
 
 ### Phase 4 — 저장/동기화
-- [ ] IndexedDB (Dexie) 연동
-- [ ] Autosave (debounce)
-- [ ] Dirty flag 기반 저장
-- [ ] Board load/save 흐름
+- [x] 브라우저 `localStorage` 저장 (Zustand persist; IndexedDB/Dexie는 현재 사용하지 않음)
+- [x] 상태 변경 즉시 자동 저장·앱 시작 시 hydration
+- [x] Dirty flag 유지 (저장 트리거가 아닌 변경 상태 표시용)
+- [x] Board load/save 흐름 (브라우저 로컬 저장 + JSON 교체 가져오기)
 - [ ] Multi-board 지원
-- [ ] Migration 구조
+- [x] Migration 구조 (현재 persist v11)
 
 ### Phase 5 — Export/Import
-- [ ] JSON full backup export
-- [ ] JSON import (replace/merge)
+- [x] JSON full backup export (보드·설정·뷰·패널·오버레이·이미지 asset 포함)
+- [x] JSON import (검증 후 전체 replace, merge는 미지원)
 - [ ] ICS export
 - [ ] ICS import
 - [ ] PNG high-resolution export
@@ -218,10 +218,10 @@
 
 ### Phase 6 — 시각 요소
 - [ ] Overlay/Sticker 시스템 완성
-  - [ ] 스티커 생성/배치
-  - [ ] 텍스트 오버레이
-  - [ ] 이미지 업로드
-  - [ ] Shape 오버레이
+  - [x] 스티커 생성/배치·이동·크기 조절
+  - [x] 텍스트 오버레이
+  - [x] PNG/JPEG/WebP 사용자 이미지 업로드·배치·제거
+  - [x] Shape 오버레이
   - [ ] Anchor 시스템 (none/month/day/range)
   - [ ] Lock/Unlock
   - [ ] 줌 단계별 존재감 조절
@@ -240,13 +240,14 @@
 - [ ] 주 시작 요일 설정
 
 ### Phase 8 — 모바일 최적화
-- [ ] 터치 제스처 충돌 해결 (pinch vs pan vs select)
-- [ ] 모바일 패널 전체 폭 확장
-- [ ] Long press 메뉴
+- [x] 터치 제스처 충돌 해결 (pinch vs pan/select/draw/place/overlay, cancel은 저장하지 않음)
+- [x] 모바일 패널은 고정 기본 폭 overlay 유지, 뷰포트보다 넓을 때만 가용 폭으로 제한
+- [x] 640px 이하 좌·우 패널 상호 배타 + 패널이 열리면 Draw/Place 도구 팝업 숨김
+- [x] Long press 메뉴 (메모 링크 메뉴)
 - [ ] Double tap 줌
 
 ### Phase 9 — 고급 기능
-- [ ] Undo/Redo
+- [x] Undo/Redo
 - [ ] Command log
 - [ ] 동기화 구조 (version, conflict)
 - [ ] Google Drive 백업

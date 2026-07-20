@@ -15,6 +15,7 @@ export function itemEffectiveTagSet(item: ItemEntity): Set<string> {
 export function countItemsPerTag(items: Record<string, ItemEntity>): Map<string, number> {
   const m = new Map<string, number>()
   for (const it of Object.values(items)) {
+    if (isLegacyTagPlaceholder(it)) continue
     for (const tag of itemEffectiveTagSet(it)) {
       m.set(tag, (m.get(tag) ?? 0) + 1)
     }
@@ -22,9 +23,54 @@ export function countItemsPerTag(items: Record<string, ItemEntity>): Map<string,
   return m
 }
 
-export function sortedTagRows(counts: Map<string, number>): { tag: string; count: number }[] {
-  return [...counts.entries()]
-    .map(([tag, count]) => ({ tag, count }))
+export function normalizeTagCatalog(tags: readonly string[] | undefined): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of tags ?? []) {
+    if (typeof raw !== 'string') continue
+    const tag = normalizeFilterTag(raw)
+    if (tag === FILTER_DEFAULT_TAG || seen.has(tag)) continue
+    seen.add(tag)
+    out.push(tag)
+  }
+  return out.sort((a, b) => a.localeCompare(b))
+}
+
+export function remapTagFilter(
+  activeTags: readonly string[],
+  fromRaw: string,
+  toRaw?: string,
+): string[] {
+  const from = normalizeFilterTag(fromRaw)
+  const mapped = activeTags
+    .map(normalizeFilterTag)
+    .flatMap(tag => tag === from ? (toRaw ? [normalizeFilterTag(toRaw)] : []) : [tag])
+  return [...new Set(mapped)].sort()
+}
+
+/** v10 TagsPanel이 태그 보존용으로 만들던, 사용자 내용이 전혀 없는 빈 item. */
+export function isLegacyTagPlaceholder(item: ItemEntity): boolean {
+  return item.title === ''
+    && !item.body
+    && !item.date
+    && !item.endDate
+    && !item.startTime
+    && !item.endTime
+    && !item.rangeId
+    && !item.repeat
+    && item.status === 'none'
+    && item.pinned === false
+    && item.tags?.length === 1
+    && normalizeFilterTag(item.tags[0]) !== FILTER_DEFAULT_TAG
+}
+
+export function sortedTagRows(
+  counts: Map<string, number>,
+  catalog: readonly string[] = [],
+): { tag: string; count: number }[] {
+  const names = new Set<string>([FILTER_DEFAULT_TAG, ...normalizeTagCatalog(catalog), ...counts.keys()])
+  return [...names]
+    .map(tag => ({ tag, count: counts.get(tag) ?? 0 }))
     .sort((a, b) => {
       if (a.tag === FILTER_DEFAULT_TAG) return -1
       if (b.tag === FILTER_DEFAULT_TAG) return 1

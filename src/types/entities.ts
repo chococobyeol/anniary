@@ -145,6 +145,7 @@ export type AssetEntity = {
   type: AssetType
   sourceType: AssetSourceType
   mimeType?: string
+  name?: string
   storageKey: string
   width?: number
   height?: number

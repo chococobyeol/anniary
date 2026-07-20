@@ -96,7 +96,7 @@
 
 즉 task / note / event 를 **별도 엔티티로 쪼개지 않는다.**
 
-**사용자 구분·백로그 그룹·(예정) 필터·검색의 1차 축은 `item.tags: string[]`** 이다. 미지정 시 UI에서는 "일반" 등 기본 태그로 표시 ([PRD_CHANGELOG.md](PRD_CHANGELOG.md) v3.2).
+**사용자 구분·백로그 그룹·필터·검색의 1차 축은 `item.tags: string[]`** 이다. 미지정 시 UI에서는 `General` 기본 태그로 표시한다. 아직 item이 없는 사용자 태그는 별도 엔티티 대신 보드 상태의 `tagCatalog: string[]`에 보존한다. ([PRD_CHANGELOG.md](PRD_CHANGELOG.md))
 
 **`item.kind`(task | note | event)** 는 스키마에 남긴다. 신규 생성은 기본 `task` 로 통일하고, **UI에서 종류를 고르게 하지 않는다.** 필터 설계에서 kind 기반 “task만 / note만” 같은 구분은 하지 않는다.
 
@@ -485,7 +485,7 @@ type AssetEntity = {
 초기 최소셋에서는 아직 넣지 않는다.
 
 * recurrence 별도 엔티티
-* tag 엔티티 (대신 **item.tags: string[]** 로 구현. 2026-03-17. [PRD_CHANGELOG.md](PRD_CHANGELOG.md))
+* tag 엔티티 (대신 item의 **`tags: string[]`** + 빈 태그 보존용 보드 **`tagCatalog: string[]`** 로 구현. [PRD_CHANGELOG.md](PRD_CHANGELOG.md))
 * checklist item 별도 엔티티
 * comment 엔티티
 * reminder 엔티티

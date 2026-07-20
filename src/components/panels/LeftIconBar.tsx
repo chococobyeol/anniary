@@ -25,6 +25,8 @@ export function LeftIconBar() {
           className={`icon-bar-btn ${leftOpen && leftMode === item.mode ? 'active' : ''}`}
           onClick={() => toggleLeftPanel(item.mode)}
           title={item.label}
+          aria-label={item.label}
+          aria-pressed={leftOpen && leftMode === item.mode}
         >
           <item.Icon size={18} />
         </button>

@@ -110,6 +110,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.tags-panel-built-in {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .tags-panel-icon-group {
   display: flex;
   align-items: center;

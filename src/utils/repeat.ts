@@ -197,11 +197,12 @@ export function getIndexedDateKeysForItem(item: ItemEntity, boardYear: number): 
   return expandRepeatDateKeys(item.date, rule, boardYear)
 }
 
-export function itemOccursOnDate(item: ItemEntity, dateKey: string, boardYear: number): boolean {
+export function itemOccursOnDate(item: ItemEntity, dateKey: string, _boardYear: number): boolean {
   if (!item.date) return false
-  const yStart = `${boardYear}-01-01`
-  const yEnd = `${boardYear}-12-31`
-  if (compareDateKeys(dateKey, yStart) < 0 || compareDateKeys(dateKey, yEnd) > 0) return false
+  // Occurrence checks belong to the requested date, even if the board is currently showing
+  // another year. This matters after changing the visible year while preserving old items.
+  const targetYear = parseDateKey(dateKey).year
+  const yEnd = `${targetYear}-12-31`
 
   const rule = getEffectiveItemRepeat(item)
   if (!rule || !isSingleDayItemForRepeat(item)) {

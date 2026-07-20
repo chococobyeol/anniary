@@ -20,6 +20,7 @@ import type {
   ItemEntity,
   RangeEntity,
   OverlayEntity,
+  AssetEntity,
   ItemKind,
   ItemStatus,
   ItemStoredRepeat,
@@ -34,6 +35,8 @@ import type {
 import { generateId, now } from '../utils/id'
 import { getZoomLevel, BASE_CELL_WIDTH, BASE_CELL_HEIGHT, MONTH_HEADER_WIDTH, MONTH_GAP, DAY_HEADER_HEIGHT, MAX_SCALE } from '../utils/zoom'
 import { getMaxColumnsForYear } from '../utils/date'
+import { isValidBoardYear } from '../constants/boardYear'
+import { isLegacyTagPlaceholder, normalizeTagCatalog } from '../utils/tagManagement'
 import {
   normImportedView,
   normImportedPanel,
@@ -49,6 +52,7 @@ import {
 type Actions = {
   createBoard: (year: number, title?: string) => string
   setActiveBoard: (boardId: string) => void
+  setBoardYear: (year: number) => void
 
   setView: (view: Partial<ViewState>) => void
   updateZoomLevel: () => void
@@ -68,6 +72,7 @@ type Actions = {
   updateSettings: (patch: Partial<AppSettings>) => void
   updateBoardViewFilter: (patch: Partial<BoardViewFilter>) => void
   resetBoardViewFilter: () => void
+  setBoardTags: (boardId: string, tags: string[]) => void
 
   createItem: (boardId: string, kind: ItemKind, opts?: {
     title?: string; body?: string; date?: string; endDate?: string; startTime?: string; endTime?: string;
@@ -100,6 +105,10 @@ type Actions = {
     visible?: boolean
     linkedItemId?: string
   }) => string
+  createImageAsset: (boardId: string, dataUrl: string, opts: {
+    mimeType: string; name?: string; width: number; height: number
+  }) => string
+  deleteImageAsset: (assetId: string) => void
   updateOverlay: (overlayId: string, patch: Partial<OverlayEntity>) => void
   deleteOverlay: (overlayId: string) => void
 
@@ -140,6 +149,7 @@ const initialState: AppState = {
     drawTool: 'pen',
     placeKind: 'memo',
     placeStickerChar: '⭐',
+    placeStickerAssetId: null,
     drawPenColor: '#2563eb',
     placeMemoWidth: 40,
     placeMemoHeight: 16,
@@ -175,6 +185,7 @@ function getResetAppState(): AppState {
       drawTool: 'pen',
       placeKind: 'memo',
       placeStickerChar: '⭐',
+      placeStickerAssetId: null,
       drawPenColor: '#2563eb',
       placeMemoWidth: 40,
       placeMemoHeight: 16,
@@ -193,6 +204,8 @@ function getResetAppState(): AppState {
 }
 
 const MAX_HISTORY = 32
+/** localStorage 전체를 이미지 data URL이 잠식해 저장 자체가 실패하지 않도록 보수적으로 제한 */
+const IMAGE_ASSET_STORAGE_CHAR_BUDGET = 3_200_000
 /** `settings`가 있으면 undo/redo 시 설정까지 복원(JSON 가져오기 등). 없으면 보드만 복원(필터 등 설정 유지). */
 type HistorySnap = {
   boards: Record<string, BoardState>
@@ -237,6 +250,12 @@ function getBoardColumns(state: AppState): number {
   return getMaxColumnsForYear(bs.board.year)
 }
 
+function usesSingleSidePanel(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 640px)').matches
+}
+
 const VALID_DRAW_TOOLS: DrawToolKind[] = ['pen', 'highlighter', 'rect', 'ellipse', 'textbox', 'eraser']
 
 function normDrawWeight(w: unknown): DrawStrokeWeight {
@@ -269,12 +288,22 @@ export const useBoardStore = create<AppState & Actions>()(
 
   createBoard: (year, title) => {
     maybePushHistory()
+    const boardYear = isValidBoardYear(Math.trunc(year))
+      ? Math.trunc(year)
+      : new Date().getFullYear()
     const id = generateId()
     const board: BoardEntity = {
-      id, year, title: title || `${year}`, weekStart: 'monday',
+      id, year: boardYear, title: title || `${boardYear}`, weekStart: 'monday',
       version: 1, createdAt: now(), updatedAt: now(),
     }
-    const boardState: BoardState = { board, items: {}, ranges: {}, overlays: {}, assets: {} }
+    const boardState: BoardState = {
+      board,
+      tagCatalog: [],
+      items: {},
+      ranges: {},
+      overlays: {},
+      assets: {},
+    }
     set(s => ({
       boards: { ...s.boards, [id]: boardState },
       activeBoardId: s.activeBoardId || id,
@@ -284,6 +313,40 @@ export const useBoardStore = create<AppState & Actions>()(
   },
 
   setActiveBoard: (boardId) => set({ activeBoardId: boardId }),
+
+  setBoardYear: (year) => {
+    const nextYear = Math.trunc(year)
+    if (!isValidBoardYear(nextYear)) return
+    const current = get()
+    const boardId = current.activeBoardId
+    if (!boardId) return
+    const currentBoard = current.boards[boardId]
+    if (!currentBoard || currentBoard.board.year === nextYear) return
+    maybePushHistory()
+    set(s => {
+      const bs = s.boards[boardId]
+      if (!bs) return s
+      const board = bs.board
+      return {
+        boards: {
+          ...s.boards,
+          [boardId]: {
+            ...bs,
+            board: {
+              ...board,
+              year: nextYear,
+              title: board.title === String(board.year) ? String(nextYear) : board.title,
+              updatedAt: now(),
+            },
+          },
+        },
+        selection: null,
+        lastTouchedItemId: null,
+        rangeEditPreview: null,
+        dirty: true,
+      }
+    })
+  },
 
   setView: (partial) => set(s => ({ view: { ...s.view, ...partial } })),
 
@@ -322,11 +385,23 @@ export const useBoardStore = create<AppState & Actions>()(
     if (!mode && s.panel.leftOpen) {
       return { panel: { ...s.panel, leftOpen: false } }
     }
-    return { panel: { ...s.panel, leftOpen: true, leftMode: mode || s.panel.leftMode } }
+    return {
+      panel: {
+        ...s.panel,
+        leftOpen: true,
+        leftMode: mode || s.panel.leftMode,
+        ...(usesSingleSidePanel() ? { rightOpen: false } : {}),
+      },
+    }
   }),
 
   ensureLeftPanelOpen: mode => set(s => ({
-    panel: { ...s.panel, leftOpen: true, leftMode: mode },
+    panel: {
+      ...s.panel,
+      leftOpen: true,
+      leftMode: mode,
+      ...(usesSingleSidePanel() ? { rightOpen: false } : {}),
+    },
   })),
 
   toggleRightPanel: (mode) => set(s => {
@@ -336,14 +411,26 @@ export const useBoardStore = create<AppState & Actions>()(
     if (!mode && s.panel.rightOpen) {
       return { panel: { ...s.panel, rightOpen: false } }
     }
-    return { panel: { ...s.panel, rightOpen: true, rightMode: mode || s.panel.rightMode } }
+    return {
+      panel: {
+        ...s.panel,
+        rightOpen: true,
+        rightMode: mode || s.panel.rightMode,
+        ...(usesSingleSidePanel() ? { leftOpen: false } : {}),
+      },
+    }
   }),
 
   closeAllPanels: () => set(s => ({
     panel: { ...s.panel, leftOpen: false, rightOpen: false },
   })),
 
-  setInteractionMode: (mode) => set({ interactionMode: mode }),
+  setInteractionMode: (mode) => set(s => ({
+    interactionMode: mode,
+    ...(mode === 'draw' || mode === 'place'
+      ? { panel: { ...s.panel, leftOpen: false, rightOpen: false } }
+      : {}),
+  })),
   setSelection: (target) => set(s => ({
     selection: target,
     lastTouchedItemId: target?.type === 'item' ? target.itemId : s.lastTouchedItemId,
@@ -375,6 +462,30 @@ export const useBoardStore = create<AppState & Actions>()(
     },
   })),
 
+  setBoardTags: (boardId, tags) => {
+    const state = get()
+    const board = state.boards[boardId]
+    if (!board) return
+    const nextTags = normalizeTagCatalog(tags)
+    const currentTags = normalizeTagCatalog(board.tagCatalog)
+    if (
+      nextTags.length === currentTags.length
+      && nextTags.every((tag, index) => tag === currentTags[index])
+    ) return
+    maybePushHistory()
+    set(s => {
+      const bs = s.boards[boardId]
+      if (!bs) return s
+      return {
+        boards: {
+          ...s.boards,
+          [boardId]: { ...bs, tagCatalog: nextTags },
+        },
+        dirty: true,
+      }
+    })
+  },
+
   createItem: (boardId, kind, opts) => {
     maybePushHistory()
     const id = generateId()
@@ -392,7 +503,14 @@ export const useBoardStore = create<AppState & Actions>()(
       const bs = s.boards[boardId]
       if (!bs) return s
       return {
-        boards: { ...s.boards, [boardId]: { ...bs, items: { ...bs.items, [id]: item } } },
+        boards: {
+          ...s.boards,
+          [boardId]: {
+            ...bs,
+            tagCatalog: normalizeTagCatalog([...(bs.tagCatalog ?? []), ...(item.tags ?? [])]),
+            items: { ...bs.items, [id]: item },
+          },
+        },
         dirty: true,
       }
     })
@@ -409,7 +527,14 @@ export const useBoardStore = create<AppState & Actions>()(
     if (!old) return s
     const updated = { ...old, ...patch, updatedAt: now() }
     return {
-      boards: { ...s.boards, [boardId]: { ...bs, items: { ...bs.items, [itemId]: updated } } },
+      boards: {
+        ...s.boards,
+        [boardId]: {
+          ...bs,
+          tagCatalog: normalizeTagCatalog([...(bs.tagCatalog ?? []), ...(updated.tags ?? [])]),
+          items: { ...bs.items, [itemId]: updated },
+        },
+      },
       dirty: true,
     }
     })
@@ -542,6 +667,84 @@ export const useBoardStore = create<AppState & Actions>()(
       }
     })
     return id
+  },
+
+  createImageAsset: (boardId, dataUrl, opts) => {
+    const current = get()
+    if (!current.boards[boardId]) throw new Error('The active board is no longer available.')
+    const usedImageChars = Object.values(current.boards).reduce(
+      (total, board) =>
+        total
+        + Object.values(board.assets).reduce(
+          (boardTotal, asset) => boardTotal + asset.storageKey.length,
+          0,
+        ),
+      0,
+    )
+    if (usedImageChars + dataUrl.length > IMAGE_ASSET_STORAGE_CHAR_BUDGET) {
+      throw new Error('The image sticker library is full. Remove an image before adding another.')
+    }
+    maybePushHistory()
+    const id = generateId()
+    const asset: AssetEntity = {
+      id,
+      boardId,
+      type: 'image',
+      sourceType: 'user',
+      mimeType: opts.mimeType,
+      name: opts.name,
+      storageKey: dataUrl,
+      width: opts.width,
+      height: opts.height,
+      createdAt: now(),
+      updatedAt: now(),
+    }
+    set(s => {
+      const bs = s.boards[boardId]
+      if (!bs) return s
+      return {
+        boards: {
+          ...s.boards,
+          [boardId]: { ...bs, assets: { ...bs.assets, [id]: asset } },
+        },
+        dirty: true,
+      }
+    })
+    return id
+  },
+
+  deleteImageAsset: (assetId) => {
+    maybePushHistory()
+    set(s => {
+      const entry = Object.entries(s.boards).find(([, board]) => assetId in board.assets)
+      if (!entry) return s
+      const [boardId, board] = entry
+      const { [assetId]: _removedAsset, ...assets } = board.assets
+      const removedOverlayIds = new Set(
+        Object.values(board.overlays)
+          .filter(overlay => overlay.assetId === assetId)
+          .map(overlay => overlay.id),
+      )
+      const overlays = Object.fromEntries(
+        Object.entries(board.overlays).filter(([, overlay]) => overlay.assetId !== assetId),
+      )
+      const selection =
+        s.selection?.type === 'overlay' && removedOverlayIds.has(s.selection.overlayId)
+          ? null
+          : s.selection
+      return {
+        boards: {
+          ...s.boards,
+          [boardId]: { ...board, assets, overlays },
+        },
+        settings:
+          s.settings.placeStickerAssetId === assetId
+            ? { ...s.settings, placeStickerAssetId: null }
+            : s.settings,
+        selection,
+        dirty: true,
+      }
+    })
   },
 
   updateOverlay: (overlayId, patch) => {
@@ -729,7 +932,7 @@ export const useBoardStore = create<AppState & Actions>()(
   ,
     {
       name: 'anniary-storage',
-      version: 9,
+      version: 11,
       migrate: (persisted, _version) => {
         const p = { ...(persisted as Record<string, unknown>) }
         if (p.settings && typeof p.settings === 'object') {
@@ -746,6 +949,8 @@ export const useBoardStore = create<AppState & Actions>()(
             drawTool,
             placeKind: ps.placeKind ?? 'memo',
             placeStickerChar: ps.placeStickerChar?.trim() || '⭐',
+            placeStickerAssetId:
+              typeof ps.placeStickerAssetId === 'string' ? ps.placeStickerAssetId : null,
             drawPenColor: ps.drawPenColor?.startsWith('#') ? ps.drawPenColor : '#2563eb',
             placeMemoWidth: Math.min(120, Math.max(12, ps.placeMemoWidth ?? 40)),
             placeMemoHeight: Math.min(80, Math.max(8, ps.placeMemoHeight ?? 16)),
@@ -771,6 +976,34 @@ export const useBoardStore = create<AppState & Actions>()(
           }
           delete (next as { backlogShowNewlineButton?: boolean }).backlogShowNewlineButton
           p.settings = next
+        }
+
+        if (p.boards && typeof p.boards === 'object' && !Array.isArray(p.boards)) {
+          const nextBoards: Record<string, unknown> = {}
+          for (const [boardId, rawBoard] of Object.entries(p.boards)) {
+            if (!rawBoard || typeof rawBoard !== 'object' || Array.isArray(rawBoard)) {
+              nextBoards[boardId] = rawBoard
+              continue
+            }
+            const boardState = rawBoard as Partial<BoardState>
+            const items = { ...(boardState.items ?? {}) }
+            const legacyTags: string[] = []
+            for (const [itemId, item] of Object.entries(items)) {
+              if (!isLegacyTagPlaceholder(item)) continue
+              legacyTags.push(item.tags![0])
+              delete items[itemId]
+            }
+            nextBoards[boardId] = {
+              ...boardState,
+              tagCatalog: normalizeTagCatalog([
+                ...(boardState.tagCatalog ?? []),
+                ...legacyTags,
+                ...Object.values(items).flatMap(item => item.tags ?? []),
+              ]),
+              items,
+            }
+          }
+          p.boards = nextBoards
         }
 
         p.view = normImportedView(p.view)

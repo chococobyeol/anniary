@@ -104,8 +104,9 @@ export function OverlayDetail() {
     return <div className="panel-placeholder">Overlay not found</div>
   }
 
-  const canText = overlay.type === 'text' || overlay.type === 'sticker'
+  const canText = overlay.type === 'text'
   const memoLink = overlay.type === 'text' && overlay.role === 'semantic'
+  const resizableSticker = overlay.type === 'sticker' || overlay.type === 'image'
 
   return (
     <div className="detail-panel">
@@ -289,6 +290,61 @@ export function OverlayDetail() {
               </option>
             ))}
           </select>
+        </div>
+      )}
+      {resizableSticker && (
+        <div className="detail-add-section" style={{ marginBottom: 8 }}>
+          {overlay.type === 'sticker' ? (
+            <>
+              <span className="detail-add-label">Sticker</span>
+              <input
+                type="text"
+                className="detail-add-input"
+                value={overlay.text ?? ''}
+                placeholder="⭐"
+                onChange={e => updateOverlay(overlay.id, { text: e.target.value })}
+              />
+            </>
+          ) : null}
+          <span className="detail-add-label" style={{ marginTop: overlay.type === 'sticker' ? 12 : 0 }}>
+            Size (board units)
+          </span>
+          <div className="detail-add-row overlay-memo-size-row">
+            <label className="overlay-memo-size-pair">
+              <span>Width</span>
+              <input
+                key={`ow-${overlay.id}-${overlay.width}`}
+                type="number"
+                className="detail-add-input"
+                min={overlay.type === 'image' ? 4 : 6}
+                max={160}
+                step={1}
+                defaultValue={Math.round(overlay.width)}
+                onBlur={e => {
+                  const min = overlay.type === 'image' ? 4 : 6
+                  const value = Math.min(160, Math.max(min, Number(e.target.value) || min))
+                  updateOverlay(overlay.id, { width: value })
+                }}
+              />
+            </label>
+            <label className="overlay-memo-size-pair">
+              <span>Height</span>
+              <input
+                key={`oh-${overlay.id}-${overlay.height}`}
+                type="number"
+                className="detail-add-input"
+                min={overlay.type === 'image' ? 4 : 6}
+                max={160}
+                step={1}
+                defaultValue={Math.round(overlay.height)}
+                onBlur={e => {
+                  const min = overlay.type === 'image' ? 4 : 6
+                  const value = Math.min(160, Math.max(min, Number(e.target.value) || min))
+                  updateOverlay(overlay.id, { height: value })
+                }}
+              />
+            </label>
+          </div>
         </div>
       )}
       {overlay.type === 'shape' && (

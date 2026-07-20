@@ -8,11 +8,14 @@ import {
   tagsAfterRename,
   tagsAfterRemove,
   itemIdsHavingTag,
+  normalizeTagCatalog,
+  remapTagFilter,
 } from '../../utils/tagManagement'
 import { IconPencil, IconTrash, IconPlus } from '../icons/Icons'
 import './TagsPanel.css'
 
 const EMPTY_ITEMS: Record<string, ItemEntity> = {}
+const EMPTY_TAG_CATALOG: string[] = []
 
 type RemoveMode = 'reassign' | 'deleteItems'
 
@@ -27,12 +30,19 @@ export function TagsPanel() {
   const deleteItem = useBoardStore(s => s.deleteItem)
   const beginHistoryBatch = useBoardStore(s => s.beginHistoryBatch)
   const endHistoryBatch = useBoardStore(s => s.endHistoryBatch)
-  const createItem = useBoardStore(s => s.createItem)
+  const setBoardTags = useBoardStore(s => s.setBoardTags)
+  const boardViewFilter = useBoardStore(s => s.settings.boardViewFilter)
+  const updateBoardViewFilter = useBoardStore(s => s.updateBoardViewFilter)
+  const tagCatalog = useBoardStore(s => {
+    const id = s.activeBoardId
+    if (!id) return EMPTY_TAG_CATALOG
+    return s.boards[id]?.tagCatalog ?? EMPTY_TAG_CATALOG
+  })
 
   const rows = useMemo(() => {
     const counts = countItemsPerTag(items)
-    return sortedTagRows(counts)
-  }, [items])
+    return sortedTagRows(counts, tagCatalog)
+  }, [items, tagCatalog])
 
   const [renameFor, setRenameFor] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -51,6 +61,14 @@ export function TagsPanel() {
       .map(r => r.tag)
       .filter(t => normalizeFilterTag(t) !== normalizeFilterTag(removeFor))
   }, [rows, removeFor])
+
+  const remapActiveTagFilter = (fromRaw: string, toRaw?: string) => {
+    const next = remapTagFilter(boardViewFilter.includeTags, fromRaw, toRaw)
+    const current = [...new Set(boardViewFilter.includeTags.map(normalizeFilterTag))].sort()
+    if (next.length !== current.length || next.some((tag, index) => tag !== current[index])) {
+      updateBoardViewFilter({ includeTags: next })
+    }
+  }
 
   const removeAffectedCount = useMemo(() => {
     if (!removeFor) return 0
@@ -80,7 +98,7 @@ export function TagsPanel() {
   }
 
   const applyRename = () => {
-    if (!renameFor) return
+    if (!renameFor || !activeBoardId) return
     const to = renameValue.trim()
     if (!to) return
     if (normalizeFilterTag(to) === normalizeFilterTag(renameFor)) {
@@ -89,10 +107,15 @@ export function TagsPanel() {
     }
     beginHistoryBatch()
     try {
+      setBoardTags(activeBoardId, normalizeTagCatalog([
+        ...tagCatalog.filter(tag => normalizeFilterTag(tag) !== normalizeFilterTag(renameFor)),
+        to,
+      ]))
       for (const [id, item] of Object.entries(items)) {
         const next = tagsAfterRename(item, renameFor, to)
         if (next) updateItem(id, { tags: next })
       }
+      remapActiveTagFilter(renameFor, to)
     } finally {
       endHistoryBatch()
     }
@@ -107,7 +130,7 @@ export function TagsPanel() {
   }
 
   const applyRemoveReassign = () => {
-    if (!removeFor) return
+    if (!removeFor || !activeBoardId) return
     const rep = replacementOptions.length > 0
       ? replaceWith
       : replaceCustom.trim()
@@ -116,10 +139,15 @@ export function TagsPanel() {
 
     beginHistoryBatch()
     try {
+      setBoardTags(activeBoardId, normalizeTagCatalog([
+        ...tagCatalog.filter(tag => normalizeFilterTag(tag) !== normalizeFilterTag(removeFor)),
+        rep,
+      ]))
       for (const [id, item] of Object.entries(items)) {
         const next = tagsAfterRemove(item, removeFor, rep)
         if (next) updateItem(id, { tags: next })
       }
+      remapActiveTagFilter(removeFor, rep)
     } finally {
       endHistoryBatch()
     }
@@ -127,20 +155,18 @@ export function TagsPanel() {
   }
 
   const applyRemoveDeleteItems = () => {
-    if (!removeFor) return
+    if (!removeFor || !activeBoardId) return
     const ids = itemIdsHavingTag(items, removeFor)
-    if (ids.length === 0) {
-      cancelRemove()
-      return
-    }
-    const msg =
-      normalizeFilterTag(removeFor) === FILTER_DEFAULT_TAG
-        ? `Delete ${ids.length} item(s) with no tag / "${FILTER_DEFAULT_TAG}"? This cannot be undone.`
-        : `Delete ${ids.length} item(s) that use "${removeFor}" (including items with multiple tags)? Cannot be undone.`
-    if (!window.confirm(msg)) return
+    const msg = `Delete ${ids.length} item(s) that use "${removeFor}"? You can restore them with Undo.`
+    if (ids.length > 0 && !window.confirm(msg)) return
     beginHistoryBatch()
     try {
+      setBoardTags(
+        activeBoardId,
+        tagCatalog.filter(tag => normalizeFilterTag(tag) !== normalizeFilterTag(removeFor)),
+      )
       for (const id of ids) deleteItem(id)
+      remapActiveTagFilter(removeFor)
     } finally {
       endHistoryBatch()
     }
@@ -179,7 +205,7 @@ export function TagsPanel() {
       setCreateError('That tag already exists.')
       return
     }
-    createItem(activeBoardId, 'task', { tags: [name], title: '' })
+    setBoardTags(activeBoardId, [...tagCatalog, name])
     setNewTagName('')
   }
 
@@ -193,8 +219,7 @@ export function TagsPanel() {
   return (
     <div className="tags-panel">
       <p className="tags-panel-intro">
-        Rename applies to all items with that tag. Remove: move to another tag, or delete those items entirely.
-        Add tag creates one backlog item with that tag (empty title) so it appears in backlog and filters.
+        Create tags independently, then assign them in Backlog. Rename updates every item using that tag.
       </p>
 
       <div className="tags-panel-create">
@@ -317,24 +342,30 @@ export function TagsPanel() {
               <div className="tags-panel-row-compact">
                 <span className="tags-panel-name" title={tag}>{tag}</span>
                 <span className="tags-panel-count">{count}</span>
-                <div className="tags-panel-icon-group">
-                  <button
-                    type="button"
-                    className="tags-panel-icon-btn"
-                    title="Rename"
-                    onClick={() => openRename(tag)}
-                  >
-                    <IconPencil size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="tags-panel-icon-btn danger"
-                    title="Remove tag…"
-                    onClick={() => openRemove(tag)}
-                  >
-                    <IconTrash size={12} />
-                  </button>
-                </div>
+                {normalizeFilterTag(tag) === FILTER_DEFAULT_TAG ? (
+                  <span className="tags-panel-built-in">Default</span>
+                ) : (
+                  <div className="tags-panel-icon-group">
+                    <button
+                      type="button"
+                      className="tags-panel-icon-btn"
+                      title="Rename"
+                      aria-label={`Rename ${tag}`}
+                      onClick={() => openRename(tag)}
+                    >
+                      <IconPencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="tags-panel-icon-btn danger"
+                      title="Remove tag…"
+                      aria-label={`Remove ${tag}`}
+                      onClick={() => openRemove(tag)}
+                    >
+                      <IconTrash size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </li>
@@ -342,7 +373,7 @@ export function TagsPanel() {
       </ul>
 
       <p className="tags-panel-footnote">
-        “{FILTER_DEFAULT_TAG}” = no tag. Delete-items on it removes those backlog-style items.
+        “{FILTER_DEFAULT_TAG}” is the built-in label for items without a custom tag.
       </p>
     </div>
   )

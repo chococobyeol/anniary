@@ -185,7 +185,7 @@ mode는 icon 선택으로 변경된다.
 입력 UI
 
 - **상단**: textarea + 추가 버튼만. Enter = 추가, Shift+Enter = 줄바꿈.
-- **태그 행**: 기존 태그 칩(기본 "일반" + 항목에서 추출된 태그) + "+ 새 태그" 입력. 선택 없으면 "일반".
+- **태그 행**: 기본 `General` + 독립 태그 카탈로그 + 항목에서 추출된 태그 칩, 그리고 "+ New tag" 입력. 선택 없으면 `General`. 태그 추가는 빈 item을 만들지 않는다.
 - 날짜/기간/메모는 백로그에서 받지 않음 → 디테일·보드에서 할당.
 
 목록 UI
@@ -194,15 +194,16 @@ mode는 icon 선택으로 변경된다.
 - **표시 제한**: 설정에서 "전부 보기" 또는 "최근 N개"(updatedAt 기준).
 - 그룹 내·전체 정렬: **updatedAt 내림차순**.
 - 완료 항목: 접이식 "완료됨" 섹션.
+- 날짜·기간·item 선택으로 목록이 좁혀지면 현재 범위와 **Show all**을 노출한다.
 
 기능
 
 - create item (제목 + 태그)
-- edit title / body (항목 클릭·펼침)
+- edit title / body (명시적 Edit 버튼 또는 항목 본문 클릭 → detail; 펼침은 본문 미리보기만)
 - set status (완료 토글)
 - assign date / assign range (디테일·보드에서)
 - open detail
-- drag to board (예정)
+- drag to memo overlay (해당 item 연결)
 
 **보드 연동 (현재 구현)**
 
@@ -590,13 +591,13 @@ mode는 global state
 
 차이
 
-panel width = full
+panel width = fixed default, capped by available viewport width
 
 icon bar = overlay
 
-right panel = full sheet
+right panel = fixed overlay panel
 
-left panel = full sheet
+left panel = fixed overlay panel (board context may remain visible)
 
 mode 유지
 
