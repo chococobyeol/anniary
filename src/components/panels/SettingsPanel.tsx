@@ -1,100 +1,11 @@
 import { useRef } from 'react'
 import { useBoardStore } from '../../store/board-store'
-import type { AppSettings, DayLayout, DrawStrokeWeight } from '../../types/state'
-import { normalizeBoardViewFilter } from '../../utils/boardViewFilter'
+import type { DayLayout } from '../../types/state'
+import { createManualBackupPayload, normalizeImportedSettings } from '../../utils/backup'
 import { validateBackupPayload } from '../../utils/backupValidation'
+import { GoogleDriveSyncSettings } from './GoogleDriveSyncSettings'
 import { HelpTip } from './detail/HelpTip'
 import './SettingsPanel.css'
-
-function normImportedDrawWeight(w: unknown, fallback: DrawStrokeWeight): DrawStrokeWeight {
-  return w === 'thin' || w === 'medium' || w === 'thick' ? w : fallback
-}
-
-function finiteBetween(value: unknown, min: number, max: number, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(max, Math.max(min, value))
-    : fallback
-}
-
-function hexColor(value: unknown, fallback: string): string {
-  return typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)
-    ? value
-    : fallback
-}
-
-function normalizeImportedSettings(
-  imported: Partial<AppSettings> | undefined,
-  current: AppSettings,
-  selectedAssetExists: (assetId: string) => boolean,
-): AppSettings {
-  if (!imported) return current
-  const drawTools = ['pen', 'highlighter', 'rect', 'ellipse', 'textbox', 'eraser']
-  const backlogLimit = imported.backlogDisplayLimit
-  const selectedAssetId = imported.placeStickerAssetId
-  return {
-    ...current,
-    dayLayout:
-      imported.dayLayout === 'linear' || imported.dayLayout === 'weekday-aligned'
-        ? imported.dayLayout
-        : current.dayLayout,
-    zoomInverted:
-      typeof imported.zoomInverted === 'boolean' ? imported.zoomInverted : current.zoomInverted,
-    backlogDisplayLimit:
-      backlogLimit === null
-        ? null
-        : typeof backlogLimit === 'number' && Number.isFinite(backlogLimit) && backlogLimit > 0
-          ? Math.round(backlogLimit)
-          : current.backlogDisplayLimit,
-    showNewlineInsertButton:
-      typeof imported.showNewlineInsertButton === 'boolean'
-        ? imported.showNewlineInsertButton
-        : current.showNewlineInsertButton,
-    boardViewFilter: normalizeBoardViewFilter(imported.boardViewFilter ?? current.boardViewFilter),
-    drawTool: drawTools.includes(String(imported.drawTool))
-      ? imported.drawTool!
-      : current.drawTool,
-    placeKind:
-      imported.placeKind === 'memo' || imported.placeKind === 'sticker'
-        ? imported.placeKind
-        : current.placeKind,
-    placeStickerChar:
-      typeof imported.placeStickerChar === 'string' && imported.placeStickerChar.trim()
-        ? imported.placeStickerChar.trim()
-        : current.placeStickerChar,
-    placeStickerAssetId:
-      typeof selectedAssetId === 'string' && selectedAssetExists(selectedAssetId)
-        ? selectedAssetId
-        : null,
-    drawPenColor: hexColor(imported.drawPenColor, current.drawPenColor),
-    placeMemoWidth: finiteBetween(imported.placeMemoWidth, 12, 120, current.placeMemoWidth),
-    placeMemoHeight: finiteBetween(imported.placeMemoHeight, 8, 80, current.placeMemoHeight),
-    placeMemoPaperColor: hexColor(imported.placeMemoPaperColor, current.placeMemoPaperColor),
-    drawPenWidthWeight: normImportedDrawWeight(
-      imported.drawPenWidthWeight,
-      current.drawPenWidthWeight,
-    ),
-    drawHighlighterColor: hexColor(
-      imported.drawHighlighterColor,
-      current.drawHighlighterColor,
-    ),
-    drawHighlighterWidthWeight: normImportedDrawWeight(
-      imported.drawHighlighterWidthWeight,
-      current.drawHighlighterWidthWeight,
-    ),
-    drawShapeStrokeColor: hexColor(
-      imported.drawShapeStrokeColor,
-      current.drawShapeStrokeColor,
-    ),
-    drawShapeFillColor:
-      imported.drawShapeFillColor === 'transparent' || imported.drawShapeFillColor === 'none'
-        ? imported.drawShapeFillColor
-        : hexColor(imported.drawShapeFillColor, current.drawShapeFillColor),
-    drawShapeStrokeWeight: normImportedDrawWeight(
-      imported.drawShapeStrokeWeight,
-      current.drawShapeStrokeWeight,
-    ),
-  }
-}
 
 const COPY_NEWLINE_BUTTON_HELP =
   'Adds ↵ next to backlog and markdown fields to insert a line break—useful when Shift+Enter is hard on touch keyboards.'
@@ -143,6 +54,8 @@ export function SettingsPanel() {
           </div>
         </div>
       </div>
+
+      <GoogleDriveSyncSettings />
 
       <div className="settings-section">
         <div className="settings-section-title">Zoom</div>
@@ -281,20 +194,7 @@ export function SettingsPanel() {
                 className="settings-btn"
                 onClick={() => {
                   const s = useBoardStore.getState()
-                  const payload = {
-                    anniaryExportVersion: 2,
-                    exportedAt: new Date().toISOString(),
-                    boards: s.boards,
-                    activeBoardId: s.activeBoardId,
-                    settings: s.settings,
-                    view: s.view,
-                    panel: s.panel,
-                    interactionMode: s.interactionMode,
-                    selection: s.selection,
-                    lastTouchedItemId: s.lastTouchedItemId,
-                    rangeEditPreview: s.rangeEditPreview,
-                    dirty: s.dirty,
-                  }
+                  const payload = createManualBackupPayload(s)
                   const blob = new Blob([JSON.stringify(payload, null, 2)], {
                     type: 'application/json',
                   })

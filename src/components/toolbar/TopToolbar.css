@@ -367,6 +367,32 @@
   border-color: color-mix(in srgb, var(--status-in-progress) 35%, transparent);
 }
 
+.toolbar-settings-btn {
+  position: relative;
+}
+
+.toolbar-sync-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-done);
+  box-shadow: 0 0 0 1.5px var(--bg-toolbar);
+}
+
+.toolbar-sync-dot--checking,
+.toolbar-sync-dot--syncing,
+.toolbar-sync-dot--changes {
+  background: var(--status-in-progress);
+}
+
+.toolbar-sync-dot--conflict,
+.toolbar-sync-dot--error {
+  background: var(--status-delayed);
+}
+
 .toolbar-divider {
   width: 1px;
   height: 18px;

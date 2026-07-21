@@ -8,7 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:cloudflare": "npm run build && wrangler pages dev",
+    "deploy": "npm run build && wrangler pages deploy",
+    "cf:typecheck": "tsc -p tsconfig.worker.json",
+    "cf:migrate:local": "wrangler d1 migrations apply anniary --local",
+    "cf:migrate:remote": "wrangler d1 migrations apply anniary --remote"
   },
   "dependencies": {
     "dexie": "^4.3.0",
@@ -20,6 +25,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@eslint/js": "^9.39.4",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^24.12.0",
@@ -33,6 +39,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^6.4.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.86.0"
   }
 }

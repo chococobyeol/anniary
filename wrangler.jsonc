@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anniary",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-05-03",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "anniary",
+      "database_id": "400ed015-6b13-40f4-b7f4-83dde32595bd",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardStore } from '../../store/board-store'
+import { useDriveSync } from '../../sync/driveSyncContext'
 import type { InteractionMode, PlaceKind } from '../../types/state'
 import type { DrawToolKind } from '../../types/entities'
 import { fitToScreenRef } from '../../utils/fitToScreen'
@@ -63,6 +64,7 @@ const MODES: { mode: InteractionMode; label: string; Icon: typeof IconMove }[] =
 ]
 
 export function TopToolbar() {
+  const driveSync = useDriveSync()
   const interactionMode = useBoardStore(s => s.interactionMode)
   const setInteractionMode = useBoardStore(s => s.setInteractionMode)
   const settings = useBoardStore(s => s.settings)
@@ -462,11 +464,17 @@ export function TopToolbar() {
       <div className="toolbar-right">
         <button
           type="button"
-          className="toolbar-btn"
+          className="toolbar-btn toolbar-settings-btn"
           onClick={() => toggleRightPanel('settings')}
-          title="Settings"
+          title={driveSync.connected ? `Settings · Drive ${driveSync.phase}` : 'Settings'}
         >
           <IconSettings size={16} />
+          {driveSync.connected && (
+            <span
+              className={`toolbar-sync-dot toolbar-sync-dot--${driveSync.phase}`}
+              aria-hidden="true"
+            />
+          )}
         </button>
       </div>
     </header>

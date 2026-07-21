@@ -499,27 +499,28 @@ command
 
 ---
 
-## 24. sync 구조 (v1 설계만)
+## 24. Google Drive sync 구조 (구현됨)
 
-sync는 옵션
+sync는 앱 사용에 필수가 아닌 선택 기능이다. 연결하지 않으면 기존 local-first 동작을 그대로 유지한다.
 
 구조
 
 ```
-local state
-+
-remote state
-+
-merge
+localStorage state
++ local payload hash / last synced Drive version
++ Google Drive: Anniary/anniary-data.json
++ Cloudflare Pages Functions + D1: OAuth session / encrypted refresh token / file metadata
 ```
 
-필요
+정책
 
-* version
-* change id
-* timestamp
-
-v1 구현 안 해도 됨
+* Google OAuth `drive.file` 범위만 사용한다.
+* 앱이 만들거나 사용자가 앱에 명시적으로 연결한 파일만 접근한다.
+* Drive 파일 version과 마지막 동기화 당시 local hash를 비교한다.
+* 한쪽만 바뀐 경우 자동 반영하고, 양쪽이 바뀐 경우 사용자가 Drive copy 또는 This device를 선택한다.
+* 자동 동기화는 로컬 변경 후 debounce되며 설정에서 끌 수 있다.
+* JSON 파일은 사용자가 Drive에서 직접 열거나 다운로드할 수 있다.
+* 연결 해제는 서버의 토큰과 세션을 삭제하지만 Drive의 JSON 파일은 남긴다.
 
 ---
 

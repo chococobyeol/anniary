@@ -1,98 +1,48 @@
 # Anniary
 
-연간 캘린더 보드에서 일정·기간(range)·백로그를 다루는 웹 앱입니다. (React + TypeScript + Vite)
+Anniary is a local-first annual planner for schedules, ranges, backlog items, drawings, and stickers.
 
-## 문서
+- Live app: [anniary.pages.dev](https://anniary.pages.dev/)
+- Privacy policy: [anniary.pages.dev/privacy](https://anniary.pages.dev/privacy)
 
-| 문서 | 내용 |
-|------|------|
-| [docs/TIMELINE_BARS.md](./docs/TIMELINE_BARS.md) | 연간 보드 **기간 막대** 표시, **숨김**, **우선순위** |
-| [docs/MISTAKE_LOG.md](./docs/MISTAKE_LOG.md) | 개발 중 회고·재발 방지 메모 |
-| [docs/IMPLEMENTATION_CHECKLIST.md](./docs/IMPLEMENTATION_CHECKLIST.md) | 구현 체크리스트 |
-| [docs/prd_v2_entity.md](./docs/prd_v2_entity.md) 등 | PRD / 엔티티 초안 |
-
-## 개발
+## Development
 
 ```bash
 npm install
 npm run dev
+npm test
+npm run lint
 npm run build
+npm run cf:typecheck
 ```
 
----
+## Storage and optional sync
 
-아래는 Vite 템플릿 기본 안내입니다.
+The app works without an account and keeps its working data in the browser. JSON export/import is available for manual backups.
 
-## React + TypeScript + Vite
+Optional Google Drive sync stores a visible `Anniary/anniary-data.json` file in the connected user's Drive. It requests the narrow `drive.file` scope, compares the Drive file version with a local payload hash, and asks the user which copy to keep when both changed.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Cloudflare Pages serves the static app. Pages Functions handle only `/api/*`, while D1 stores encrypted Google authorization data, sessions, and Drive file identifiers. OAuth secrets are Cloudflare project secrets and are not committed to this repository.
 
-Currently, two official plugins are available:
+## Cloudflare deployment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-### React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-### Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run cf:migrate:remote
+npm run deploy
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The Pages project, D1 binding, and the following encrypted secrets must exist before Google Drive sign-in can work:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `TOKEN_ENCRYPTION_KEY`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+The production Google OAuth redirect URI is:
+
+```text
+https://anniary.pages.dev/api/auth/google/callback
 ```
+
+## Product documents
+
+The main product specification is in [`docs/prd_v2.md`](./docs/prd_v2.md). The implementation checklist and focused storage, interaction, and overlay documents live in the same directory.

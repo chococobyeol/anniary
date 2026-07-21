@@ -249,9 +249,9 @@
 ### Phase 9 — 고급 기능
 - [x] Undo/Redo
 - [ ] Command log
-- [ ] 동기화 구조 (version, conflict)
-- [ ] Google Drive 백업
-- [ ] 로그인/세션 유지
+- [x] Google Drive 동기화 구조 (Drive file version + local hash 기반 conflict 선택)
+- [x] Google Drive 백업 (`Anniary/anniary-data.json`, `drive.file` 최소 권한)
+- [x] 선택적 Google 로그인/세션 유지 (Cloudflare Pages Functions + D1, 90일 세션)
 - [ ] Toast 알림 시스템
 
 ### Phase 10 — AI/MCP 대응

@@ -188,6 +188,70 @@
   background: color-mix(in srgb, var(--status-delayed) 12%, var(--bg-cell));
 }
 
+.settings-sync-section {
+  padding: 6px 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.settings-sync-message {
+  margin: 2px 4px 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.settings-sync-message--error {
+  color: var(--status-delayed);
+}
+
+.settings-sync-conflict {
+  margin: 4px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--status-delayed) 35%, var(--border-light));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--status-delayed) 7%, var(--bg-cell));
+}
+
+.settings-sync-conflict p {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.settings-sync-conflict-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-sync-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px;
+  font-size: var(--font-size-xs);
+}
+
+.settings-sync-links a,
+.settings-sync-links button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.settings-sync-links a:hover,
+.settings-sync-links a:focus-visible,
+.settings-sync-links button:hover,
+.settings-sync-links button:focus-visible {
+  color: var(--text-primary);
+}
+
 .settings-footer {
   margin-top: auto;
   padding: 16px 4px 8px;
